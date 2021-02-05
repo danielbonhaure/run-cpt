@@ -1,0 +1,2 @@
+
+models: ['nmme', 'ncar_ccsm4', 'nasa', 'gfdl' , 'gfdl_flor', 'cmc2', 'cmc1', 'cfsv2']
