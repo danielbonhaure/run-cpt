@@ -1,2 +1,17 @@
 
 models: ['nmme', 'ncar_ccsm4', 'nasa', 'gfdl' , 'gfdl_flor', 'cmc2', 'cmc1', 'cfsv2']
+
+url:
+  templates:
+    # trgt_type: "monthly" or "seasonal", file_type: "hindcast" or "forecast"
+    predictor: "https://ftp.cpc.ncep.noaa.gov/International/nmme/${trgt_type}_nmme_${file_type}_in_cpt_format/${file_name}"
+    predictand: ""
+
+folders:
+  raw_data:
+    hindcasts: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/hindcasts/"
+    forecasts: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/forecasts/"
+    chirps: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/chirps/"
+  predictors: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictors/"
+  predictands: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictands/"
+
