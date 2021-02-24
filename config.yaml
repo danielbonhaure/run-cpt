@@ -1,5 +1,56 @@
 
-models: ['nmme', 'ncar_ccsm4', 'nasa', 'gfdl' , 'gfdl_flor', 'cmc2', 'cmc1', 'cfsv2']
+run_cpt: False
+force_raw_data_download: False
+force_input_files_creation: False
+
+target_season:
+  mons: 'Jan'  # Start month
+  tgts: 'Feb-Apr'  # Target period
+
+forecast_data:
+  fyr: 2020  # Forecast first year
+  monf: 'Jan'  # Initialization month / First month
+  nfcsts: 2  # Number of forecast years (1: [2020], 2: [2020,2021], 3: [2020,2021,2022])
+
+models:
+  nmme:
+    predictors: [ 'precip', 'tmp2m' ]
+    predictands: [ 'precip', 'tmp2m' ]
+  ncar_ccsm4:
+    predictors: [ 'precip', 'tmp2m' ]
+    predictands: [ 'precip', 'tmp2m' ]
+  nasa:
+    predictors: [ 'precip' ]
+    predictands: [ 'precip' ]
+  gfdl:
+    fcsf_name: 'gfdl_spear'
+    predictors: [ 'precip', 'tmp2m' ]
+    predictands: [ 'precip', 'tmp2m' ]
+  gfdl_flor:
+    fcsf_name: 'gfdl_spear_flor'
+    predictors: [ 'precip', 'tmp2m' ]
+    predictands: [ 'precip', 'tmp2m' ]
+  cmc2:
+    predictors: [ 'precip', 'tmp2m' ]
+    predictands: [ 'precip', 'tmp2m' ]
+  cmc1:
+    predictors: [ 'precip', 'tmp2m' ]
+    predictands: [ 'precip', 'tmp2m' ]
+  cfsv2:
+    predictors: [ 'precip', 'tmp2m' ]
+    predictands: [ 'precip', 'tmp2m' ]
+
+spatial_domain:
+  predictor:
+    nla: -10 # Northernmost latitude
+    sla: -60  # Southernmost latitude
+    wlo: 270  # Westernmost longitude
+    elo: 330  # Easternmost longitude
+  predictand:
+    nla: -10 # Northernmost latitude
+    sla: -52  # Southernmost latitude
+    wlo: -78  # Westernmost longitude
+    elo: -36  # Easternmost longitude
 
 url:
   templates:
@@ -14,4 +65,4 @@ folders:
     chirps: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/chirps/"
   predictors: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictors/"
   predictands: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictands/"
-
+  output: "/home/dbonhaure/PycharmProjects/PyCPT/output/"

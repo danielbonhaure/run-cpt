@@ -1,138 +1,16 @@
 
+from components import *
+
+from errors import ConfigError
+from helpers import ProgressBar, ConfigProcessor
+
 import os
 import yaml
 import subprocess
+import pathlib
 
-from typing import List
+from typing import List, Dict
 from dataclasses import dataclass, field, InitVar
-
-from errors import ConfigError
-from helpers import MonthsProcessor, ProgressBar
-
-
-@dataclass
-class TargetSeason:
-    mons: str  # ,'Feb','Mar','Apr','May','Jun','Jul','Aug']
-    tgts: str  # ,'Mar-May','Apr-Jun','May-Jul','Jun-Aug','Jul-Sep']
-
-
-@dataclass
-class ForecastData:
-    fyr: int  # Forecast first year
-    monf: str  # Initialization month
-    nfcsts: int  # Number of forecasts
-
-
-@dataclass
-class TrainingPeriod:
-    trgt_season: InitVar[TargetSeason] = None
-    # Start and end of the training period: (must be >1982 for NMME models. Because of CanSIPSv2, probably end in 2018)
-    tini: int = 1982
-    tend: int = 2010
-
-    @property
-    def ntrain(self) -> int:  # Length of training period
-        return self.tend - self.tini + 1
-
-    def __post_init__(self, trgt_season):
-        if trgt_season and MonthsProcessor.target_in_next_year(trgt_season.mons, trgt_season.tgts):
-            self.tini += 1
-            self.tend += 1
-
-
-@dataclass
-class SpatialDomain:
-    nla: int  # Northernmost latitude
-    sla: int  # Southernmost latitude
-    wlo: int  # Westernmost longitude
-    elo: int  # Easternmost longitude
-
-
-@dataclass
-class PredictorXVariables:
-    spatial_domain: SpatialDomain
-
-    # Predictor (choose between GCM's PRCP, VQ, UQ, T2M)
-    # VQ and UQ only works with models=['NCEP-CFSv2']
-    predictor: str
-
-    # File that contains input data
-    file_name: str = None
-
-    # Minimum number of X modes
-    xmodes_min: int = 1
-    # Maximum number of X modes
-    xmodes_max: int = 10
-
-    def set_file_name(self, model: str, fcst_data: ForecastData, trng_period: TrainingPeriod,
-                      trgt_season: TargetSeason):
-        variable = 'precip' if self.predictor == 'PRCP' else 'tmp2m'
-        months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
-        self.file_name = f"input/{model}_{variable}_{fcst_data.monf}ic_{months_indexes}_" \
-                         f"{trng_period.tini}-{trng_period.tend}_" \
-                         f"{fcst_data.fyr}-{fcst_data.fyr + fcst_data.nfcsts - 1}.txt"
-
-
-@dataclass
-class PredictandYVariables:
-    spatial_domain: SpatialDomain
-
-    # Predictand (choose between PRCP, RFREQ)
-    predictand: str
-
-    # File that contains input data
-    file_name: str = None
-
-    # Indicates the file-type.
-    # Valid file types are "station files" and "unreferenced or index files"
-    station: bool = False
-
-    # Minimum number of Y modes
-    ymodes_min: int = 1
-    # Maximum number of Y modes
-    ymodes_max: int = 10
-
-    # Minimum number of CCA modes
-    ccamodes_min: int = 1
-    # Maximum number of CCAmodes
-    ccamodes_max: int = 10
-
-    def set_file_name(self, fcst_data: ForecastData, trgt_season: TargetSeason):
-        variable = 'PRECIPITACION' if self.predictand == 'PRCP' else 'TEMPERATURA'
-        months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
-        self.file_name = f"input/{variable}_{months_indexes}_{fcst_data.fyr}.txt"
-
-
-@dataclass
-class ForecastVariables:
-    spatial_domain: SpatialDomain
-
-    # Variable (choose between PRCP, T2M)
-    variable: str
-
-    # File that contains input data
-    file_name: str = None
-
-    def set_file_name(self, model: str, fcst_data: ForecastData, trgt_season: TargetSeason):
-        variable = 'precip' if self.variable == 'PRCP' else 'tmp2m'
-        months_abbr = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
-        add_year = MonthsProcessor.target_in_next_year(fcst_data.monf, trgt_season.tgts)
-        self.file_name = f"input/{model}_{variable}_fcst_{fcst_data.monf}ic_{months_abbr}_" \
-                         f"{fcst_data.fyr}-{fcst_data.fyr + 1 if add_year else fcst_data.fyr}.txt"
-
-
-@dataclass
-class OutputFile:
-
-    # File that contains ouput data
-    file_name: str = None
-
-    def set_file_name(self, model: str, target_season: TargetSeason,
-                      predictor_data: PredictorXVariables, predictand_data: PredictandYVariables,
-                      forecast_data: ForecastData):
-        months_abbr = MonthsProcessor.month_abbr_to_month_num_as_str(target_season.tgts)
-        self.file_name = f"output/{model}_{predictor_data.predictor}-{predictand_data.predictand}_" \
-                         f"{forecast_data.monf}ic_{months_abbr}_{forecast_data.fyr}.txt"
 
 
 @dataclass
@@ -161,19 +39,43 @@ class ConfigCPT:
     # The output file can be inferred by others properties.
     output_file: OutputFile = None
 
-    def __post_init__(self):
-        self.training_period = TrainingPeriod(self.target_season)
-        self.predictor_data.set_file_name(self.model, self.forecast_data, self.training_period, self.target_season)
-        self.predictand_data.set_file_name(self.forecast_data, self.target_season)
-        if not self.output_file:
-            self.output_file = OutputFile()
-        self.output_file.set_file_name(self.model, self.target_season, self.predictor_data, self.predictand_data,
-                                       self.forecast_data)
+    # The cpt config file (config.yaml)
+    cpt_config: InitVar[Dict] = None
 
-    def create_params_file(self):
+    def __post_init__(self, cpt_config):
+        self.training_period = TrainingPeriod(
+            trgt_season=self.target_season
+        )
+        if not self.predictor_data.file_obj:
+            self.predictor_data.file_obj = PredictorFile(
+                model=self.model,
+                predictor=self.predictor_data.predictor,
+                fcst_data=self.forecast_data,
+                trgt_season=self.target_season,
+                trng_period=self.training_period,
+                cpt_config=cpt_config
+            )
+        if not self.predictand_data.file_obj:
+            self.predictand_data.file_obj = PredictandFile(
+                predictand=self.predictand_data.predictand,
+                fcst_data=self.forecast_data,
+                trgt_season=self.target_season,
+                cpt_config=cpt_config
+            )
+        if not self.output_file:
+            self.output_file = OutputFile(
+                model=self.model,
+                fcst_data=self.forecast_data,
+                trgt_season=self.target_season,
+                predictor_data=self.predictor_data,
+                predictand_data=self.predictand_data,
+                cpt_config=cpt_config
+            )
+
+    def create_params_file(self, params_file: str):
         """Function to write CPT namelist file"""
 
-        f = open(self.output_file.file_name.replace('.txt', '_params'), "w")
+        f = open(params_file, "w")
 
         if self.mos == 'CCA':
             # Opens CCA
@@ -187,7 +89,7 @@ class ConfigCPT:
 
         # Opens X input file
         f.write("1\n")
-        f.write(f"{self.predictor_data.file_name}\n")
+        f.write(f"{self.predictor_data.file_obj.abs_path}\n")
         # Nothernmost latitude
         f.write(f"{str(self.predictor_data.spatial_domain.nla)}\n")
         # Southernmost latitude
@@ -204,7 +106,7 @@ class ConfigCPT:
 
         # Opens Y input file
         f.write("2\n")
-        f.write(f"{self.predictand_data.file_name}\n")
+        f.write(f"{self.predictand_data.file_obj.abs_path}\n")
         if not self.predictand_data.station:
             # Nothernmost latitude
             f.write(f"{str(self.predictand_data.spatial_domain.nla)}\n")
@@ -265,7 +167,7 @@ class ConfigCPT:
             f.write("111\n")
             # Save deterministic forecasts [mu for Gaussian fcst pdf]
             f.write("511\n")
-            f.write(f"{self.output_file.file_name}\n")
+            f.write(f"{self.output_file.abs_path}\n")
 
         # Exit
         f.write("0\n")
@@ -278,13 +180,22 @@ class CPT:
     def __init__(self, config_file: str = 'config.yaml', cpt_bin_dir: str = None):
         self.config_file: str = config_file
         self.cpt_bin_dir: str = cpt_bin_dir
-        self.config: dict = self.load_config()
+        self.config: dict = self.__load_config()
+        self.__check_and_create_folders()
 
-    def load_config(self) -> dict:
+    def __load_config(self) -> dict:
         if not os.path.exists(self.config_file):
             raise ConfigError(f"Configuration file (i.e. {self.config_file}) not found!")
         with open(self.config_file, 'r') as f:
             return yaml.safe_load(f)
+
+    def __check_and_create_folders(self):
+        """Create directories to storage data (if needed)"""
+        for folder in ConfigProcessor.nested_dict_values(self.config.get('folders')):
+            if not os.access(pathlib.Path(folder).parent, os.W_OK):
+                err_msg = f"{pathlib.Path(folder).parent} is not writable"
+                raise ConfigError(err_msg)
+            pathlib.Path(folder).mkdir(parents=True, exist_ok=True)
 
     def setup_cpt_environment(self) -> None:
         """Setup CPT environment"""
@@ -294,15 +205,34 @@ class CPT:
             raise ConfigError(f"La variable de entorno CPT_BIN_DIR no ha sido definida!")
 
     def create_targets(self) -> List[ConfigCPT]:
-        for model in self.config.get('models'):
-            cpt_config: ConfigCPT = ConfigCPT(
-                model=model,
-                target_season=TargetSeason(mons='Jan', tgts='Feb-Apr'),
-                forecast_data=ForecastData(monf='Jan', fyr=2020, nfcsts=2),
-                predictor_data=PredictorXVariables(spatial_domain=SpatialDomain(-10, -60, 270, 330), predictor='PRCP'),
-                predictand_data=PredictandYVariables(spatial_domain=SpatialDomain(-10, -52, -78, -36), predictand='PRCP')
-            )
-            yield cpt_config
+        # Get spatial domains from config
+        spd_predictor = self.config.get('spatial_domain').get('predictor')
+        spd_predictand = self.config.get('spatial_domain').get('predictand')
+        # Get target season from config
+        trgt_season = self.config.get('target_season')
+        # Get forecast data from config
+        fcst_data = self.config.get('forecast_data')
+
+        # Generate ConfigCPT instances
+        for model in self.config.get('models').keys():
+            all_predictors = self.config.get('models').get(model).get('predictors')
+            all_predictands = self.config.get('models').get(model).get('predictands')
+            for predictor, predictand in zip(all_predictors, all_predictands):
+                cpt_config: ConfigCPT = ConfigCPT(
+                    model=model,
+                    target_season=TargetSeason(**trgt_season),
+                    forecast_data=ForecastData(**fcst_data),
+                    predictor_data=PredictorXVariables(
+                        spatial_domain=SpatialDomain(**spd_predictor),
+                        predictor=predictor
+                    ),
+                    predictand_data=PredictandYVariables(
+                        spatial_domain=SpatialDomain(**spd_predictand),
+                        predictand=predictand
+                    ),
+                    cpt_config=self.config
+                )
+                yield cpt_config
 
     @staticmethod
     def lines_that_contain(string, fp):
@@ -313,36 +243,44 @@ class CPT:
 
         # Create progress bar
         run_status = f'Running CPT (PID: {os.getpid()})'
-        progress_bar = ProgressBar(len(self.config.get('models')), run_status)
-        progress_bar.report_advance(0)
+        total_targets = ConfigProcessor.count_iterations(self.config.get('models'))
+        progress_bar = ProgressBar(total_targets, run_status)
+
+        # Open/start progress bar
+        progress_bar.open()
 
         for t in self.create_targets():
 
+            # Define cpt params file
+            params_file = t.output_file.abs_path.replace('.txt', '_params')
+
             # Create params file
-            t.create_params_file()
+            t.create_params_file(params_file)
 
-            # Define files to be used
-            params_file = t.output_file.file_name.replace('.txt', '_params')
-            cpt_logfile = t.output_file.file_name.replace('.txt', '.log')
+            # Check if CPT must be executed or not
+            if self.config.get('run_cpt', True):
 
-            # Set up CPT environment
-            self.setup_cpt_environment()
+                # Set up CPT environment
+                self.setup_cpt_environment()
 
-            # Run CPT
-            try:
-                print("fake run")
-                # subprocess.check_output(f"{self.cpt_bin_dir}/CPT.x < {params_file} > {cpt_logfile}",
-                #                         stderr=subprocess.STDOUT, shell=True)
-            except subprocess.CalledProcessError as e:
-                print(e.output.decode())
-                raise
-            else:
-                progress_bar.report_advance(1)
+                # Define cpt log file
+                cpt_logfile = t.output_file.abs_path.replace('.txt', '.log')
 
-            # Check for errors
-            with open(cpt_logfile, "r") as fp:
-                for line in self.lines_that_contain("Error:", fp):
-                    print(line)
+                # Run CPT
+                try:
+                    subprocess.check_output(f"{self.cpt_bin_dir}/CPT.x < {params_file} > {cpt_logfile}",
+                                            stderr=subprocess.STDOUT, shell=True)
+                except subprocess.CalledProcessError as e:
+                    print(e.output.decode())
+                    raise
+
+                # Check for errors
+                with open(cpt_logfile, "r") as fp:
+                    for line in self.lines_that_contain("Error:", fp):
+                        print(line)
+
+            # Report progress
+            progress_bar.report_advance(1)
 
         # Close progress bar
         progress_bar.close()
