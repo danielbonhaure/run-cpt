@@ -1,0 +1,13 @@
+
+spatial_domain:
+  predictor:
+    nla: -10 # Northernmost latitude
+    sla: -60  # Southernmost latitude
+    wlo: 270  # Westernmost longitude
+    elo: 330  # Easternmost longitude
+  predictand:
+    nla: -10 # Northernmost latitude
+    sla: -52  # Southernmost latitude
+    wlo: -78  # Westernmost longitude
+    elo: -36  # Easternmost longitude
+
