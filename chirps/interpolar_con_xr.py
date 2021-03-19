@@ -1,8 +1,8 @@
 
-import sys
-import os
-sys.path.extend(['/home/dbonhaure/PycharmProjects/PyCPT/chirps'])
-os.chdir('chirps')
+# import sys
+# import os
+# sys.path.extend(['/home/dbonhaure/PycharmProjects/PyCPT/chirps'])
+# os.chdir('chirps')
 
 
 import json
