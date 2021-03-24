@@ -1,68 +1,94 @@
 
 run_cpt: False
-force_raw_data_download: False
-force_input_files_creation: False
+
+update:
+  predictors:
+    raw_data: False
+    intermediate_data: False
+    cpt_input_data: True
+  predictands:
+    raw_data: False
+    intermediate_data: False
+    cpt_input_data: True
 
 target_season:
   mons: 'Jan'  # Start month
   tgts: 'Feb-Apr'  # Target period
 
 forecast_data:
-  fyr: 2020  # Forecast first year
+  fyr: 2020  # Forecast first year (year of monf, if target season are in next year, it will be adjusted automatically)
   monf: 'Jan'  # Initialization month / First month
   nfcsts: 2  # Number of forecast years (1: [2020], 2: [2020,2021], 3: [2020,2021,2022])
 
 models:
   nmme:
     predictors: [ 'precip', 'tmp2m' ]
-    predictands: [ 'precip', 'tmp2m' ]
+    predictands:
+      variables: [ 'prcp', 't2m' ]
+      data_sources: [ 'chirps', 'era5-land' ]
   ncar_ccsm4:
     predictors: [ 'precip', 'tmp2m' ]
-    predictands: [ 'precip', 'tmp2m' ]
+    predictands:
+      variables: [ 'prcp', 't2m' ]
+      data_sources: [ 'chirps', 'era5-land' ]
   nasa:
     predictors: [ 'precip' ]
-    predictands: [ 'precip' ]
+    predictands:
+      variables: [ 'prcp' ]
+      data_sources: [ 'chirps' ]
   gfdl:
     fcsf_name: 'gfdl_spear'
     predictors: [ 'precip', 'tmp2m' ]
-    predictands: [ 'precip', 'tmp2m' ]
+    predictands:
+      variables: [ 'prcp', 't2m' ]
+      data_sources: [ 'chirps', 'era5-land' ]
   gfdl_flor:
     fcsf_name: 'gfdl_spear_flor'
     predictors: [ 'precip', 'tmp2m' ]
-    predictands: [ 'precip', 'tmp2m' ]
+    predictands:
+      variables: [ 'prcp', 't2m' ]
+      data_sources: [ 'chirps', 'era5-land' ]
   cmc2:
     predictors: [ 'precip', 'tmp2m' ]
-    predictands: [ 'precip', 'tmp2m' ]
+    predictands:
+      variables: [ 'prcp', 't2m' ]
+      data_sources: [ 'chirps', 'era5-land' ]
   cmc1:
     predictors: [ 'precip', 'tmp2m' ]
-    predictands: [ 'precip', 'tmp2m' ]
+    predictands:
+      variables: [ 'prcp', 't2m' ]
+      data_sources: [ 'chirps', 'era5-land' ]
   cfsv2:
     predictors: [ 'precip', 'tmp2m' ]
-    predictands: [ 'precip', 'tmp2m' ]
+    predictands:
+      variables: [ 'prcp', 't2m' ]
+      data_sources: [ 'chirps', 'era5-land' ]
 
 spatial_domain:
   predictor:
-    nla: -10 # Northernmost latitude
+    nla: -10  # Northernmost latitude
     sla: -60  # Southernmost latitude
     wlo: 270  # Westernmost longitude
     elo: 330  # Easternmost longitude
   predictand:
-    nla: -10 # Northernmost latitude
+    nla: -10  # Northernmost latitude
     sla: -52  # Southernmost latitude
     wlo: -78  # Westernmost longitude
     elo: -36  # Easternmost longitude
 
 url:
-  templates:
+  predictor:
     # trgt_type: "monthly" or "seasonal", file_type: "hindcast" or "forecast"
-    predictor: "https://ftp.cpc.ncep.noaa.gov/International/nmme/${trgt_type}_nmme_${file_type}_in_cpt_format/${file_name}"
-    predictand: ""
+    template: "https://ftp.cpc.ncep.noaa.gov/International/nmme/${trgt_type}_nmme_${file_type}_in_cpt_format/${file_name}"
+  predictand:
+    chirps: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_monthly/netcdf/chirps-v2.0.monthly.nc"
 
 folders:
   raw_data:
     hindcasts: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/hindcasts/"
     forecasts: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/forecasts/"
     chirps: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/chirps/"
+    era5_land: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/era5_land/"
   predictors: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictors/"
   predictands: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictands/"
   output: "/home/dbonhaure/PycharmProjects/PyCPT/output/"

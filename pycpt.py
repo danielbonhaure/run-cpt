@@ -5,12 +5,10 @@ from errors import ConfigError
 from helpers import ProgressBar, ConfigProcessor
 
 import os
-import yaml
 import subprocess
 import pathlib
 
-from typing import List, Dict
-from dataclasses import dataclass, field, InitVar
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -39,10 +37,7 @@ class ConfigCPT:
     # The output file can be inferred by others properties.
     output_file: OutputFile = None
 
-    # The cpt config file (config.yaml)
-    cpt_config: InitVar[Dict] = None
-
-    def __post_init__(self, cpt_config):
+    def __post_init__(self):
         self.training_period = TrainingPeriod(
             trgt_season=self.target_season
         )
@@ -52,15 +47,13 @@ class ConfigCPT:
                 predictor=self.predictor_data.predictor,
                 fcst_data=self.forecast_data,
                 trgt_season=self.target_season,
-                trng_period=self.training_period,
-                cpt_config=cpt_config
+                trng_period=self.training_period
             )
         if not self.predictand_data.file_obj:
             self.predictand_data.file_obj = PredictandFile(
                 predictand=self.predictand_data.predictand,
-                fcst_data=self.forecast_data,
-                trgt_season=self.target_season,
-                cpt_config=cpt_config
+                data_source=self.predictand_data.data_source,
+                trgt_season=self.target_season
             )
         if not self.output_file:
             self.output_file = OutputFile(
@@ -68,8 +61,7 @@ class ConfigCPT:
                 fcst_data=self.forecast_data,
                 trgt_season=self.target_season,
                 predictor_data=self.predictor_data,
-                predictand_data=self.predictand_data,
-                cpt_config=cpt_config
+                predictand_data=self.predictand_data
             )
 
     def create_params_file(self, params_file: str):
@@ -177,25 +169,35 @@ class ConfigCPT:
 
 class CPT:
 
-    def __init__(self, config_file: str = 'config.yaml', cpt_bin_dir: str = None):
-        self.config_file: str = config_file
+    def __init__(self, cpt_bin_dir: str, config_filename: str = 'config.yaml'):
         self.cpt_bin_dir: str = cpt_bin_dir
-        self.config: dict = self.__load_config()
+        self.__setup_configuration_singletons(config_filename)
         self.__check_and_create_folders()
+        self.__create_and_setup_progress_bar()
 
-    def __load_config(self) -> dict:
-        if not os.path.exists(self.config_file):
-            raise ConfigError(f"Configuration file (i.e. {self.config_file}) not found!")
-        with open(self.config_file, 'r') as f:
-            return yaml.safe_load(f)
+    def __setup_configuration_singletons(self, config_filename):
+        """Setup the two configuration singletons used in components.py"""
+        self.config_file: ConfigFile = ConfigFile.Instance()
+        if config_filename != 'config.yaml':
+            self.config_file.file_name = config_filename
+
+        self.update_ctrl: UpdateControl = UpdateControl.Instance()
+        if config_filename != 'config.yaml':
+            self.update_ctrl.config_file = config_filename
 
     def __check_and_create_folders(self):
         """Create directories to storage data (if needed)"""
-        for folder in ConfigProcessor.nested_dict_values(self.config.get('folders')):
+        for folder in ConfigProcessor.nested_dict_values(self.config_file.get('folders')):
             if not os.access(pathlib.Path(folder).parent, os.W_OK):
                 err_msg = f"{pathlib.Path(folder).parent} is not writable"
                 raise ConfigError(err_msg)
             pathlib.Path(folder).mkdir(parents=True, exist_ok=True)
+
+    def __create_and_setup_progress_bar(self):
+        """Create and setup progress bar"""
+        run_status = f'Running CPT (PID: {os.getpid()})'
+        total_targets = ConfigProcessor.count_iterations(self.config_file.get('models'))
+        self.progress_bar = ProgressBar(total_targets + 1, run_status)
 
     def setup_cpt_environment(self) -> None:
         """Setup CPT environment"""
@@ -204,85 +206,102 @@ class CPT:
         if not os.environ.get('CPT_BIN_DIR'):
             raise ConfigError(f"La variable de entorno CPT_BIN_DIR no ha sido definida!")
 
-    def create_targets(self) -> List[ConfigCPT]:
-        # Get spatial domains from config
-        spd_predictor = self.config.get('spatial_domain').get('predictor')
-        spd_predictand = self.config.get('spatial_domain').get('predictand')
-        # Get target season from config
-        trgt_season = self.config.get('target_season')
-        # Get forecast data from config
-        fcst_data = self.config.get('forecast_data')
-
-        # Generate ConfigCPT instances
-        for model in self.config.get('models').keys():
-            all_predictors = self.config.get('models').get(model).get('predictors')
-            all_predictands = self.config.get('models').get(model).get('predictands')
-            for predictor, predictand in zip(all_predictors, all_predictands):
-                cpt_config: ConfigCPT = ConfigCPT(
-                    model=model,
-                    target_season=TargetSeason(**trgt_season),
-                    forecast_data=ForecastData(**fcst_data),
-                    predictor_data=PredictorXVariables(
-                        spatial_domain=SpatialDomain(**spd_predictor),
-                        predictor=predictor
-                    ),
-                    predictand_data=PredictandYVariables(
-                        spatial_domain=SpatialDomain(**spd_predictand),
-                        predictand=predictand
-                    ),
-                    cpt_config=self.config
-                )
-                yield cpt_config
-
     @staticmethod
     def lines_that_contain(string, fp):
         return [line for line in fp if string in line]
 
+    def __run_cpt_for_a_specific_target(self, target: ConfigCPT):
+        """Run CPT for a specific target"""
+
+        # Define cpt params file
+        params_file = target.output_file.abs_path.replace('.txt', '_params')
+
+        # Create params file
+        target.create_params_file(params_file)
+
+        # Check if CPT must be executed or not
+        if self.config_file.get('run_cpt', True):
+
+            # Set up CPT environment
+            self.setup_cpt_environment()
+
+            # Define cpt log file
+            cpt_logfile = target.output_file.abs_path.replace('.txt', '.log')
+
+            # Run CPT
+            try:
+                subprocess.check_output(f"{self.cpt_bin_dir}/CPT.x < {params_file} > {cpt_logfile}",
+                                        stderr=subprocess.STDOUT, shell=True)
+            except subprocess.CalledProcessError as e:
+                print(e.output.decode())
+                raise
+
+            # Check for errors
+            with open(cpt_logfile, "r") as fp:
+                for line in self.lines_that_contain("Error:", fp):
+                    print(line)
+
+        # Report progress
+        self.progress_bar.report_advance(0.5)
+
+    def __create_targets_and_run_cpt_for_them(self):
+        """Create targets an run CPT for each of them"""
+
+        # Get spatial domains from config
+        spd_predictor = SpatialDomain(**self.config_file.get('spatial_domain').get('predictor'))
+        spd_predictand = SpatialDomain(**self.config_file.get('spatial_domain').get('predictand'))
+        # Get target season from config
+        trgt_season = TargetSeason(**self.config_file.get('target_season'))
+        # Get forecast data from config
+        fcst_data = ForecastData(**self.config_file.get('forecast_data'))
+
+        # Report progress
+        self.progress_bar.report_advance(0.5)
+
+        # Generate ConfigCPT instances
+        for model in self.config_file.get('models').keys():
+
+            all_predictors = self.config_file.get('models').get(model).get('predictors')
+            all_predictands = self.config_file.get('models').get(model).get('predictands').get('variables')
+            all_data_sources = self.config_file.get('models').get(model).get('predictands').get('data_sources')
+
+            for predictor, predictand, data_source in zip(all_predictors, all_predictands, all_data_sources):
+
+                # Create target
+                cpt_config: ConfigCPT = ConfigCPT(
+                    model=model,
+                    target_season=trgt_season,
+                    forecast_data=fcst_data,
+                    predictor_data=PredictorXVariables(
+                        spatial_domain=spd_predictor,
+                        predictor=predictor
+                    ),
+                    predictand_data=PredictandYVariables(
+                        spatial_domain=spd_predictand,
+                        predictand=predictand,
+                        data_source=data_source,
+                    )
+                )
+
+                # Report progress
+                self.progress_bar.report_advance(0.5)
+
+                # Run CPT for the created target
+                self.__run_cpt_for_a_specific_target(cpt_config)
+
+        # Report progress
+        self.progress_bar.report_advance(0.5)
+
     def run(self) -> None:
         """Run CPT"""
 
-        # Create progress bar
-        run_status = f'Running CPT (PID: {os.getpid()})'
-        total_targets = ConfigProcessor.count_iterations(self.config.get('models'))
-        progress_bar = ProgressBar(total_targets, run_status)
-
         # Open/start progress bar
-        progress_bar.open()
+        self.progress_bar.open()
 
-        for t in self.create_targets():
-
-            # Define cpt params file
-            params_file = t.output_file.abs_path.replace('.txt', '_params')
-
-            # Create params file
-            t.create_params_file(params_file)
-
-            # Check if CPT must be executed or not
-            if self.config.get('run_cpt', True):
-
-                # Set up CPT environment
-                self.setup_cpt_environment()
-
-                # Define cpt log file
-                cpt_logfile = t.output_file.abs_path.replace('.txt', '.log')
-
-                # Run CPT
-                try:
-                    subprocess.check_output(f"{self.cpt_bin_dir}/CPT.x < {params_file} > {cpt_logfile}",
-                                            stderr=subprocess.STDOUT, shell=True)
-                except subprocess.CalledProcessError as e:
-                    print(e.output.decode())
-                    raise
-
-                # Check for errors
-                with open(cpt_logfile, "r") as fp:
-                    for line in self.lines_that_contain("Error:", fp):
-                        print(line)
-
-            # Report progress
-            progress_bar.report_advance(1)
+        # Run CPT
+        self.__create_targets_and_run_cpt_for_them()
 
         # Close progress bar
-        progress_bar.close()
+        self.progress_bar.close()
 
         print('PROCESS COMPLETED')
