@@ -12,13 +12,13 @@ update:
     cpt_input_data: True
 
 target_season:
-  mons: 'Jan'  # Start month
-  tgts: 'Feb-Apr'  # Target period
+  mons: 'Aug'  # Start month
+  tgts: 'Dec-Feb'  # Target period
 
 forecast_data:
   fyr: 2020  # Forecast first year (year of monf, if target season are in next year, it will be adjusted automatically)
-  monf: 'Jan'  # Initialization month / First month
-  nfcsts: 2  # Number of forecast years (1: [2020], 2: [2020,2021], 3: [2020,2021,2022])
+  monf: 'Aug'  # Initialization month / First month
+  nfcsts: 1  # Number of forecast years (1: [2020], 2: [2020,2021], 3: [2020,2021,2022])
 
 models:
   nmme:
@@ -38,12 +38,6 @@ models:
       data_sources: [ 'chirps' ]
   gfdl:
     fcsf_name: 'gfdl_spear'
-    predictors: [ 'precip', 'tmp2m' ]
-    predictands:
-      variables: [ 'prcp', 't2m' ]
-      data_sources: [ 'chirps', 'era5-land' ]
-  gfdl_flor:
-    fcsf_name: 'gfdl_spear_flor'
     predictors: [ 'precip', 'tmp2m' ]
     predictands:
       variables: [ 'prcp', 't2m' ]

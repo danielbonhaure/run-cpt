@@ -13,6 +13,7 @@ import yaml
 
 from contextlib import contextmanager
 from typing import Dict, List, Any
+from itertools import chain
 
 
 @contextmanager
@@ -21,6 +22,13 @@ def localized(code):
     locale.setlocale(locale.LC_ALL, code)
     yield
     locale.setlocale(locale.LC_ALL, f"{old_code}.{old_encoding}")
+
+
+def crange(start, stop, modulo):
+    if start > stop:
+        return chain(range(start, modulo+1), range(1, stop))
+    else:
+        return range(start, stop)
 
 
 class ProgressBar:
@@ -144,7 +152,7 @@ class MonthsProcessor:
         if len(splitted) == 1:
             return [cls.month_abbr_to_int(splitted[0])]
         if len(splitted) == 2:
-            return list(range(cls.month_abbr_to_int(splitted[0]), cls.month_abbr_to_int(splitted[1])+1))
+            return [*crange(cls.month_abbr_to_int(splitted[0]), cls.month_abbr_to_int(splitted[1])+1, 12)]
 
     @classmethod
     def month_abbr_to_month_num_as_str(cls, month_abbr: str) -> str:

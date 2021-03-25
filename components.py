@@ -2,7 +2,7 @@
 from helpers import YearsProcessor, MonthsProcessor
 from helpers import FilesProcessor, CPTFileProcessor
 from helpers import UpdateControl, ConfigFile
-from helpers import SecondaryProgressBar
+from helpers import SecondaryProgressBar, crange
 from crcsas_grid import CrcSasGrid
 
 import os
@@ -77,6 +77,10 @@ class ForecastData:
     def lyr(self) -> int:  # Forecast last year
         return self.fyr + self.nfcsts - 1
 
+    @property
+    def init_month_int(self) -> int:
+        return MonthsProcessor.month_abbr_to_int(self.monf)
+
 
 @dataclass
 class TrainingPeriod:
@@ -126,7 +130,9 @@ class HindcastFile:
     name: str = field(init=False)
     url: str = field(init=False)
     folder: str = field(init=False)
-    monthly_files: List[str] = field(init=False, default_factory=list)
+
+    # Data of monthly files to be used to create missing seasonal files
+    monthly_files_data: dict = field(init=False, default_factory=dict)
 
     # Upload cpt config file (It's a singleton!!)
     config_file: ConfigFile = field(init=False, default=ConfigFile.Instance())
@@ -161,12 +167,21 @@ class HindcastFile:
 
     def __define_monthly_files_to_build_seasonal(self, model, fcst_data, trgt_season, trng_period):
         if trgt_season.type == 'seasonal':
+            files: list = list()
             model_name = self.config_file.get('models').get(model).get('hcst_name', model)
             trgt_years = trng_period.trng_years_by_month(trgt_season)
             for i, month in enumerate(trgt_season.trgt_months_range):
                 year = trgt_years[trng_period.original_tini][i]
-                f_name = f'{model_name}_{self.variable}_fcst_{fcst_data.monf}ic_{month}_{year}.txt'
-                self.monthly_files.append(f_name)
+                f_name = f'{model_name}_{self.variable}_hcst_{fcst_data.monf}ic_{month}_{year}.txt'
+                url_tpl = Template(self.config_file.get('url').get('predictor').get('template'))
+                files.append({'name': os.path.join(self.folder, f_name), 'year': year, 'month': month,
+                              'url': url_tpl.substitute(trgt_type='monthly', file_type="hindcast", file_name=f_name)})
+            self.monthly_files_data.update(
+                {'cpt_T': f'{trgt_years[trng_period.original_tini][0]}-{trgt_season.first_trgt_month_int:02d}/' +
+                          f'{trgt_season.last_trgt_month_int:02d}' if not trgt_season.last_trgt_in_next_year else
+                          f'{trgt_years[trng_period.original_tini][-1]}-{trgt_season.last_trgt_month_int:02d}',
+                 'cpt_S': f'{trng_period.original_tini}-{fcst_data.init_month_int:02d}-01',
+                 'files': files})
 
     def download_raw_data(self):
         if not os.path.exists(self.abs_path) or \
@@ -174,15 +189,23 @@ class HindcastFile:
             try:
                 FilesProcessor.download_file(self.url, self.abs_path)
             except HTTPError as e:
-                if e.code == 404 and self.monthly_files:
-                    # TODO:
-                    # Si el archivo es trimestral y no está en la web, descargar los archivos para los 3 meses
-                    # y generar un archivo trimestral sumando los datos de los tres meses!!!
-                    raise NotImplementedError
+                if e.code == 404 and self.monthly_files_data:
+                    self.__create_seasonal_file_from_monthly_files()
                 else:
                     raise
             # Reportar que el archivo ya fue actualizado
             self.update_ctrl.report_updated_file(self.abs_path)
+
+    def __create_seasonal_file_from_monthly_files(self):
+        # TODO:
+        # Si el archivo es trimestral y no está en la web, descargar los archivos para los 3 meses
+        # y generar un archivo trimestral sumando o promediando los datos de los tres meses!!!
+        for fd in self.monthly_files_data.get('files'):
+            # Download monthly file
+            if not os.path.exists(fd.get('name')) or \
+                    self.update_ctrl.must_be_updated('predictors', 'raw_data', fd.get('name')):
+                FilesProcessor.download_file(fd.get('url'), fd.get('name'))
+            # Open monthly file
 
 
 @dataclass
@@ -192,7 +215,9 @@ class ForecastFile:
     name: str = field(init=False)
     url: str = field(init=False)
     folder: str = field(init=False)
-    monthly_files: List[str] = field(init=False, default_factory=list)
+
+    # Data of monthly files to be used to create missing seasonal files
+    monthly_files_data: dict = field(init=False, default_factory=dict)
 
     # Upload cpt config file (It's a singleton!!)
     config_file: ConfigFile = field(init=False, default=ConfigFile.Instance())
@@ -227,12 +252,21 @@ class ForecastFile:
 
     def __define_monthly_files_to_build_seasonal(self, model, fcst_data, trgt_season, fcst_year):
         if trgt_season.type == 'seasonal':
+            files: list = list()
             model_name = self.config_file.get('models').get(model).get('fcsf_name', model)
             trgt_years = fcst_data.trgt_years_by_month(trgt_season)
             for i, month in enumerate(trgt_season.trgt_months_range):
                 year = trgt_years[fcst_year][i]
                 f_name = f'{model_name}_{self.variable}_fcst_{fcst_data.monf}ic_{month}_{year}.txt'
-                self.monthly_files.append(f_name)
+                url_tpl = Template(self.config_file.get('url').get('predictor').get('template'))
+                files.append({'name': os.path.join(self.folder, f_name), 'year': year, 'month': month,
+                              'url': url_tpl.substitute(trgt_type='monthly', file_type="forecast", file_name=f_name)})
+            self.monthly_files_data.update(
+                {'cpt_T': f'{trgt_years[fcst_year][0]}-{trgt_season.first_trgt_month_int:02d}/' +
+                          f'{trgt_season.last_trgt_month_int:02d}' if not trgt_season.last_trgt_in_next_year else
+                          f'{trgt_years[fcst_year][-1]}-{trgt_season.last_trgt_month_int:02d}',
+                 'cpt_S': f'{fcst_data.fyr}-{fcst_data.init_month_int:02d}-01',
+                 'files': files})
 
     def download_raw_data(self):
         if not os.path.exists(self.abs_path) or \
@@ -240,15 +274,23 @@ class ForecastFile:
             try:
                 FilesProcessor.download_file(self.url, self.abs_path)
             except HTTPError as e:
-                if e.code == 404 and self.monthly_files:
-                    # TODO:
-                    # Si el archivo es trimestral y no está en la web, descargar los archivos para los 3 meses
-                    # y generar un archivo trimestral sumando los datos de los tres meses!!!
-                    raise NotImplementedError
+                if e.code == 404 and self.monthly_files_data:
+                    self.__create_seasonal_file_from_monthly_files()
                 else:
                     raise
             # Reportar que el archivo ya fue actualizado
             self.update_ctrl.report_updated_file(self.abs_path)
+
+    def __create_seasonal_file_from_monthly_files(self):
+        # TODO:
+        # Si el archivo es trimestral y no está en la web, descargar los archivos para los 3 meses
+        # y generar un archivo trimestral sumando o promediando los datos de los tres meses!!!
+        for fd in self.monthly_files_data.get('files'):
+            # Download monthly file
+            if not os.path.exists(fd.get('name')) or \
+                    self.update_ctrl.must_be_updated('predictors', 'raw_data', fd.get('name')):
+                FilesProcessor.download_file(fd.get('url'), fd.get('name'))
+            # Open monthly file
 
 
 @dataclass
@@ -614,7 +656,8 @@ class PredictandFile:
         pb.update_count(7.5)
 
         # Filter by month/s
-        df = df.loc[:, :, trgt_season.first_trgt_month_int:trgt_season.last_trgt_month_int, :]
+        months = [*crange(trgt_season.first_trgt_month_int, trgt_season.last_trgt_month_int+1, 12)]
+        df = df.loc[:, :, months, :]
         if self.predictand == 't2m':
             # Group data and get mean
             df = df.groupby(['latitude', 'longitude', 'year']).mean().round(1)
