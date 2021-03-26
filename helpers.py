@@ -10,10 +10,12 @@ import urllib.request
 import urllib.parse
 import pandas as pd
 import yaml
+import re
 
 from contextlib import contextmanager
 from typing import Dict, List, Any
 from itertools import chain
+from collections import namedtuple
 
 
 @contextmanager
@@ -251,6 +253,107 @@ class CPTFileProcessor:
             f.write("Lat\t" + "\t".join(map(str, self.latitudes)) + "\n")
             f.write("Lon\t" + "\t".join(map(str, self.longitudes)) + "\n")
         df_to_save.to_csv(filename, sep='\t', mode='a', header=False)
+
+    @classmethod
+    def cpt_noaa_monthly_file_to_dataframe(cls, file_name: str):
+
+        Info = namedtuple('Info', ['year', 'month', 'field_line', 'last_line'])
+
+        # Open monthly file, to inspect it
+        df_info = list()
+        with open(file_name) as fp:
+            for cnt, line in enumerate(fp):
+                date_regex, nrow_regex = re.search('cpt:T=(\d+)-(\d+),', line), re.search('cpt:nrow=(\d+),', line)
+                if date_regex and nrow_regex:
+                    year, month = int(date_regex.group(1)), int(date_regex.group(2))
+                    field_line, last_line = cnt + 1, int(nrow_regex.group(1))
+                    df_info.append(Info(year, month, field_line, last_line))
+
+        # Gen dataframe for current file accessing only rows with data
+        final_df = pd.DataFrame()
+        for info in df_info:
+            df = pd.read_csv(file_name, sep='\t', index_col=0, skiprows=info.field_line,
+                             nrows=info.last_line, na_values='-999')
+            df.insert(0, 'month', info.month)
+            df.insert(0, 'year', info.year)
+            df.set_index(['year', 'month'], append=True, inplace=True)
+            final_df = pd.concat([final_df, df])
+
+        # Return generated dataframe
+        return final_df
+
+    @classmethod
+    def dataframe_to_cpt_noaa_seasonal_hindcast_file(cls, file_name: str, file_data: dict, df: pd.DataFrame):
+        # Order df by year
+        df = df.sort_index(level=['year', 0], ascending=[True, False])
+
+        # Create file, open it and add header (2 firsts lines)
+        with open(file_name, "w") as fp:
+            fp.write('xmlns:cpt=http://iri.columbia.edu/CPT/v10/\n')
+            fp.write('cpt:nfields=1\n')
+
+        # Iter df by year and save data to the exit file
+        for year in range(file_data['training_original_first_year'], file_data['training_original_last_year']+1):
+
+            # Define target years
+            first_target_month_year = year+1 if file_data["first_target_month_in_next_year"] else year
+            last_target_month_year = year+1 if file_data["last_target_month_in_next_year"] else year
+
+            # Define cpt inputs
+            cpt_field = 'precip' if file_data['seasonal_file_variable'] == 'precip' else '2m Air Temperature'
+            cpt_t = f'{first_target_month_year}-{file_data["first_target_month"]:02d}/'
+            cpt_t += f'{last_target_month_year}-' if first_target_month_year != last_target_month_year else ''
+            cpt_t += f'{file_data["last_target_month"]:02d}'
+            cpt_s = f'{year}-{file_data["forecast_init_month"]:02d}-01'
+            cpt_units = 'millimeters per day' if file_data['seasonal_file_variable'] == 'precip' else 'Degrees Celcius'
+
+            # Define line that describe year
+            y_line = f'cpt:field={cpt_field}, cpt:T={cpt_t}, cpt:S={cpt_s}, cpt:nrow=181, cpt:ncol=360, ' \
+                     f'cpt:row=Y, cpt:col=X, cpt:units={cpt_units}, cpt:missing=-999.00000000000000{" "*15}'
+
+            # Add line that describe the year to save
+            with open(file_name, "a") as fp:
+                fp.write(f'{y_line}\n')
+
+            # Filter data to save
+            df_y = df.loc[df.index.get_level_values('year') == year].droplevel(level='year')
+
+            # Add df_y to the exit file
+            df_y.sort_index(ascending=False).to_csv(file_name, sep='\t', na_rep='-999.000000', mode='a')
+
+    @classmethod
+    def dataframe_to_cpt_noaa_seasonal_forecast_file(cls, file_name: str, file_data: dict, df: pd.DataFrame):
+
+        # Create file, open it and add header (2 firsts lines)
+        with open(file_name, "w") as fp:
+            fp.write('xmlns:cpt=http://iri.columbia.edu/CPT/v10/\n')
+            fp.write('cpt:nfields=1\n')
+
+        # Get forecast year
+        year = file_data["forecast_year"]
+
+        # Define target years
+        first_target_month_year = year+1 if file_data["first_target_month_in_next_year"] else year
+        last_target_month_year = year+1 if file_data["last_target_month_in_next_year"] else year
+
+        # Define cpt inputs
+        cpt_field = 'precip' if file_data['seasonal_file_variable'] == 'precip' else '2m Air Temperature'
+        cpt_t = f'{first_target_month_year}-{file_data["first_target_month"]:02d}/'
+        cpt_t += f'{last_target_month_year}-' if first_target_month_year != last_target_month_year else ''
+        cpt_t += f'{file_data["last_target_month"]:02d}'
+        cpt_s = f'{year}-{file_data["forecast_init_month"]:02d}-01'
+        cpt_units = 'millimeters per day' if file_data['seasonal_file_variable'] == 'precip' else 'Degrees Celcius'
+
+        # Define line that describe year
+        y_line = f'cpt:field={cpt_field}, cpt:T={cpt_t}, cpt:S={cpt_s}, cpt:nrow=181, cpt:ncol=360, ' \
+                 f'cpt:row=Y, cpt:col=X, cpt:units={cpt_units}, cpt:missing=-999.00000000000000{" "*15}'
+
+        # Add line that describe the year to save
+        with open(file_name, "a") as fp:
+            fp.write(f'{y_line}\n')
+
+        # Add df_y to the exit file
+        df.sort_index(ascending=False).to_csv(file_name, sep='\t', na_rep='-999.000000', mode='a')
 
 
 @Singleton

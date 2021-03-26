@@ -3,8 +3,8 @@ run_cpt: False
 
 update:
   predictors:
-    raw_data: False
-    intermediate_data: False
+    raw_data: True
+    intermediate_data: True
     cpt_input_data: True
   predictands:
     raw_data: False
@@ -26,37 +26,37 @@ models:
     predictands:
       variables: [ 'prcp', 't2m' ]
       data_sources: [ 'chirps', 'era5-land' ]
-  ncar_ccsm4:
-    predictors: [ 'precip', 'tmp2m' ]
-    predictands:
-      variables: [ 'prcp', 't2m' ]
-      data_sources: [ 'chirps', 'era5-land' ]
-  nasa:
-    predictors: [ 'precip' ]
-    predictands:
-      variables: [ 'prcp' ]
-      data_sources: [ 'chirps' ]
-  gfdl:
-    fcsf_name: 'gfdl_spear'
-    predictors: [ 'precip', 'tmp2m' ]
-    predictands:
-      variables: [ 'prcp', 't2m' ]
-      data_sources: [ 'chirps', 'era5-land' ]
-  cmc2:
-    predictors: [ 'precip', 'tmp2m' ]
-    predictands:
-      variables: [ 'prcp', 't2m' ]
-      data_sources: [ 'chirps', 'era5-land' ]
-  cmc1:
-    predictors: [ 'precip', 'tmp2m' ]
-    predictands:
-      variables: [ 'prcp', 't2m' ]
-      data_sources: [ 'chirps', 'era5-land' ]
-  cfsv2:
-    predictors: [ 'precip', 'tmp2m' ]
-    predictands:
-      variables: [ 'prcp', 't2m' ]
-      data_sources: [ 'chirps', 'era5-land' ]
+#  ncar_ccsm4:
+#    predictors: [ 'precip', 'tmp2m' ]
+#    predictands:
+#      variables: [ 'prcp', 't2m' ]
+#      data_sources: [ 'chirps', 'era5-land' ]
+#  nasa:
+#    predictors: [ 'precip' ]
+#    predictands:
+#      variables: [ 'prcp' ]
+#      data_sources: [ 'chirps' ]
+#  gfdl:
+#    fcsf_name: 'gfdl_spear'
+#    predictors: [ 'precip', 'tmp2m' ]
+#    predictands:
+#      variables: [ 'prcp', 't2m' ]
+#      data_sources: [ 'chirps', 'era5-land' ]
+#  cmc2:
+#    predictors: [ 'precip', 'tmp2m' ]
+#    predictands:
+#      variables: [ 'prcp', 't2m' ]
+#      data_sources: [ 'chirps', 'era5-land' ]
+#  cmc1:
+#    predictors: [ 'precip', 'tmp2m' ]
+#    predictands:
+#      variables: [ 'prcp', 't2m' ]
+#      data_sources: [ 'chirps', 'era5-land' ]
+#  cfsv2:
+#    predictors: [ 'precip', 'tmp2m' ]
+#    predictands:
+#      variables: [ 'prcp', 't2m' ]
+#      data_sources: [ 'chirps', 'era5-land' ]
 
 spatial_domain:
   predictor:

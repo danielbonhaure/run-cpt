@@ -1,4 +1,3 @@
-
 from helpers import YearsProcessor, MonthsProcessor
 from helpers import FilesProcessor, CPTFileProcessor
 from helpers import UpdateControl, ConfigFile
@@ -9,6 +8,7 @@ import os
 import shutil
 import xarray as xr
 import cdsapi
+import pandas as pd
 
 from typing import List, Dict, Union
 from dataclasses import dataclass, InitVar, field
@@ -48,11 +48,11 @@ class TargetSeason:
         return MonthsProcessor.month_abbr_to_int(self.last_trgt_month_abbr)
 
     @property
-    def first_trgt_in_next_year(self) -> bool:
+    def first_trgt_month_in_next_year(self) -> bool:
         return MonthsProcessor.trgt_month_in_next_year(self.mons, self.first_trgt_month_abbr)
 
     @property
-    def last_trgt_in_next_year(self) -> bool:
+    def last_trgt_month_in_next_year(self) -> bool:
         return MonthsProcessor.trgt_month_in_next_year(self.mons, self.last_trgt_month_abbr)
 
     @property
@@ -109,9 +109,9 @@ class TrainingPeriod:
         self.original_tend = self.tend
 
         if trgt_season:
-            if trgt_season.first_trgt_in_next_year:
+            if trgt_season.first_trgt_month_in_next_year:
                 self.tini += 1
-            if trgt_season.last_trgt_in_next_year:
+            if trgt_season.last_trgt_month_in_next_year:
                 self.tend += 1
 
 
@@ -131,8 +131,10 @@ class HindcastFile:
     url: str = field(init=False)
     folder: str = field(init=False)
 
-    # Data of monthly files to be used to create missing seasonal files
+    # Data of monthly files to be used to create the missing seasonal file
     monthly_files_data: dict = field(init=False, default_factory=dict)
+    # Data of seasonal file to be used to create the missing seasonal file
+    seasonal_file_data: dict = field(init=False, default_factory=dict)
 
     # Upload cpt config file (It's a singleton!!)
     config_file: ConfigFile = field(init=False, default=ConfigFile.Instance())
@@ -156,8 +158,10 @@ class HindcastFile:
         self.url = url_template.substitute(trgt_type=trgt_season.type, file_type="hindcast", file_name=self.name)
         # Define folder
         self.folder = self.config_file.get('folders').get('raw_data').get('hindcasts')
-        # Define auxiliary files
-        self.__define_monthly_files_to_build_seasonal(model, fcst_data, trgt_season, trng_period)
+        # Define and save auxiliary data
+        if trgt_season.type == 'seasonal':
+            self.monthly_files_data = self.__define_monthly_files_data(model, fcst_data, trgt_season, trng_period)
+            self.seasonal_file_data = self.__define_seasonal_file_data(fcst_data, trgt_season, trng_period)
 
     def __define_hindcast_filename(self, model, fcst_data, trgt_season, trng_period) -> str:
         model_name = self.config_file.get('models').get(model).get('hcst_name', model)
@@ -165,25 +169,32 @@ class HindcastFile:
         years_to_str = YearsProcessor.trng_period_to_years_str(trng_period, trgt_season)
         return f"{model_name}_{self.variable}_hcst_{fcst_data.monf}ic_{months_indexes}_{years_to_str}.txt"
 
-    def __define_monthly_files_to_build_seasonal(self, model, fcst_data, trgt_season, trng_period):
-        if trgt_season.type == 'seasonal':
-            files: list = list()
-            model_name = self.config_file.get('models').get(model).get('hcst_name', model)
-            trgt_years = trng_period.trng_years_by_month(trgt_season)
-            for i, month in enumerate(trgt_season.trgt_months_range):
-                year = trgt_years[trng_period.original_tini][i]
-                f_name = f'{model_name}_{self.variable}_hcst_{fcst_data.monf}ic_{month}_{year}.txt'
-                url_tpl = Template(self.config_file.get('url').get('predictor').get('template'))
-                files.append({'name': os.path.join(self.folder, f_name), 'year': year, 'month': month,
-                              'url': url_tpl.substitute(trgt_type='monthly', file_type="hindcast", file_name=f_name)})
-            self.monthly_files_data.update(
-                {'cpt_T': f'{trgt_years[trng_period.original_tini][0]}-{trgt_season.first_trgt_month_int:02d}/' +
-                          f'{trgt_season.last_trgt_month_int:02d}' if not trgt_season.last_trgt_in_next_year else
-                          f'{trgt_years[trng_period.original_tini][-1]}-{trgt_season.last_trgt_month_int:02d}',
-                 'cpt_S': f'{trng_period.original_tini}-{fcst_data.init_month_int:02d}-01',
-                 'files': files})
+    def __define_monthly_files_data(self, model, fcst_data, trgt_season, trng_period) -> dict:
+        files: list = list()
+        model_name = self.config_file.get('models').get(model).get('hcst_name', model)
+        trgt_years = trng_period.trng_years_by_month(trgt_season)
+        for i, month in enumerate(trgt_season.trgt_months_range):
+            year = trgt_years[trng_period.original_tini][i]
+            f_name = f'{model_name}_{self.variable}_hcst_{fcst_data.monf}ic_{month}_{year}.txt'
+            url_tpl = Template(self.config_file.get('url').get('predictor').get('template'))
+            files.append({'name': os.path.join(self.folder, f_name), 'year': year, 'month': month,
+                          'url': url_tpl.substitute(trgt_type='monthly', file_type="hindcast", file_name=f_name)})
+        return dict(files=files)
+
+    def __define_seasonal_file_data(self, fcst_data, trgt_season, trng_period) -> dict:
+        return dict(forecast_init_month=fcst_data.init_month_int,
+                    first_target_month=trgt_season.first_trgt_month_int,
+                    first_target_month_in_next_year=trgt_season.first_trgt_month_in_next_year,
+                    last_target_month=trgt_season.last_trgt_month_int,
+                    last_target_month_in_next_year=trgt_season.last_trgt_month_in_next_year,
+                    training_original_first_year=trng_period.original_tini,
+                    training_original_last_year=trng_period.original_tend,
+                    target_years=trng_period.trng_years_by_month(trgt_season),
+                    target_months=trgt_season.trgt_months_range,
+                    seasonal_file_variable=self.variable)
 
     def download_raw_data(self):
+        self.__create_seasonal_file_from_monthly_files()
         if not os.path.exists(self.abs_path) or \
                 self.update_ctrl.must_be_updated('predictors', 'raw_data', self.abs_path):
             try:
@@ -197,15 +208,45 @@ class HindcastFile:
             self.update_ctrl.report_updated_file(self.abs_path)
 
     def __create_seasonal_file_from_monthly_files(self):
-        # TODO:
-        # Si el archivo es trimestral y no está en la web, descargar los archivos para los 3 meses
-        # y generar un archivo trimestral sumando o promediando los datos de los tres meses!!!
+        # Dataframe with files content
+        df: pd.DataFrame = pd.DataFrame()
+
+        # Generate a dataframe for each monthly file, and concatenate them
         for fd in self.monthly_files_data.get('files'):
             # Download monthly file
             if not os.path.exists(fd.get('name')) or \
                     self.update_ctrl.must_be_updated('predictors', 'raw_data', fd.get('name')):
                 FilesProcessor.download_file(fd.get('url'), fd.get('name'))
-            # Open monthly file
+            # Read file, get a dataframe that represent it, and concatenate it to df
+            df = pd.concat([df, CPTFileProcessor.cpt_noaa_monthly_file_to_dataframe(fd.get('name'))])
+
+        # Create a column over that we can group.
+        df.insert(0, 'trng_year', 0)
+        for year in range(self.seasonal_file_data['training_original_first_year'],
+                          self.seasonal_file_data['training_original_last_year'] + 1):
+            years, months = self.seasonal_file_data['target_years'][year], self.seasonal_file_data['target_months']
+            for y, m in zip(years, months):
+                df.loc[(df.index.get_level_values('year') == y) &
+                       (df.index.get_level_values('month') == m), 'trng_year'] = year
+        df.set_index('trng_year', append=True, inplace=True)
+
+        # Drop unused levels
+        df = df.droplevel(['year', 'month'])
+
+        # Group data by coord and year (excluding month)
+        if self.variable == 'precip':
+            df = df.groupby(level=[0, 'trng_year']).sum()
+        elif self.variable == 'tmp2m':
+            df = df.groupby(level=[0, 'trng_year']).mean()
+        else:
+            raise NotImplemented
+
+        # Rename dataframe trng_year level to year
+        df.index.set_names('year', level='trng_year', inplace=True)
+
+        # Save generated dataframe as cpt file
+        file_name = self.abs_path.replace('.txt', '_aux.txt')
+        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_hindcast_file(file_name, self.seasonal_file_data, df)
 
 
 @dataclass
@@ -216,8 +257,10 @@ class ForecastFile:
     url: str = field(init=False)
     folder: str = field(init=False)
 
-    # Data of monthly files to be used to create missing seasonal files
+    # Data of monthly files to be used to create the missing seasonal file
     monthly_files_data: dict = field(init=False, default_factory=dict)
+    # Data of seasonal file to be used to create the missing seasonal file
+    seasonal_file_data: dict = field(init=False, default_factory=dict)
 
     # Upload cpt config file (It's a singleton!!)
     config_file: ConfigFile = field(init=False, default=ConfigFile.Instance())
@@ -241,8 +284,10 @@ class ForecastFile:
         self.url = url_template.substitute(trgt_type=trgt_season.type, file_type="forecast", file_name=self.name)
         # Define folder
         self.folder = self.config_file.get('folders').get('raw_data').get('forecasts')
-        # Define auxiliary files
-        self.__define_monthly_files_to_build_seasonal(model, fcst_data, trgt_season, fcst_year)
+        # Define and save auxiliary data
+        if trgt_season.type == 'seasonal':
+            self.monthly_files_data = self.__define_monthly_files_data(model, fcst_data, trgt_season, fcst_year)
+            self.seasonal_file_data = self.__define_seasonal_file_data(fcst_data, trgt_season, fcst_year)
 
     def __define_forecast_filename(self, model, fcst_data, trgt_season, fcst_year) -> str:
         model_name = self.config_file.get('models').get(model).get('fcsf_name', model)
@@ -250,25 +295,29 @@ class ForecastFile:
         years_to_str = YearsProcessor.fcst_data_to_years_str(fcst_data, trgt_season, fcst_year)
         return f'{model_name}_{self.variable}_fcst_{fcst_data.monf}ic_{months_indexes}_{years_to_str}.txt'
 
-    def __define_monthly_files_to_build_seasonal(self, model, fcst_data, trgt_season, fcst_year):
-        if trgt_season.type == 'seasonal':
-            files: list = list()
-            model_name = self.config_file.get('models').get(model).get('fcsf_name', model)
-            trgt_years = fcst_data.trgt_years_by_month(trgt_season)
-            for i, month in enumerate(trgt_season.trgt_months_range):
-                year = trgt_years[fcst_year][i]
-                f_name = f'{model_name}_{self.variable}_fcst_{fcst_data.monf}ic_{month}_{year}.txt'
-                url_tpl = Template(self.config_file.get('url').get('predictor').get('template'))
-                files.append({'name': os.path.join(self.folder, f_name), 'year': year, 'month': month,
-                              'url': url_tpl.substitute(trgt_type='monthly', file_type="forecast", file_name=f_name)})
-            self.monthly_files_data.update(
-                {'cpt_T': f'{trgt_years[fcst_year][0]}-{trgt_season.first_trgt_month_int:02d}/' +
-                          f'{trgt_season.last_trgt_month_int:02d}' if not trgt_season.last_trgt_in_next_year else
-                          f'{trgt_years[fcst_year][-1]}-{trgt_season.last_trgt_month_int:02d}',
-                 'cpt_S': f'{fcst_data.fyr}-{fcst_data.init_month_int:02d}-01',
-                 'files': files})
+    def __define_monthly_files_data(self, model, fcst_data, trgt_season, fcst_year) -> dict:
+        files: list = list()
+        model_name = self.config_file.get('models').get(model).get('fcsf_name', model)
+        trgt_years = fcst_data.trgt_years_by_month(trgt_season)
+        for i, month in enumerate(trgt_season.trgt_months_range):
+            year = trgt_years[fcst_year][i]
+            f_name = f'{model_name}_{self.variable}_fcst_{fcst_data.monf}ic_{month}_{year}.txt'
+            url_tpl = Template(self.config_file.get('url').get('predictor').get('template'))
+            files.append({'name': os.path.join(self.folder, f_name), 'year': year, 'month': month,
+                          'url': url_tpl.substitute(trgt_type='monthly', file_type="forecast", file_name=f_name)})
+        return dict(files=files)
+
+    def __define_seasonal_file_data(self, fcst_data, trgt_season, fcst_year) -> dict:
+        return dict(forecast_init_month=fcst_data.init_month_int,
+                    first_target_month=trgt_season.first_trgt_month_int,
+                    first_target_month_in_next_year=trgt_season.first_trgt_month_in_next_year,
+                    last_target_month=trgt_season.last_trgt_month_int,
+                    last_target_month_in_next_year=trgt_season.last_trgt_month_in_next_year,
+                    forecast_year=fcst_year,
+                    seasonal_file_variable=self.variable)
 
     def download_raw_data(self):
+        self.__create_seasonal_file_from_monthly_files()
         if not os.path.exists(self.abs_path) or \
                 self.update_ctrl.must_be_updated('predictors', 'raw_data', self.abs_path):
             try:
@@ -282,15 +331,29 @@ class ForecastFile:
             self.update_ctrl.report_updated_file(self.abs_path)
 
     def __create_seasonal_file_from_monthly_files(self):
-        # TODO:
-        # Si el archivo es trimestral y no está en la web, descargar los archivos para los 3 meses
-        # y generar un archivo trimestral sumando o promediando los datos de los tres meses!!!
+        # Dataframe with files content
+        df: pd.DataFrame = pd.DataFrame()
+
+        # Generate a dataframe for each monthly file, and concatenate them
         for fd in self.monthly_files_data.get('files'):
             # Download monthly file
             if not os.path.exists(fd.get('name')) or \
                     self.update_ctrl.must_be_updated('predictors', 'raw_data', fd.get('name')):
                 FilesProcessor.download_file(fd.get('url'), fd.get('name'))
-            # Open monthly file
+            # Read file, get a dataframe that represent it, and concatenate it to df
+            df = pd.concat([df, CPTFileProcessor.cpt_noaa_monthly_file_to_dataframe(fd.get('name'))])
+
+        # Group data by coord and year (excluding month)
+        if self.variable == 'precip':
+            df = df.groupby(level=0).sum()
+        elif self.variable == 'tmp2m':
+            df = df.groupby(level=0).mean()
+        else:
+            raise NotImplemented
+
+        # Save generated dataframe as cpt file
+        file_name = self.abs_path.replace('.txt', '_aux.txt')
+        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_forecast_file(file_name, self.seasonal_file_data, df)
 
 
 @dataclass
@@ -327,8 +390,8 @@ class PredictorFile:
         # Download raw files
         self.__download_raw_files()
         # Create predictor file (combining raw files)
-        fcst_years = range(fcst_data.fyr, fcst_data.lyr+1)
-        false_years = range(trng_period.tend+1, trng_period.tend+fcst_data.nfcsts+1)
+        fcst_years = range(fcst_data.fyr, fcst_data.lyr + 1)
+        false_years = range(trng_period.tend + 1, trng_period.tend + fcst_data.nfcsts + 1)
         self.__create_predictor_file(fcst_years, false_years)
 
     def __define_predictor_filename(self, model, fcst_data, trgt_season, trng_period) -> str:
@@ -340,7 +403,7 @@ class PredictorFile:
         # Create hindcast file
         self.hcst_file = HindcastFile(self.predictor, model, fcst_data, trgt_season, trng_period)
         # Create forecast files
-        for year in range(fcst_data.fyr, fcst_data.lyr+1):
+        for year in range(fcst_data.fyr, fcst_data.lyr + 1):
             self.fcst_files.append(ForecastFile(self.predictor, model, fcst_data, trgt_season, year))
 
     def __download_raw_files(self):
@@ -432,7 +495,6 @@ class ChirpsFile:
         # Update intermediate file (obtained by cutting the downloaded file)
         if not os.path.exists(self.abs_path) or \
                 self.update_ctrl.must_be_updated('predictands', 'intermediate_data', self.abs_path):
-
             # create progress bar to track interpolation
             run_status = f'Cutting file {self.abs_path.split("/").pop(-1)} (PID: {os.getpid()})'
             pb = SecondaryProgressBar(10, run_status)
@@ -534,7 +596,7 @@ class Era5LandFile:
                     'format': 'netcdf',
                     'product_type': 'monthly_averaged_reanalysis',
                     'variable': self.__get_api_variable(),
-                    'year': list(range(1981, date.today().year+1)),
+                    'year': list(range(1981, date.today().year + 1)),
                     'month': [
                         '01', '02', '03',
                         '04', '05', '06',
@@ -648,15 +710,15 @@ class PredictandFile:
         df['month'] = df.index.get_level_values('time').month
         df.set_index('year', append=True, inplace=True)
         df.set_index('month', append=True, inplace=True)
-        df = df.droplevel('time')\
-               .reorder_levels(['latitude', 'longitude', 'month', 'year'])\
-               .sort_index()
+        df = df.droplevel('time') \
+            .reorder_levels(['latitude', 'longitude', 'month', 'year']) \
+            .sort_index()
 
         # report status
         pb.update_count(7.5)
 
         # Filter by month/s
-        months = [*crange(trgt_season.first_trgt_month_int, trgt_season.last_trgt_month_int+1, 12)]
+        months = [*crange(trgt_season.first_trgt_month_int, trgt_season.last_trgt_month_int + 1, 12)]
         df = df.loc[:, :, months, :]
         if self.predictand == 't2m':
             # Group data and get mean
