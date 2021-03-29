@@ -1,0 +1,136 @@
+
+FROM debian:latest
+
+# Pasar a root
+USER root
+
+# Modify root password
+RUN echo "root:root" | chpasswd
+
+# Create a new user, so the container can run as non-root
+ARG CPT_USER="cpt"
+ARG CPT_UID="1000"
+ARG CPT_GID="1000"
+RUN groupadd --gid $CPT_GID $CPT_USER
+RUN useradd --uid $CPT_UID --gid $CPT_GID --comment "CPT User Account" --create-home $CPT_USER
+
+# Modify the password of the new user
+RUN echo "$CPT_USER:cpt" | chpasswd
+
+# To use apt
+RUN apt-get -y update
+
+# GCC5.x
+RUN apt-get install -y gcc make git
+# GFortran
+RUN apt-get install -y gfortran
+# wget
+RUN apt-get install -y wget
+
+# Create CPT directory
+RUN mkdir /opt/CPT
+
+# Download CPT
+# version 15.6.3
+#   web: https://academiccommons.columbia.edu/doi/10.7916/D8DJ6NDS
+#   download link: https://academiccommons.columbia.edu/doi/10.7916/D88S5WQH/download
+RUN wget --directory-prefix=/tmp/ --content-disposition \
+    https://academiccommons.columbia.edu/doi/10.7916/D88S5WQH/download
+# version 15.7.11
+#   web: https://academiccommons.columbia.edu/doi/10.7916/d8-kb0s-2816
+#   download link: https://academiccommons.columbia.edu/doi/10.7916/d8-enx1-j159/download
+RUN wget --directory-prefix=/tmp/ --content-disposition \
+    https://academiccommons.columbia.edu/doi/10.7916/d8-enx1-j159/download
+# version 16.5.8
+#   web: https://academiccommons.columbia.edu/doi/10.7916/d8-em5q-0f07
+#   download link: https://academiccommons.columbia.edu/doi/10.7916/d8-6r1c-6146/download
+RUN wget --directory-prefix=/tmp/ --content-disposition \
+    https://academiccommons.columbia.edu/doi/10.7916/d8-6r1c-6146/download
+# version 17.3.1
+#   web: https://academiccommons.columbia.edu/doi/10.7916/d8-eepd-fm34
+#   downloas link: https://academiccommons.columbia.edu/doi/10.7916/d8-ax2z-d749/download
+RUN wget --directory-prefix=/tmp/ --content-disposition \
+    https://academiccommons.columbia.edu/doi/10.7916/d8-ax2z-d749/download
+
+# Extraer CPT.15.6.3.tar.gz
+RUN tar -xzf /tmp/CPT.15.6.3.tar.gz -C /tmp
+# Extraer CPT.15.7.11.tar.gz
+RUN tar -xzf /tmp/CPT.15.7.11.tar.gz -C /tmp
+# Extraer CPT.16.5.8.tar.gz
+RUN tar -xzf /tmp/CPT.16.5.8.tar.gz -C /tmp
+# Extraer CPT.17.3.1.tar.gz
+RUN tar -xzf /tmp/CPT.17.3.1.tar.gz -C /tmp
+
+# Mover código versión 15.6.3 a src
+RUN mkdir /opt/CPT/15.6.3
+RUN mkdir /opt/CPT/15.6.3/src
+RUN mv /tmp/CPT/15.6.3/* /opt/CPT/15.6.3/src/
+# Mover código versión 15.7.11 a src
+RUN mkdir /opt/CPT/15.7.11
+RUN mkdir /opt/CPT/15.7.11/src
+RUN mv /tmp/CPT/15.7.11/* /opt/CPT/15.7.11/src/
+# Mover código versión 16.5.8 a src
+RUN mkdir /opt/CPT/16.5.8
+RUN mkdir /opt/CPT/16.5.8/src
+RUN mv /tmp/CPT/16.5.8/* /opt/CPT/16.5.8/src/
+# Mover código versión 17.3.1 a src
+RUN mkdir /opt/CPT/17.3.1
+RUN mkdir /opt/CPT/17.3.1/src
+RUN mv /tmp/CPT/17.3.1/* /opt/CPT/17.3.1/src/
+
+# Instalar versión 15.6.3
+# Acceder al código fuente
+WORKDIR /opt/CPT/15.6.3/src
+# Compilar e instalar CPT
+RUN make distclean
+RUN make
+RUN make INSTALL_DIR=/opt/CPT/15.6.3/ install
+
+# Instalar versión 15.7.11
+# Acceder al código fuente
+WORKDIR /opt/CPT/15.7.11/src
+# Compilar e instalar CPT
+RUN make distclean
+RUN make
+RUN make INSTALL_DIR=/opt/CPT/15.7.11/ install
+
+# Instalar versión 16.5.8
+# Acceder al código fuente
+WORKDIR /opt/CPT/16.5.8/src
+# Compilar es instalar CPT
+RUN make distclean
+RUN make
+RUN make INSTALL_DIR=/opt/CPT/16.5.8/ install
+
+# Instalar versión 17.3.1
+# Acceder al código fuente
+WORKDIR /opt/CPT/17.3.1/src
+# Compilar es instalar CPT
+RUN make distclean
+RUN make
+RUN make INSTALL_DIR=/opt/CPT/17.3.1/ install
+
+# Configurar version por defecto para CPT
+RUN echo "export CPT_BIN_DIR=/opt/CPT/15.7.11/bin" >> /home/$CPT_USER/.bashrc
+RUN echo "export PATH=/opt/CPT/15.7.11/bin:$PATH" >> /home/$CPT_USER/.bashrc
+RUN chown -R $CPT_UID:$CPT_UID /opt/CPT
+
+# Add Tini (https://github.com/krallin/tini#using-tini)
+RUN apt-get install -y tini htop
+ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
+
+# Switch back to cpt_user to avoid accidental container runs as root
+USER $CPT_UID
+
+# Access user directory
+WORKDIR /home/$CPT_USER
+
+# Create work directory
+RUN mkdir "/home/$CPT_USER/work"
+
+# Run your program under Tini
+CMD ["bash"]
+# or docker run your-image /your/program ...
+
+# docker build -f Dockerfile.cpt -t cpt .
+# docker run --name cpt --rm --volume "$PWD":/home/cpt/work -it cpt:latest

@@ -9,6 +9,7 @@ import shutil
 import xarray as xr
 import cdsapi
 import pandas as pd
+import re
 
 from typing import List, Dict, Union
 from dataclasses import dataclass, InitVar, field
@@ -16,6 +17,7 @@ from string import Template
 from urllib.error import HTTPError
 from datetime import date
 from time import sleep
+from itertools import product
 
 
 @dataclass
@@ -58,6 +60,10 @@ class TargetSeason:
     @property
     def trgt_months_range(self) -> List[int]:
         return MonthsProcessor.month_abbr_to_months_range(self.tgts)
+
+    def __post_init__(self):
+        if self.last_trgt_month_in_next_year and not self.first_trgt_month_in_next_year:
+            raise AttributeError("Last target month year can't be prior to first target month year!!")
 
 
 @dataclass
@@ -200,8 +206,9 @@ class HindcastFile:
             try:
                 FilesProcessor.download_file(self.url, self.abs_path)
             except HTTPError as e:
-                if e.code == 404 and self.monthly_files_data and \
-                        self.update_ctrl.must_be_updated('predictors', 'intermediate_data', self.abs_path):
+                if e.code == 404 and self.monthly_files_data and (
+                        not os.path.exists(self.abs_path) or self.update_ctrl.must_be_updated(
+                            'predictors', 'locally_created_seasonal_files', self.abs_path)):
                     self.__create_seasonal_file_from_monthly_files()
                 else:
                     raise
@@ -240,14 +247,13 @@ class HindcastFile:
         elif self.variable == 'tmp2m':
             df = df.groupby(level=[0, 'trng_year']).median()
         else:
-            raise NotImplemented
+            raise AttributeError('Hindcast files only support "precip" and "tmp2m" as variables!')
 
         # Rename dataframe trng_year level to year
         df.index.set_names('year', level='trng_year', inplace=True)
 
         # Save generated dataframe as cpt file
-        file_name = self.abs_path.replace('.txt', '_aux.txt')
-        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_hindcast_file(file_name, self.seasonal_file_data, df)
+        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_hindcast_file(self.abs_path, self.seasonal_file_data, df, True)
 
 
 @dataclass
@@ -324,8 +330,9 @@ class ForecastFile:
             try:
                 FilesProcessor.download_file(self.url, self.abs_path)
             except HTTPError as e:
-                if e.code == 404 and self.monthly_files_data and \
-                        self.update_ctrl.must_be_updated('predictors', 'intermediate_data', self.abs_path):
+                if e.code == 404 and self.monthly_files_data and (
+                        not os.path.exists(self.abs_path) or self.update_ctrl.must_be_updated(
+                            'predictors', 'locally_created_seasonal_files', self.abs_path)):
                     self.__create_seasonal_file_from_monthly_files()
                 else:
                     raise
@@ -351,11 +358,10 @@ class ForecastFile:
         elif self.variable == 'tmp2m':
             df = df.groupby(level=0).median()
         else:
-            raise NotImplemented
+            raise AttributeError('Forecast files only support "precip" and "tmp2m" as variables!')
 
         # Save generated dataframe as cpt file
-        file_name = self.abs_path.replace('.txt', '_aux.txt')
-        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_forecast_file(file_name, self.seasonal_file_data, df)
+        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_forecast_file(self.abs_path, self.seasonal_file_data, df, True)
 
 
 @dataclass
@@ -392,9 +398,7 @@ class PredictorFile:
         # Download raw files
         self.__download_raw_files()
         # Create predictor file (combining raw files)
-        fcst_years = range(fcst_data.fyr, fcst_data.lyr + 1)
-        false_years = range(trng_period.tend + 1, trng_period.tend + fcst_data.nfcsts + 1)
-        self.__create_predictor_file(fcst_years, false_years)
+        self.__create_predictor_file(fcst_data, trgt_season, trng_period)
 
     def __define_predictor_filename(self, model, fcst_data, trgt_season, trng_period) -> str:
         months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
@@ -413,10 +417,14 @@ class PredictorFile:
         for fcst_file in self.fcst_files:
             fcst_file.download_raw_data()
 
-    def __create_predictor_file(self, fcst_years, false_years):
+    def __create_predictor_file(self, fcst_data, trgt_season, trng_period):
         if os.path.exists(self.abs_path) and \
                 not self.update_ctrl.must_be_updated('predictors', 'cpt_input_data', self.abs_path):
             return
+
+        # define forecast years data
+        fcst_years = list(range(fcst_data.fyr, fcst_data.lyr + 1))
+        fcst_years_count = list(range(1, len(fcst_years) + 1))
 
         # create progress bar to track interpolation
         run_status = f'Creating file {self.abs_path.split("/").pop(-1)} (PID: {os.getpid()})'
@@ -433,13 +441,30 @@ class PredictorFile:
 
         # Agregar el contenido de los fcst_files_path
         with open(dst, 'a') as fp_comb:
-            for fcst_file, fcst_year, false_year in zip(self.fcst_files, fcst_years, false_years):
+            for fcst_file, fcst_year, years_to_add in product(self.fcst_files, fcst_years, fcst_years_count):
                 with open(fcst_file.abs_path, 'r') as fp_fcst:
                     for line in fp_fcst.readlines():
                         if all(x not in line for x in ['xmlns:cpt', 'cpt:nfields']):
                             if 'cpt:field=' in line:
-                                line = line.replace(f"S={fcst_year}", f"S={false_year}")
-                                line = line.replace(f"T={fcst_year}", f"T={false_year}")
+                                # Define start_year. It is based on the original training period!
+                                start_year = trng_period.original_tend + years_to_add
+
+                                # Set correct start date
+                                line = re.sub(rf"(cpt:S=){fcst_year}(-\d{{2}}-\d{{2}})",
+                                              rf"\g<1>{start_year}\g<2>", line)
+
+                                # Set year correction
+                                yc_1 = 1 if trgt_season.first_trgt_month_in_next_year else 0
+                                yc_2 = 1 if trgt_season.last_trgt_month_in_next_year else 0
+
+                                # Set correct target date
+                                if trgt_season.type == 'seasonal':
+                                    line = re.sub(rf"(cpt:T=){fcst_year + yc_1}(-\d{{2}}/){fcst_year + yc_2}(-\d{{2}})",
+                                                  rf"\g<1>{start_year + yc_1}\g<2>{start_year + yc_2}\g<3>", line)
+                                else:
+                                    line = re.sub(rf"(cpt:T=){fcst_year + yc_1}(-\d{{2}})",
+                                                  rf"\g<1>{start_year + yc_1}\g<2>", line)
+
                             fp_comb.write(line)
                 # report status
                 pb.report_advance(1)
@@ -496,7 +521,7 @@ class ChirpsFile:
 
         # Update intermediate file (obtained by cutting the downloaded file)
         if not os.path.exists(self.abs_path) or \
-                self.update_ctrl.must_be_updated('predictands', 'intermediate_data', self.abs_path):
+                self.update_ctrl.must_be_updated('predictands', 'cutted_chirps_data', self.abs_path):
             # create progress bar to track interpolation
             run_status = f'Cutting file {self.abs_path.split("/").pop(-1)} (PID: {os.getpid()})'
             pb = SecondaryProgressBar(10, run_status)
@@ -701,7 +726,7 @@ class PredictandFile:
         interp_file = self.raw_data_file.abs_path.replace('.nc', '_interpolated.nc')
 
         if not os.path.exists(interp_file) or \
-                self.update_ctrl.must_be_updated('predictands', 'intermediate_data', interp_file):
+                self.update_ctrl.must_be_updated('predictands', 'interpolated_data', interp_file):
             # interpolate recently downloaded data
             df = self.grid.interpolate_raw_data(
                 input_file=self.raw_data_file.abs_path,

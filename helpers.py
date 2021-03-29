@@ -11,6 +11,7 @@ import urllib.parse
 import pandas as pd
 import yaml
 import re
+import shutil
 
 from contextlib import contextmanager
 from typing import Dict, List, Any
@@ -283,13 +284,30 @@ class CPTFileProcessor:
         return final_df
 
     @classmethod
-    def dataframe_to_cpt_noaa_seasonal_hindcast_file(cls, file_name: str, file_data: dict, df: pd.DataFrame):
+    def cpt_file_is_a_locally_created_one(cls, file_name: str) -> bool:
+        """Check if file exists and it's a locally created file"""
+        if os.path.exists(file_name):
+            with open(file_name, 'r') as fp:
+                if 'locally_created_file' in fp.readline():
+                    return True
+        return False
+
+    @classmethod
+    def dataframe_to_cpt_noaa_seasonal_hindcast_file(cls, file_name: str, file_data: dict, df: pd.DataFrame,
+                                                     debug: bool = False):
+        # Set correct file_name according to debug status
+        file_name = file_name.replace('.txt', '_debug.txt') if debug else file_name
+
         # Order df by year
         df = df.sort_index(level=['year', 0], ascending=[True, False])
 
+        # Backup file if there was previously downloaded instead of locally created
+        if not cls.cpt_file_is_a_locally_created_one(file_name):
+            _ = shutil.copy(file_name, file_name.replace('.txt', '_downloaded_from_noaa.txt'))
+
         # Create file, open it and add header (2 firsts lines)
         with open(file_name, "w") as fp:
-            fp.write('xmlns:cpt=http://iri.columbia.edu/CPT/v10/\n')
+            fp.write('xmlns:cpt=http://iri.columbia.edu/CPT/v10/locally_created_file\n')
             fp.write('cpt:nfields=1\n')
 
         # Iter df by year and save data to the exit file
@@ -322,7 +340,10 @@ class CPTFileProcessor:
             df_y.sort_index(ascending=False).to_csv(file_name, sep='\t', na_rep='-999.000000', mode='a')
 
     @classmethod
-    def dataframe_to_cpt_noaa_seasonal_forecast_file(cls, file_name: str, file_data: dict, df: pd.DataFrame):
+    def dataframe_to_cpt_noaa_seasonal_forecast_file(cls, file_name: str, file_data: dict, df: pd.DataFrame,
+                                                     debug: bool = False):
+        # Set correct file_name according to debug status
+        file_name = file_name.replace('.txt', '_debug.txt') if debug else file_name
 
         # Create file, open it and add header (2 firsts lines)
         with open(file_name, "w") as fp:
@@ -408,7 +429,7 @@ class UpdateControl:
 
     def must_be_updated(self, k1: str, k2: str, file_abs_path: str) -> bool:
         # k1 can be "predictors" or "predictands"
-        # k2 can be "raw_data", "intermediate_data" or "cpt_input_data"
+        # k2 can be "raw_data", ... , "cpt_input_data"
         if self.file_already_updated(file_abs_path):
             return False
         return self._update_config.get(k1, {}).get(k2, False)

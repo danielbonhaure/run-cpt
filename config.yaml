@@ -4,11 +4,12 @@ run_cpt: False
 update:
   predictors:
     raw_data: False
-    intermediate_data: True
+    locally_created_seasonal_files: True
     cpt_input_data: True
   predictands:
     raw_data: False
-    intermediate_data: False
+    cutted_chirps_data: False
+    interpolated_data: False
     cpt_input_data: True
 
 target_season:

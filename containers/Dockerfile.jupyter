@@ -1,0 +1,123 @@
+
+#FROM jupyter/datascience-notebook:9b06df75e445
+FROM jupyter/datascience-notebook:latest
+
+# Pasar a root
+USER root
+
+# Para usar apt
+RUN apt update
+
+# GCC5.x
+RUN apt install -y gcc make git
+# GFortran
+RUN apt install -y gfortran
+# wget
+RUN apt install -y wget
+
+# Crear directorios
+RUN mkdir /opt/CPT
+
+# Download CPT
+# version 15.6.3
+#   web: https://academiccommons.columbia.edu/doi/10.7916/D8DJ6NDS
+#   download link: https://academiccommons.columbia.edu/doi/10.7916/D88S5WQH/download
+RUN wget --directory-prefix=/tmp/ --content-disposition \
+    https://academiccommons.columbia.edu/doi/10.7916/D88S5WQH/download
+# version 15.7.11
+#   web: https://academiccommons.columbia.edu/doi/10.7916/d8-kb0s-2816
+#   download link: https://academiccommons.columbia.edu/doi/10.7916/d8-enx1-j159/download
+RUN wget --directory-prefix=/tmp/ --content-disposition \
+    https://academiccommons.columbia.edu/doi/10.7916/d8-enx1-j159/download
+# version 16.5.8
+#   web: https://academiccommons.columbia.edu/doi/10.7916/d8-em5q-0f07
+#   download link: https://academiccommons.columbia.edu/doi/10.7916/d8-6r1c-6146/download
+RUN wget --directory-prefix=/tmp/ --content-disposition \
+    https://academiccommons.columbia.edu/doi/10.7916/d8-6r1c-6146/download
+# version 17.3.1
+#   web: https://academiccommons.columbia.edu/doi/10.7916/d8-eepd-fm34
+#   downloas link: https://academiccommons.columbia.edu/doi/10.7916/d8-ax2z-d749/download
+RUN wget --directory-prefix=/tmp/ --content-disposition \
+    https://academiccommons.columbia.edu/doi/10.7916/d8-ax2z-d749/download
+
+# Extraer CPT.15.6.3.tar.gz
+RUN tar -xzf /tmp/CPT.15.6.3.tar.gz -C /tmp
+# Extraer CPT.15.7.11.tar.gz
+RUN tar -xzf /tmp/CPT.15.7.11.tar.gz -C /tmp
+# Extraer CPT.16.5.8.tar.gz
+RUN tar -xzf /tmp/CPT.16.5.8.tar.gz -C /tmp
+# Extraer CPT.17.3.1.tar.gz
+RUN tar -xzf /tmp/CPT.17.3.1.tar.gz -C /tmp
+
+# Mover código versión 15.6.3 a src
+RUN mkdir /opt/CPT/15.6.3
+RUN mkdir /opt/CPT/15.6.3/src
+RUN mv /tmp/CPT/15.6.3/* /opt/CPT/15.6.3/src/
+# Mover código versión 15.7.11 a src
+RUN mkdir /opt/CPT/15.7.11
+RUN mkdir /opt/CPT/15.7.11/src
+RUN mv /tmp/CPT/15.7.11/* /opt/CPT/15.7.11/src/
+# Mover código versión 16.5.8 a src
+RUN mkdir /opt/CPT/16.5.8
+RUN mkdir /opt/CPT/16.5.8/src
+RUN mv /tmp/CPT/16.5.8/* /opt/CPT/16.5.8/src/
+# Mover código versión 17.3.1 a src
+RUN mkdir /opt/CPT/17.3.1
+RUN mkdir /opt/CPT/17.3.1/src
+RUN mv /tmp/CPT/17.3.1/* /opt/CPT/17.3.1/src/
+
+# Instalar versión 15.6.3
+# Acceder al código fuente
+WORKDIR /opt/CPT/15.6.3/src
+# Compilar e instalar CPT
+RUN make distclean
+RUN make
+RUN make INSTALL_DIR=/opt/CPT/15.6.3/ install
+
+# Instalar versión 15.7.11
+# Acceder al código fuente
+WORKDIR /opt/CPT/15.7.11/src
+# Compilar e instalar CPT
+RUN make distclean
+RUN make
+RUN make INSTALL_DIR=/opt/CPT/15.7.11/ install
+
+# Instalar versión 16.5.8
+# Acceder al código fuente
+WORKDIR /opt/CPT/16.5.8/src
+# Compilar es instalar CPT
+RUN make distclean
+RUN make
+RUN make INSTALL_DIR=/opt/CPT/16.5.8/ install
+
+# Instalar versión 17.3.1
+# Acceder al código fuente
+WORKDIR /opt/CPT/17.3.1/src
+# Compilar es instalar CPT
+RUN make distclean
+RUN make
+RUN make INSTALL_DIR=/opt/CPT/17.3.1/ install
+
+# Configurar version por defecto para CPT
+RUN echo "export CPT_BIN_DIR=/opt/CPT/15.7.11/bin" >> /home/jovyan/.bashrc
+RUN echo "export PATH=/opt/CPT/15.7.11/bin:$PATH" >> /home/jovyan/.bashrc
+RUN chown -R $NB_UID:$NB_UID /opt/CPT
+
+# Modificar contraseña root
+RUN echo 'root:root' | chpasswd
+
+# Instalar paquetes requeridos por cartopy
+RUN apt install -y libproj-dev proj-data proj-bin libgeos++-dev
+
+# Seguir como jovyan
+USER $NB_UID
+
+# Instalar paquetes python
+RUN python -m pip install xarray
+RUN python -m pip install cartopy
+RUN python -m pip uninstall -y shapely
+RUN python -m pip install shapely --no-binary shapely
+
+# Acceder al directorio del usuario
+WORKDIR $HOME
+
