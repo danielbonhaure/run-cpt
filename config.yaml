@@ -3,7 +3,7 @@ run_cpt: False
 
 update:
   predictors:
-    raw_data: True
+    raw_data: False
     intermediate_data: True
     cpt_input_data: True
   predictands:

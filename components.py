@@ -200,7 +200,8 @@ class HindcastFile:
             try:
                 FilesProcessor.download_file(self.url, self.abs_path)
             except HTTPError as e:
-                if e.code == 404 and self.monthly_files_data:
+                if e.code == 404 and self.monthly_files_data and \
+                        self.update_ctrl.must_be_updated('predictors', 'intermediate_data', self.abs_path):
                     self.__create_seasonal_file_from_monthly_files()
                 else:
                     raise
@@ -235,9 +236,9 @@ class HindcastFile:
 
         # Group data by coord and year (excluding month)
         if self.variable == 'precip':
-            df = df.groupby(level=[0, 'trng_year']).sum()
+            df = df.groupby(level=[0, 'trng_year']).median()
         elif self.variable == 'tmp2m':
-            df = df.groupby(level=[0, 'trng_year']).mean()
+            df = df.groupby(level=[0, 'trng_year']).median()
         else:
             raise NotImplemented
 
@@ -323,7 +324,8 @@ class ForecastFile:
             try:
                 FilesProcessor.download_file(self.url, self.abs_path)
             except HTTPError as e:
-                if e.code == 404 and self.monthly_files_data:
+                if e.code == 404 and self.monthly_files_data and \
+                        self.update_ctrl.must_be_updated('predictors', 'intermediate_data', self.abs_path):
                     self.__create_seasonal_file_from_monthly_files()
                 else:
                     raise
@@ -345,9 +347,9 @@ class ForecastFile:
 
         # Group data by coord and year (excluding month)
         if self.variable == 'precip':
-            df = df.groupby(level=0).sum()
+            df = df.groupby(level=0).median()
         elif self.variable == 'tmp2m':
-            df = df.groupby(level=0).mean()
+            df = df.groupby(level=0).median()
         else:
             raise NotImplemented
 
@@ -695,12 +697,24 @@ class PredictandFile:
         # open progress bar
         pb.open()
 
-        df = self.grid.interpolate_raw_data(
-            input_file=self.raw_data_file.abs_path,
-            variable=self.predictand,
-            convert_kelvin_to_celsius=True if self.predictand == 't2m' else False,
-            return_df=True
-        )
+        # define interpolated file filename
+        interp_file = self.raw_data_file.abs_path.replace('.nc', '_interpolated.nc')
+
+        if not os.path.exists(interp_file) or \
+                self.update_ctrl.must_be_updated('predictands', 'intermediate_data', interp_file):
+            # interpolate recently downloaded data
+            df = self.grid.interpolate_raw_data(
+                input_file=self.raw_data_file.abs_path,
+                variable=self.predictand,
+                convert_kelvin_to_celsius=True if self.predictand == 't2m' else False,
+                return_df=True,
+                output_file=interp_file
+            )
+            # report interpolation
+            self.update_ctrl.report_updated_file(interp_file)
+        else:
+            # read/load previously interpolated data
+            df = xr.open_dataset(interp_file).to_dataframe()
 
         # report status
         pb.update_count(5)
