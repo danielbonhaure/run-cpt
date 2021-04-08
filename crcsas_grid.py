@@ -29,14 +29,14 @@ class CrcSasGrid:
         self.install_r_packages()
         self.longitudes: List[float] = []
         self.latitudes: List[float] = []
-        self.file_name: str = "points_in_land.shp"
         self.__set_lats_lons()
 
     @property
     def abs_path(self):
         config = ConfigFile.Instance()
         folder = config.get('folders').get('crc_sas_grid')
-        return os.path.join(folder, self.file_name) if self.file_name else ""
+        file_name = config.get('file').get('crc_sas_grid')
+        return os.path.join(folder, file_name) if file_name else "points_in_land.shp"
 
     def __set_lats_lons(self):
         config = ConfigFile.Instance()
@@ -61,17 +61,18 @@ class CrcSasGrid:
 
             # Get shape-file indicating land
             shp_folder = config.get('folders').get('raw_data').get('shapefiles')
-            boros = gpd.GeoDataFrame.from_file(os.path.join(shp_folder, 'CRC_SAS.shp'))
+            shp_filename = config.get('files').get('land_bound_shp')
+            land_bound = gpd.GeoDataFrame.from_file(os.path.join(shp_folder, shp_filename))
 
             # Identify points in land
             in_map: List[bool] = []
             # -- create progress bar to track in land points identification
-            pb_i = SecondaryProgressBar(len(pts), f'Identifying points in land (PID: {os.getpid()})')
+            pb_i = SecondaryProgressBar(len(pts), f'Identifying points in land when making grid (PID: {os.getpid()})')
             # -- open progress bar
             pb_i.open()
             # -- iterate over points
             for p in pts:
-                in_map.append(True) if any([p.within(geom) for geom in boros.geometry]) else in_map.append(False)
+                in_map.append(True) if any([p.within(geom) for geom in land_bound.geometry]) else in_map.append(False)
                 pb_i.report_advance(1)
             # -- close progress bar
             pb_i.close()

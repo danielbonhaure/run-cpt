@@ -96,3 +96,7 @@ folders:
   predictands: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictands/"
   crc_sas_grid: "/home/dbonhaure/PycharmProjects/PyCPT/input/crc_sas_grid/"
   output: "/home/dbonhaure/PycharmProjects/PyCPT/output/"
+
+files:
+  crc_sas_grid: 'points_in_land.shp'  # This file is created automatically, so, this is just the filename for it!!
+  land_bound_shp: 'CRC_SAS.shp'  # It must be in folder.raw_data.shapefiles. It's used to identify points in land bound!

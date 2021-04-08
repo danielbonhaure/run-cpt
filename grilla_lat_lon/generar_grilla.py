@@ -62,7 +62,7 @@ pts = gpd.GeoSeries([Point(x, y) for x, y in zip(xc, yc)])
 
 # Get shape-file indicating land
 shp_folder = config.get('folders').get('raw_data').get('shapefiles')
-boros = gpd.GeoDataFrame.from_file(os.path.join(shp_folder, 'CRC_SAS.shp'))
+land_bound = gpd.GeoDataFrame.from_file(os.path.join(shp_folder, 'CRC_SAS.shp'))
 
 # create progress bar to track grid generation
 run_status = f'Generating points (PID: {os.getpid()})'
@@ -73,7 +73,7 @@ pb.open()
 
 in_map: List[bool] = []
 for i, p in enumerate(pts):
-    in_map.append(True) if any([p.within(geom) for geom in boros.geometry]) else in_map.append(False)
+    in_map.append(True) if any([p.within(geom) for geom in land_bound.geometry]) else in_map.append(False)
     pb.report_advance(1)
 
 # close progress bar
@@ -81,12 +81,12 @@ pb.close()
 
 # Select only the points in land
 start = time()
-in_map = np.array([pts.within(geom) for geom in boros.geometry]).sum(axis=0)
+in_map = np.array([pts.within(geom) for geom in land_bound.geometry]).sum(axis=0)
 print(time() - start)
 pts_crc = gpd.GeoSeries([val for pos, val in enumerate(pts) if in_map[pos]])
 
 # Plot to make sure it makes sense:
-ax = boros.plot()
+ax = land_bound.plot()
 # pts_05.plot(ax=ax, color='yellow', markersize=12)
 # pts_10.plot(ax=ax, color='red', markersize=2)
 pts_crc.plot(ax=ax, color='yellow')
