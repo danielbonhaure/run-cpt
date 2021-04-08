@@ -307,7 +307,7 @@ class CPTFileProcessor:
         df = df.sort_index(level=['year', 0], ascending=[True, False])
 
         # Backup file if there was previously downloaded instead of locally created
-        if not cls.cpt_file_is_a_locally_created_one(file_name):
+        if not cls.cpt_file_is_a_locally_created_one(file_name) and os.path.exists(file_name):
             _ = shutil.copy(file_name, file_name.replace('.txt', '_downloaded_from_noaa.txt'))
 
         # Create file, open it and add header (2 firsts lines)

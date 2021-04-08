@@ -35,7 +35,7 @@ class CrcSasGrid:
     def abs_path(self):
         config = ConfigFile.Instance()
         folder = config.get('folders').get('crc_sas_grid')
-        file_name = config.get('file').get('crc_sas_grid')
+        file_name = config.get('files').get('crc_sas_grid')
         return os.path.join(folder, file_name) if file_name else "points_in_land.shp"
 
     def __set_lats_lons(self):
@@ -82,6 +82,9 @@ class CrcSasGrid:
 
             # Save new file
             pts.to_file(self.abs_path)
+
+            # Report that file was updated
+            update_ctrl.report_updated_file(self.abs_path)
 
         else:
             # Read existing file

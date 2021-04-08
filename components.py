@@ -62,7 +62,7 @@ class TargetSeason:
         return MonthsProcessor.month_abbr_to_months_range(self.tgts)
 
     def __post_init__(self):
-        if self.last_trgt_month_in_next_year and not self.first_trgt_month_in_next_year:
+        if not self.last_trgt_month_in_next_year and self.first_trgt_month_in_next_year:
             raise AttributeError("Last target month year can't be prior to first target month year!!")
 
 
@@ -671,7 +671,7 @@ class PredictandFile:
 
     name: str = field(init=False)
     folder: str = field(init=False)
-    grid: CrcSasGrid = field(init=False, default=CrcSasGrid())  # Define grid to be used (the CRC-SAS grid)
+    grid: CrcSasGrid = field(init=False)  # Define grid to be used (the CRC-SAS grid)
 
     # Upload cpt config file (It's a singleton!!)
     config_file: ConfigFile = field(init=False, default=ConfigFile.Instance())
@@ -698,6 +698,8 @@ class PredictandFile:
         self.name = self.__define_predictand_filename(trgt_season)
         # Define folder
         self.folder = self.config_file.get('folders').get('predictands')
+        # Define grid
+        self.grid = CrcSasGrid()
         # Download raw files
         self.__download_raw_file()
         # Create predictand file (extracting data from raw file)
