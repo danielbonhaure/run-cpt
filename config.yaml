@@ -11,6 +11,8 @@ update:
     cutted_chirps_data: False
     interpolated_data: False
     cpt_input_data: True
+  crc_sas_grid:
+    points_in_land: True
 
 target_season:
   mons: 'Aug'  # Start month
@@ -70,6 +72,11 @@ spatial_domain:
     sla: -52  # Southernmost latitude
     wlo: -78  # Westernmost longitude
     elo: -36  # Easternmost longitude
+  crc_sas_grid:
+    nla: -10.25  # Northernmost latitude
+    sla: -56.25  # Southernmost latitude
+    wlo: -78.75  # Westernmost longitude
+    elo: -35.75  # Easternmost longitude
 
 url:
   predictor:
@@ -84,6 +91,8 @@ folders:
     forecasts: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/forecasts/"
     chirps: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/chirps/"
     era5_land: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/era5_land/"
+    shapefiles: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/shapefiles/"
   predictors: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictors/"
   predictands: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictands/"
+  crc_sas_grid: "/home/dbonhaure/PycharmProjects/PyCPT/input/crc_sas_grid/"
   output: "/home/dbonhaure/PycharmProjects/PyCPT/output/"

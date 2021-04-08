@@ -12,7 +12,12 @@ import pandas as pd
 import yaml
 import re
 import shutil
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import matplotlib.ticker as ticker
 
+from cartopy import feature
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from contextlib import contextmanager
 from typing import Dict, List, Any
 from itertools import chain
@@ -310,6 +315,14 @@ class CPTFileProcessor:
             fp.write('xmlns:cpt=http://iri.columbia.edu/CPT/v10/locally_created_file\n')
             fp.write('cpt:nfields=1\n')
 
+        # create progress bar to track grid generation
+        run_status = f'Generating file {file_name} (PID: {os.getpid()})'
+        cant_years = file_data['training_original_last_year'] - file_data['training_original_first_year'] + 1
+        pb = SecondaryProgressBar(cant_years, run_status)
+
+        # open progress bar
+        pb.open()
+
         # Iter df by year and save data to the exit file
         for year in range(file_data['training_original_first_year'], file_data['training_original_last_year']+1):
 
@@ -338,6 +351,12 @@ class CPTFileProcessor:
 
             # Add df_y to the exit file
             df_y.sort_index(ascending=False).to_csv(file_name, sep='\t', na_rep='-999.000000', mode='a')
+
+            # Report advance
+            pb.report_advance(1)
+
+        # close progress bar
+        pb.close()
 
     @classmethod
     def dataframe_to_cpt_noaa_seasonal_forecast_file(cls, file_name: str, file_data: dict, df: pd.DataFrame,
@@ -439,3 +458,115 @@ class UpdateControl:
 
     def file_already_updated(self, file_abs_path: str) -> bool:
         return file_abs_path in self._updated_files
+
+
+def plt_predictors_and_predictands_domains(use_topo: bool = True):
+    """A simple plot function for the geographical domain of predictors and predictands
+
+    PARAMETERS
+    ----------
+        use_topo: Put a background image on for nice sea rendering.
+    """
+
+    config = ConfigFile.Instance()
+
+    """ loni: western longitude
+        lone: eastern longitude
+        lati: southern latitude
+        late: northern latitude """
+    loni1 = config.get('spatial_domain').get('predictor').get('wlo')
+    lone1 = config.get('spatial_domain').get('predictor').get('elo')
+    lati1 = config.get('spatial_domain').get('predictor').get('sla')
+    late1 = config.get('spatial_domain').get('predictor').get('nla')
+
+    """ loni: western longitude
+        lone: eastern longitude
+        lati: southern latitude
+        late: northern latitude """
+    loni2 = config.get('spatial_domain').get('predictand').get('wlo')
+    lone2 = config.get('spatial_domain').get('predictand').get('elo')
+    lati2 = config.get('spatial_domain').get('predictand').get('sla')
+    late2 = config.get('spatial_domain').get('predictand').get('nla')
+
+    # Create a feature for States/Admin 1 regions at 1:10m from Natural Earth
+    states_provinces = feature.NaturalEarthFeature(
+        category='cultural',
+        name='admin_0_countries',
+        scale='10m',
+        facecolor='none')
+
+    fig = plt.subplots(figsize=(15, 15), subplot_kw=dict(projection=ccrs.PlateCarree()))
+    loni = [loni1, loni2]  # loni: western longitude
+    lati = [lati1, lati2]  # lati: southern latitude
+    lone = [lone1, lone2]  # lone: eastern longitude
+    late = [late1, late2]  # late: northern latitude
+    title = ['Predictor', 'Predictand']
+
+    for i in range(2):
+
+        ax = plt.subplot(1, 2, i+1, projection=ccrs.PlateCarree())
+        ax.set_extent([loni[i], lone[i], lati[i], late[i]], ccrs.PlateCarree())
+
+        # Put a background image on for nice sea rendering.
+        if use_topo:
+            ax.stock_img()
+
+        ax.add_feature(feature.LAND)
+        ax.add_feature(feature.COASTLINE)
+        ax.add_feature(feature.OCEAN)
+        ax.set_title(title[i]+" domain")
+        pl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+                          linewidth=2, color='gray', alpha=0.5, linestyle='--')
+        pl.xlabels_top = False
+        pl.ylabels_left = False
+        pl.xformatter = LONGITUDE_FORMATTER
+        pl.yformatter = LATITUDE_FORMATTER
+        pl.xlocator = ticker.MaxNLocator(4)
+        pl.ylocator = ticker.MaxNLocator(4)
+        ax.add_feature(states_provinces, edgecolor='gray')
+    plt.show()
+
+
+def pltdomain(nla: float, sla: float, wlo: float, elo: float,
+              title: str = 'Geographical Domain', use_topo: bool = True):
+    """A simple plot function for a geographical domain
+
+    PARAMETERS
+    ----------
+        nla: Northernmost latitude.
+        sla: Southernmost latitude.
+        wlo: Westernmost longitude.
+        elo: Easternmost longitude.
+        title: Plot title (default = Geographical Domain).
+        use_topo: Put a background image on for nice sea rendering.
+    """
+
+    # Create a feature for States/Admin 1 regions at 1:10m from Natural Earth
+    states_provinces = feature.NaturalEarthFeature(
+        category='cultural',
+        name='admin_0_countries',
+        scale='10m',
+        facecolor='none')
+
+    ax = plt.subplot(projection=ccrs.PlateCarree())
+    ax.set_extent([wlo, elo, sla, nla], ccrs.PlateCarree())
+
+    # Put a background image on for nice sea rendering.
+    if use_topo:
+        ax.stock_img()
+
+    ax.add_feature(feature.LAND)
+    ax.add_feature(feature.COASTLINE)
+    ax.add_feature(feature.OCEAN)
+    ax.set_title(f"{title} domain")
+    pl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+                      linewidth=2, color='gray', alpha=0.5, linestyle='--')
+    pl.xlabels_top = False
+    pl.ylabels_left = False
+    pl.xformatter = LONGITUDE_FORMATTER
+    pl.yformatter = LATITUDE_FORMATTER
+    pl.xlocator = ticker.MaxNLocator(4)
+    pl.ylocator = ticker.MaxNLocator(4)
+    ax.add_feature(states_provinces, edgecolor='gray')
+
+    plt.show()
