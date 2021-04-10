@@ -4,7 +4,7 @@ run_cpt: False
 update:
   predictors:
     raw_data: False
-    locally_created_seasonal_files: True
+    locally_created_seasonal_files: False
     cpt_input_data: True
   predictands:
     raw_data: False
@@ -12,7 +12,7 @@ update:
     interpolated_data: False
     cpt_input_data: True
   crc_sas_grid:
-    points_in_land: True
+    points_in_land: False
 
 target_season:
   mons: 'Aug'  # Start month
@@ -87,15 +87,15 @@ url:
 
 folders:
   raw_data:
-    hindcasts: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/hindcasts/"
-    forecasts: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/forecasts/"
-    chirps: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/chirps/"
-    era5_land: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/era5_land/"
-    shapefiles: "/home/dbonhaure/PycharmProjects/PyCPT/input/raw_data/shapefiles/"
-  predictors: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictors/"
-  predictands: "/home/dbonhaure/PycharmProjects/PyCPT/input/predictands/"
-  crc_sas_grid: "/home/dbonhaure/PycharmProjects/PyCPT/input/crc_sas_grid/"
-  output: "/home/dbonhaure/PycharmProjects/PyCPT/output/"
+    hindcasts: "./input/raw_data/hindcasts/"
+    forecasts: "./input/raw_data/forecasts/"
+    chirps: "./input/raw_data/chirps/"
+    era5_land: "./input/raw_data/era5_land/"
+    shapefiles: "./input/raw_data/shapefiles/"
+  predictors: "./input/predictors/"
+  predictands: "./input/predictands/"
+  crc_sas_grid: "./input/crc_sas_grid/"
+  output: "./output/"
 
 files:
   crc_sas_grid: 'points_in_land.shp'  # This file is created automatically, so, this is just the filename for it!!

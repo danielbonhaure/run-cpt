@@ -6,18 +6,25 @@
 # Create image
 FROM debian:latest as cpt_builder
 
+# set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
 # Define CPT version to be used (https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact)
 ARG CPT_VERSION="15.7.11"
 
-# To use apt
-RUN apt-get update -qq
-
-# GCC5.x
-RUN apt-get install -y gcc make git
-# GFortran
-RUN apt-get install -y gfortran
-# wget
-RUN apt-get install -y wget
+# Install OS packages
+RUN apt-get -y -qq update && \
+    apt-get -y -qq --no-install-recommends install \
+        build-essential \
+        # GCC5.x
+        gcc make git \
+        # GFortran
+        gfortran \
+        # wget
+        ca-certificates wget \
+        # to install ncdf4
+        libnetcdf-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create CPT directory
 RUN mkdir /opt/CPT
@@ -116,12 +123,15 @@ RUN echo "export PATH=/opt/CPT/$CPT_VERSION/bin:$PATH" >> /root/.bashrc
 FROM python:3.8.5-buster AS py_builder
 
 # set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
+# set python environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # install OS packages
-RUN apt-get update -qq && \
-    apt-get -y --no-install-recommends install \
+RUN apt-get -y -qq update && \
+    apt-get -y -qq --no-install-recommends install \
         build-essential \
         # to install cartopy
         libproj-dev libgeos-dev \
@@ -133,12 +143,13 @@ RUN apt-get update -qq && \
 WORKDIR /usr/src/app
 
 # upgrade pip and install dependencies
-COPY requirements.txt requirements.txt
+COPY requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --upgrade pip && \
     # in order to install cartopy, see: https://github.com/SciTools/cartopy/issues/1552
     python3 -m pip install numpy && \
+    # finally, install python dependencies
     python3 -m pip wheel --no-cache-dir --no-deps \
-    --wheel-dir /usr/src/app/wheels -r requirements.txt
+    --wheel-dir /usr/src/app/wheels -r /tmp/requirements.txt
 
 
 
@@ -149,9 +160,12 @@ RUN python3 -m pip install --upgrade pip && \
 # Create image
 FROM r-base:3.5.2 AS r_builder
 
+# set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
 # install OS packages
-RUN apt-get update -qq && \
-    apt-get -y --no-install-recommends install \
+RUN apt-get -y -qq update && \
+    apt-get -y -qq --no-install-recommends install \
         build-essential \
         # to install ncdf4
         libnetcdf-dev && \
@@ -172,13 +186,15 @@ RUN R -e "install.packages('tibble', repos='https://cran.r-project.org/')"
 # Create image
 FROM python:3.8.5-buster AS pycpt
 
+# set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
 # Define CPT version to be used (https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact)
 ARG CPT_VERSION="15.7.11"
 
 # Install OS packages
-RUN apt-get update -qq &&\
-    apt-get -y --no-install-recommends install \
-        r-base \
+RUN apt-get -y -qq update &&\
+    apt-get -y -qq --no-install-recommends install \
         # to be able to use cartopy
         libproj-dev libgeos-dev \
         # to be able to use ncdf4
@@ -186,11 +202,19 @@ RUN apt-get update -qq &&\
         # install Tini (https://github.com/krallin/tini#using-tini)
         tini \
         # to see process with pid 1
-        htop && \
+        htop \
+        # to run sudo
+        sudo \
+        # to run process with cron
+        cron && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy CPT executable from cpt_builder
 COPY --from=cpt_builder /opt/CPT/$CPT_VERSION /opt/CPT
+
+# Setup CPT for root
+RUN echo "export CPT_BIN_DIR=/opt/CPT/bin" >> /root/.bashrc
+RUN echo "export PATH=/opt/CPT/bin:$PATH" >> /root/.bashrc
 
 # Install python dependencies from py_builder
 COPY --from=py_builder /usr/src/app/wheels /wheels
@@ -207,6 +231,19 @@ COPY --from=r_builder /usr/bin/Rscript /usr/bin/Rscript
 COPY --from=r_builder /usr/lib/R /usr/lib/R
 COPY --from=r_builder /usr/local/lib/R/site-library /usr/local/lib/R/site-library
 
+# Create work directory
+RUN mkdir -p /opt/pyCPT
+
+# Set work directory
+WORKDIR /opt/pyCPT
+
+# Copy app code
+COPY . .
+
+# Create input and output folder (these folders are too big so they must be used them as volumes)
+RUN mkdir -p /opt/pyCPT/input
+RUN mkdir -p /opt/pyCPT/output
+
 
 
 ########################
@@ -216,11 +253,15 @@ COPY --from=r_builder /usr/local/lib/R/site-library /usr/local/lib/R/site-librar
 # Create image
 FROM pycpt
 
+# Set passwords
+ARG ROOT_PWD
+ARG USER_PWD
+
 # Pasar a root
 USER root
 
 # Modify root password
-RUN echo "root:root" | chpasswd
+RUN echo "root:$ROOT_PWD" | chpasswd
 
 # Create a new user, so the container can run as non-root
 ARG CPT_USER="cpt"
@@ -230,30 +271,42 @@ RUN groupadd --gid $CPT_GID $CPT_USER
 RUN useradd --uid $CPT_UID --gid $CPT_GID --comment "CPT User Account" --create-home $CPT_USER
 
 # Modify the password of the new user
-RUN echo "$CPT_USER:cpt" | chpasswd
+RUN echo "$CPT_USER:$USER_PWD" | chpasswd
+
+# Add new user to sudoers
+RUN adduser $CPT_USER sudo
 
 # Setup CPT
-RUN echo "export CPT_BIN_DIR=/opt/CPT/bin" >> /root/.bashrc
-RUN echo "export PATH=/opt/CPT/bin:$PATH" >> /root/.bashrc
 RUN echo "export CPT_BIN_DIR=/opt/CPT/bin" >> /home/$CPT_USER/.bashrc
 RUN echo "export PATH=/opt/CPT/bin:$PATH" >> /home/$CPT_USER/.bashrc
 RUN chown -R $CPT_UID:$CPT_UID /opt/CPT
 
-# Switch back to cpt_user to avoid accidental container runs as root
-USER $CPT_UID
+# Setup pyCPT
+RUN chown -R $CPT_UID:$CPT_UID /opt/pyCPT
 
-# Access user directory
-WORKDIR /home/$CPT_USER
-
-# Create work directory
-RUN mkdir "/home/$CPT_USER/work"
+# Setup cron for user
+RUN (echo "* * * * * python3 -c \"print('hola')\" >> /proc/1/fd/1") | crontab -u $CPT_USER -
 
 # Add Tini (https://github.com/krallin/tini#using-tini)
 ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
 
 # Run your program under Tini (https://github.com/krallin/tini#using-tini)
-CMD ["bash"]
+# https://stackoverflow.com/a/45815035/5076110
+CMD ["cron", "-f"]
+# CMD echo $USER_PWD | sudo -S cron -f
 # or docker run your-image /your/program ...
 
-# docker build -f Dockerfile -t pycpt .
-# docker run --name pycpt --rm --volume "$PWD":/home/cpt -it pycpt:latest
+# Access user directory
+WORKDIR /home/$CPT_USER
+
+# Switch back to cpt_user to avoid accidental container runs as root
+USER $CPT_UID
+
+# docker build -f dockerfile \
+#        --build-arg ROOT_PWD=root \
+#        --build-arg USER_PWD=cpt \
+#        -t cpt .
+# docker run --name pycpt --rm \
+#        --volume ../input:/home/cpt/input \
+#        --volume ../output:/home/cpt/output \
+#        --detach cpt:latest
