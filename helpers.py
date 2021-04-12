@@ -25,11 +25,14 @@ from collections import namedtuple
 
 
 @contextmanager
-def localized(code):
-    old_code, old_encoding = locale.getlocale()
-    locale.setlocale(locale.LC_ALL, code)
-    yield
-    locale.setlocale(locale.LC_ALL, f"{old_code}.{old_encoding}")
+def localized(new_locale):
+    original_locale = '.'.join(locale.getlocale())
+    if new_locale == original_locale:
+        yield
+    else:
+        locale.setlocale(locale.LC_ALL, new_locale)
+        yield
+        locale.setlocale(locale.LC_ALL, original_locale)
 
 
 def crange(start, stop, modulo):
@@ -128,10 +131,10 @@ class SecondaryProgressBar(ProgressBar):
 
 class MonthsProcessor:
 
-    with localized("en_US.utf8"):
+    with localized("en_US.UTF-8"):
         months_abbr = list(calendar.month_abbr)
 
-    with localized("en_US.utf8"):
+    with localized("en_US.UTF-8"):
         months_names = list(calendar.month_name)
 
     @classmethod

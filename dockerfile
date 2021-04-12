@@ -158,7 +158,7 @@ RUN python3 -m pip install --upgrade pip && \
 ########################
 
 # Create image
-FROM r-base:3.5.2 AS r_builder
+FROM python:3.8.5-buster AS r_builder
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -167,6 +167,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y -qq update && \
     apt-get -y -qq --no-install-recommends install \
         build-essential \
+        # install R
+        r-base \
         # to install ncdf4
         libnetcdf-dev && \
     rm -rf /var/lib/apt/lists/*
@@ -195,8 +197,12 @@ ARG CPT_VERSION="15.7.11"
 # Install OS packages
 RUN apt-get -y -qq update &&\
     apt-get -y -qq --no-install-recommends install \
+        # install R
+        r-base \
         # to be able to use cartopy
         libproj-dev libgeos-dev \
+        # to be able to use rpy2
+        libblas-dev \
         # to be able to use ncdf4
         libnetcdf-dev \
         # install Tini (https://github.com/krallin/tini#using-tini)
@@ -205,9 +211,14 @@ RUN apt-get -y -qq update &&\
         htop \
         # to run sudo
         sudo \
+        # to allow edit files
+        vim \
         # to run process with cron
         cron && \
     rm -rf /var/lib/apt/lists/*
+
+# Setup cron to allow it run as a non root user
+RUN sudo chmod u+s $(which cron)
 
 # Copy CPT executable from cpt_builder
 COPY --from=cpt_builder /opt/CPT/$CPT_VERSION /opt/CPT
@@ -254,8 +265,8 @@ RUN mkdir -p /opt/pyCPT/output
 FROM pycpt
 
 # Set passwords
-ARG ROOT_PWD
-ARG USER_PWD
+ARG ROOT_PWD="cpt"
+ARG USER_PWD="cpt"
 
 # Pasar a root
 USER root
@@ -264,11 +275,13 @@ USER root
 RUN echo "root:$ROOT_PWD" | chpasswd
 
 # Create a new user, so the container can run as non-root
+# OBS: the UID and GID must be the same as the user that own the
+# input and the output volumes, so there isn't perms problems!!
 ARG CPT_USER="cpt"
-ARG CPT_UID="1000"
-ARG CPT_GID="1000"
-RUN groupadd --gid $CPT_GID $CPT_USER
-RUN useradd --uid $CPT_UID --gid $CPT_GID --comment "CPT User Account" --create-home $CPT_USER
+ARG USER_UID="1000"
+ARG USER_GID="1000"
+RUN groupadd --gid $USER_GID $CPT_USER
+RUN useradd --uid $USER_UID --gid $USER_GID --comment "CPT User Account" --create-home $CPT_USER
 
 # Modify the password of the new user
 RUN echo "$CPT_USER:$USER_PWD" | chpasswd
@@ -279,34 +292,34 @@ RUN adduser $CPT_USER sudo
 # Setup CPT
 RUN echo "export CPT_BIN_DIR=/opt/CPT/bin" >> /home/$CPT_USER/.bashrc
 RUN echo "export PATH=/opt/CPT/bin:$PATH" >> /home/$CPT_USER/.bashrc
-RUN chown -R $CPT_UID:$CPT_UID /opt/CPT
+RUN chown -R $USER_UID:$USER_UID /opt/CPT
 
 # Setup pyCPT
-RUN chown -R $CPT_UID:$CPT_UID /opt/pyCPT
+RUN chown -R $USER_UID:$USER_UID /opt/pyCPT
 
-# Setup cron for user
-RUN (echo "* * * * * python3 -c \"print('hola')\" >> /proc/1/fd/1") | crontab -u $CPT_USER -
+# Setup cron for
+RUN (echo "7 7 7 * * /usr/local/bin/python /opt/pyCPT/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $CPT_USER -
 
 # Add Tini (https://github.com/krallin/tini#using-tini)
 ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
 
 # Run your program under Tini (https://github.com/krallin/tini#using-tini)
-# https://stackoverflow.com/a/45815035/5076110
 CMD ["cron", "-f"]
-# CMD echo $USER_PWD | sudo -S cron -f
 # or docker run your-image /your/program ...
 
 # Access user directory
 WORKDIR /home/$CPT_USER
 
 # Switch back to cpt_user to avoid accidental container runs as root
-USER $CPT_UID
+USER $CPT_USER
 
 # docker build -f dockerfile \
 #        --build-arg ROOT_PWD=root \
 #        --build-arg USER_PWD=cpt \
+#        --build-arg USER_UID=$(stat -c "%u" input) \
+#        --build-arg USER_GID=$(stat -c "%g" output) \
 #        -t cpt .
 # docker run --name pycpt --rm \
-#        --volume ../input:/home/cpt/input \
-#        --volume ../output:/home/cpt/output \
+#        --volume $(pwd)/input:/opt/pyCPT/input \
+#        --volume $(pwd)/output:/opt/pyCPT/output \
 #        --detach cpt:latest
