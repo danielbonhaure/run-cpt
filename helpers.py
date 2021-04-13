@@ -15,6 +15,7 @@ import shutil
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import matplotlib.ticker as ticker
+import cdsapi
 
 from cartopy import feature
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
@@ -22,6 +23,8 @@ from contextlib import contextmanager
 from typing import Dict, List, Any
 from itertools import chain
 from collections import namedtuple
+from datetime import date
+from time import sleep
 
 
 @contextmanager
@@ -212,7 +215,7 @@ class YearsProcessor:
 class FilesProcessor:
 
     @classmethod
-    def download_file(cls, download_url: str, file_path: str):
+    def download_file_from_url(cls, download_url: str, file_path: str, min_valid_size: int):
         #
         download_url = urllib.parse.quote(download_url, safe=':/')
         # Create progress bar to track download
@@ -221,6 +224,59 @@ class FilesProcessor:
         f, h = urllib.request.urlretrieve(download_url, file_path, pb)
         # Check file size
         assert os.stat(file_path).st_size != 0
+        assert os.stat(file_path).st_size >= min_valid_size
+
+    @classmethod
+    def download_file_from_cdsapi(cls, file_path: str, variable: str, area: List[float], min_valid_size: int):
+
+        # Create progress bar to track interpolation
+        run_status = f'Downloading file {file_path.split("/").pop(-1)} (PID: {os.getpid()})'
+        pb = SecondaryProgressBar(10, run_status)
+
+        # Open progress bar
+        pb.open()
+
+        # Create cds api Client
+        c = cdsapi.Client(quiet=False)
+
+        # Report status
+        pb.update_count(1)
+
+        # Pin up progress bar to show cds api logs
+        pb.pin_up()
+
+        # Download netcdf
+        c.retrieve(
+            'reanalysis-era5-land-monthly-means',
+            {
+                'format': 'netcdf',
+                'product_type': 'monthly_averaged_reanalysis',
+                'variable': variable,
+                'year': list(range(1981, date.today().year + 1)),
+                'month': [
+                    '01', '02', '03',
+                    '04', '05', '06',
+                    '07', '08', '09',
+                    '10', '11', '12',
+                ],
+                'time': '00:00',
+                'area': area,  # [nla, wlo, sla, elo]
+            },
+            file_path)
+
+        # report status
+        pb.update_count(9)
+
+        # check file size
+        assert os.stat(file_path).st_size != 0
+        assert os.stat(file_path).st_size >= min_valid_size
+
+        # report status
+        pb.update_count(10)
+
+        # close progress bar
+        sleep(0.5)
+        pb.close()
 
 
 class ConfigProcessor:

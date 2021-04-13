@@ -297,8 +297,8 @@ RUN chown -R $USER_UID:$USER_UID /opt/CPT
 # Setup pyCPT
 RUN chown -R $USER_UID:$USER_UID /opt/pyCPT
 
-# Setup cron for
-RUN (echo "7 7 7 * * /usr/local/bin/python /opt/pyCPT/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $CPT_USER -
+# Setup cron for run once a month
+RUN (echo "0 0 15 * * /usr/local/bin/python /opt/pyCPT/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $CPT_USER -
 
 # Add Tini (https://github.com/krallin/tini#using-tini)
 ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
@@ -314,7 +314,9 @@ WORKDIR /home/$CPT_USER
 USER $CPT_USER
 
 # docker build -f dockerfile \
-#        --build-arg ROOT_PWD=root \
+#        -t cpt .
+# docker build -f dockerfile \
+#        --build-arg ROOT_PWD=cpt \
 #        --build-arg USER_PWD=cpt \
 #        --build-arg USER_UID=$(stat -c "%u" input) \
 #        --build-arg USER_GID=$(stat -c "%g" output) \
@@ -322,4 +324,10 @@ USER $CPT_USER
 # docker run --name pycpt --rm \
 #        --volume $(pwd)/input:/opt/pyCPT/input \
 #        --volume $(pwd)/output:/opt/pyCPT/output \
+#        --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
 #        --detach cpt:latest
+# docker run --name pycpt --rm \
+#        --volume $(pwd)/input:/opt/pyCPT/input \
+#        --volume $(pwd)/output:/opt/pyCPT/output \
+#        --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
+#        cpt:latest /usr/local/bin/python /opt/pyCPT/main.py

@@ -2,11 +2,12 @@
 from components import *
 
 from errors import ConfigError
-from helpers import ProgressBar, ConfigProcessor
+from helpers import ConfigProcessor, ProgressBar, SecondaryProgressBar
 
 import os
 import subprocess
 import pathlib
+import signal
 
 from dataclasses import dataclass, field
 
@@ -171,6 +172,8 @@ class CPT:
 
     def __init__(self, cpt_bin_dir: str, config_filename: str = 'config.yaml'):
         self.cpt_bin_dir: str = cpt_bin_dir
+        self.cpt_executable: str = f"{self.cpt_bin_dir}/CPT.x"
+        self.detected_errors: List[str] = []
         self.__setup_configuration_singletons(config_filename)
         self.__check_and_create_folders()
         self.__create_and_setup_progress_bar()
@@ -206,6 +209,11 @@ class CPT:
         if not os.environ.get('CPT_BIN_DIR'):
             raise ConfigError(f"La variable de entorno CPT_BIN_DIR no ha sido definida!")
 
+    def kill_running_cpt(self) -> None:
+        """Kill all cpt instances currently running"""
+        for line in os.popen(f"ps ax | grep {self.cpt_executable} | grep -v grep"):
+            os.kill(int(line.split()[0]), signal.SIGKILL)
+
     @staticmethod
     def lines_that_contain(string, fp):
         return [line for line in fp if string in line]
@@ -222,24 +230,57 @@ class CPT:
         # Check if CPT must be executed or not
         if self.config_file.get('run_cpt', True):
 
+            # Create progress bar to track interpolation
+            run_status = f'Running CPT.x < {params_file} (PID: {os.getpid()})'
+            pb = SecondaryProgressBar(5, run_status)
+
+            # Open progress bar
+            pb.open()
+
             # Set up CPT environment
             self.setup_cpt_environment()
+
+            # report status
+            pb.update_count(1)
 
             # Define cpt log file
             cpt_logfile = target.output_file.abs_path.replace('.txt', '.log')
 
+            # report status
+            pb.update_count(2)
+
             # Run CPT
             try:
-                subprocess.check_output(f"{self.cpt_bin_dir}/CPT.x < {params_file} > {cpt_logfile}",
-                                        stderr=subprocess.STDOUT, shell=True)
+                subprocess.check_output(f"{self.cpt_executable} < {params_file} > {cpt_logfile}",
+                                        stderr=subprocess.STDOUT, shell=True, timeout=300)
             except subprocess.CalledProcessError as e:
-                print(e.output.decode())
+                self.kill_running_cpt()
+                print(f'\n{e.output.decode()}')
                 raise
+            except subprocess.TimeoutExpired as e:
+                self.kill_running_cpt()
+                self.detected_errors.append(str(e))
+
+            # report status
+            pb.update_count(4)
 
             # Check for errors
             with open(cpt_logfile, "r") as fp:
-                for line in self.lines_that_contain("Error:", fp):
-                    print(line)
+                add_lines = False
+                for line in fp:
+                    if not add_lines and any(x in line for x in ["Error:", "ERROR:"]):
+                        self.detected_errors.append(f'Error in file: {cpt_logfile}')
+                        add_lines = True
+                    if add_lines and any(x in line for x in ["_"*70, 'Select option:']):
+                        add_lines = False
+                    self.detected_errors.append(f"-- {line.strip()}") if add_lines else None
+
+            # report status
+            pb.update_count(5)
+
+            # close progress bar
+            sleep(0.5)
+            pb.close()
 
         # Report progress
         self.progress_bar.report_advance(0.5)

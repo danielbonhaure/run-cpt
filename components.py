@@ -7,7 +7,6 @@ from crcsas_grid import CrcSasGrid
 import os
 import shutil
 import xarray as xr
-import cdsapi
 import pandas as pd
 import re
 
@@ -15,7 +14,6 @@ from typing import List, Dict, Union
 from dataclasses import dataclass, InitVar, field
 from string import Template
 from urllib.error import HTTPError
-from datetime import date
 from time import sleep
 from itertools import product
 
@@ -106,7 +104,7 @@ class TrainingPeriod:
 
     @property
     def ntrain(self) -> int:  # Length of training period
-        return self.tend - self.tini + 1
+        return self.original_tend - self.original_tini + 1
 
     trgt_season: InitVar[TargetSeason] = None
 
@@ -200,20 +198,23 @@ class HindcastFile:
                     seasonal_file_variable=self.variable)
 
     def download_raw_data(self):
-        self.__create_seasonal_file_from_monthly_files()
         if not os.path.exists(self.abs_path) or \
                 self.update_ctrl.must_be_updated('predictors', 'raw_data', self.abs_path):
             try:
-                FilesProcessor.download_file(self.url, self.abs_path)
+                FilesProcessor.download_file_from_url(self.url, self.abs_path, 20000000)
             except HTTPError as e:
                 if e.code == 404 and self.monthly_files_data and (
                         not os.path.exists(self.abs_path) or self.update_ctrl.must_be_updated(
                             'predictors', 'locally_created_seasonal_files', self.abs_path)):
                     self.__create_seasonal_file_from_monthly_files()
                 else:
+                    os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
                     raise
-            # Reportar que el archivo ya fue actualizado
-            self.update_ctrl.report_updated_file(self.abs_path)
+            except AssertionError:
+                os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
+                raise
+            else:
+                self.update_ctrl.report_updated_file(self.abs_path)
 
     def __create_seasonal_file_from_monthly_files(self):
         # Dataframe with files content
@@ -224,7 +225,13 @@ class HindcastFile:
             # Download monthly file
             if not os.path.exists(fd.get('name')) or \
                     self.update_ctrl.must_be_updated('predictors', 'raw_data', fd.get('name')):
-                FilesProcessor.download_file(fd.get('url'), fd.get('name'))
+                try:
+                    FilesProcessor.download_file_from_url(fd.get('url'), fd.get('name'), 20000000)
+                except (HTTPError, AssertionError):
+                    os.remove(fd.get('name')) if os.path.exists(fd.get('name')) else None
+                    raise
+                else:
+                    self.update_ctrl.report_updated_file(fd.get('name'))
             # Read file, get a dataframe that represent it, and concatenate it to df
             df = pd.concat([df, CPTFileProcessor.cpt_noaa_monthly_file_to_dataframe(fd.get('name'))])
 
@@ -253,7 +260,7 @@ class HindcastFile:
         df.index.set_names('year', level='trng_year', inplace=True)
 
         # Save generated dataframe as cpt file
-        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_hindcast_file(self.abs_path, self.seasonal_file_data, df, True)
+        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_hindcast_file(self.abs_path, self.seasonal_file_data, df, False)
 
 
 @dataclass
@@ -324,20 +331,23 @@ class ForecastFile:
                     seasonal_file_variable=self.variable)
 
     def download_raw_data(self):
-        self.__create_seasonal_file_from_monthly_files()
         if not os.path.exists(self.abs_path) or \
                 self.update_ctrl.must_be_updated('predictors', 'raw_data', self.abs_path):
             try:
-                FilesProcessor.download_file(self.url, self.abs_path)
+                FilesProcessor.download_file_from_url(self.url, self.abs_path, 500000)
             except HTTPError as e:
                 if e.code == 404 and self.monthly_files_data and (
                         not os.path.exists(self.abs_path) or self.update_ctrl.must_be_updated(
                             'predictors', 'locally_created_seasonal_files', self.abs_path)):
                     self.__create_seasonal_file_from_monthly_files()
                 else:
+                    os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
                     raise
-            # Reportar que el archivo ya fue actualizado
-            self.update_ctrl.report_updated_file(self.abs_path)
+            except AssertionError:
+                os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
+                raise
+            else:
+                self.update_ctrl.report_updated_file(self.abs_path)
 
     def __create_seasonal_file_from_monthly_files(self):
         # Dataframe with files content
@@ -348,7 +358,13 @@ class ForecastFile:
             # Download monthly file
             if not os.path.exists(fd.get('name')) or \
                     self.update_ctrl.must_be_updated('predictors', 'raw_data', fd.get('name')):
-                FilesProcessor.download_file(fd.get('url'), fd.get('name'))
+                try:
+                    FilesProcessor.download_file_from_url(fd.get('url'), fd.get('name'), 500000)
+                except (HTTPError, AssertionError):
+                    os.remove(fd.get('name')) if os.path.exists(fd.get('name')) else None
+                    raise
+                else:
+                    self.update_ctrl.report_updated_file(fd.get('name'))
             # Read file, get a dataframe that represent it, and concatenate it to df
             df = pd.concat([df, CPTFileProcessor.cpt_noaa_monthly_file_to_dataframe(fd.get('name'))])
 
@@ -361,7 +377,7 @@ class ForecastFile:
             raise AttributeError('Forecast files only support "precip" and "tmp2m" as variables!')
 
         # Save generated dataframe as cpt file
-        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_forecast_file(self.abs_path, self.seasonal_file_data, df, True)
+        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_forecast_file(self.abs_path, self.seasonal_file_data, df, False)
 
 
 @dataclass
@@ -514,14 +530,20 @@ class ChirpsFile:
         # Download chirps for the whole world (if needed)
         if not os.path.exists(chirps_world) or \
                 self.update_ctrl.must_be_updated('predictands', 'raw_data', chirps_world):
-            # Download netcdf
-            FilesProcessor.download_file(self.url, chirps_world)
-            # Reportar que el archivo ya fue actualizado
-            self.update_ctrl.report_updated_file(chirps_world)
+            try:
+                # Download netcdf
+                FilesProcessor.download_file_from_url(self.url, chirps_world, 6000000000)
+            except (HTTPError, AssertionError):
+                os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
+                raise
+            else:
+                # Reportar que el archivo ya fue actualizado
+                self.update_ctrl.report_updated_file(chirps_world)
 
         # Update intermediate file (obtained by cutting the downloaded file)
         if not os.path.exists(self.abs_path) or \
                 self.update_ctrl.must_be_updated('predictands', 'cutted_chirps_data', self.abs_path):
+
             # create progress bar to track interpolation
             run_status = f'Cutting file {self.abs_path.split("/").pop(-1)} (PID: {os.getpid()})'
             pb = SecondaryProgressBar(10, run_status)
@@ -600,43 +622,16 @@ class Era5LandFile:
         if not os.path.exists(self.abs_path) or \
                 self.update_ctrl.must_be_updated('predictands', 'raw_data', self.abs_path):
 
-            # Create progress bar to track interpolation
-            run_status = f'Downloading file {self.abs_path.split("/").pop(-1)} (PID: {os.getpid()})'
-            pb = SecondaryProgressBar(10, run_status)
+            try:
+                # Download file from cdsapi
+                FilesProcessor.download_file_from_cdsapi(self.abs_path, self.__get_api_variable(),
+                                                         self.__get_api_area(), 100000000)
+            except (HTTPError, AssertionError):
+                os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
+                raise
 
-            # Open progress bar
-            pb.open()
-
-            # Create cds api Client
-            c = cdsapi.Client(quiet=False)
-
-            # Report status
-            pb.update_count(1)
-
-            # Pin up progress bar to show cds api logs
-            pb.pin_up()
-
-            # Download netcdf
-            c.retrieve(
-                'reanalysis-era5-land-monthly-means',
-                {
-                    'format': 'netcdf',
-                    'product_type': 'monthly_averaged_reanalysis',
-                    'variable': self.__get_api_variable(),
-                    'year': list(range(1981, date.today().year + 1)),
-                    'month': [
-                        '01', '02', '03',
-                        '04', '05', '06',
-                        '07', '08', '09',
-                        '10', '11', '12',
-                    ],
-                    'time': '00:00',
-                    'area': self.__get_api_area(),
-                },
-                self.abs_path)
-
-            # report status
-            pb.update_count(9)
+            # Reportar que el archivo ya fue actualizado
+            self.update_ctrl.report_updated_file(self.abs_path)
 
             # Rename variable when needed
             if self.variable == 'prcp':
@@ -650,16 +645,6 @@ class Era5LandFile:
                 in_mem_ds.to_netcdf(self.abs_path)
                 # Free memory
                 del in_mem_ds
-
-            # report status
-            pb.update_count(10)
-
-            # Reportar que el archivo ya fue actualizado
-            self.update_ctrl.report_updated_file(self.abs_path)
-
-            # close progress bar
-            sleep(0.5)
-            pb.close()
 
 
 @dataclass
