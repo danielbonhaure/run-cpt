@@ -9,6 +9,7 @@ import subprocess
 import pathlib
 import signal
 
+from typing import List
 from dataclasses import dataclass, field
 
 
@@ -200,7 +201,7 @@ class CPT:
         """Create and setup progress bar"""
         run_status = f'Running CPT (PID: {os.getpid()})'
         total_targets = ConfigProcessor.count_iterations(self.config_file.get('models'))
-        self.progress_bar = ProgressBar(total_targets + 1, run_status)
+        self.progress_bar = ProgressBar((110 * total_targets) / 100.0, run_status)
 
     def setup_cpt_environment(self) -> None:
         """Setup CPT environment"""
@@ -218,7 +219,7 @@ class CPT:
     def lines_that_contain(string, fp):
         return [line for line in fp if string in line]
 
-    def __run_cpt_for_a_specific_target(self, target: ConfigCPT):
+    def __run_cpt_for_a_specific_target(self, target: ConfigCPT, advance_to_be_reported: float):
         """Run CPT for a specific target"""
 
         # Define cpt params file
@@ -283,21 +284,66 @@ class CPT:
             pb.close()
 
         # Report progress
-        self.progress_bar.report_advance(0.5)
+        self.progress_bar.report_advance(advance_to_be_reported)
 
     def __create_targets_and_run_cpt_for_them(self):
         """Create targets an run CPT for each of them"""
 
+        # Compute marginal progress bar advance (to reporte aditional advances)
+        marginal_advance = ConfigProcessor.count_iterations(self.config_file.get('models')) * 10 / 100
+
         # Get spatial domains from config
         spd_predictor = SpatialDomain(**self.config_file.get('spatial_domain').get('predictor'))
         spd_predictand = SpatialDomain(**self.config_file.get('spatial_domain').get('predictand'))
-        # Get target season from config
-        trgt_season = TargetSeason(**self.config_file.get('target_season'))
-        # Get forecast data from config
-        fcst_data = ForecastData(**self.config_file.get('forecast_data'))
 
         # Report progress
-        self.progress_bar.report_advance(0.5)
+        self.progress_bar.report_advance(marginal_advance/5)
+
+        # Get target season and forecast data from config
+        trgt_data, fcst_data = self.config_file.get('target_season'), self.config_file.get('forecast_data')
+
+        # If one of them is None, then the setting is wrong
+        if trgt_data and not fcst_data or not trgt_data and fcst_data:
+            raise ConfigError
+
+        # Report progress
+        self.progress_bar.report_advance(marginal_advance/5)
+
+        # Set targets seasons
+        targets: List[TargetSeason]
+        if not trgt_data:
+            tds = MonthsProcessor.current_month_trgts_data()
+            targets = [TargetSeason(**td) for td in tds]
+        elif [str, str] == [type(trgt_data.get(k)) for k in trgt_data.keys()]:
+            targets = [TargetSeason(**trgt_data)]
+        elif all([type(trgt_data.get(k)) == list for k in trgt_data.keys()]):
+            zipped_data = zip(trgt_data.get('mons'), trgt_data.get('tgts'))
+            targets = [TargetSeason(mons=m, tgts=t) for m, t in zipped_data]
+        else:
+            raise ConfigError
+
+        # Report progress
+        self.progress_bar.report_advance(marginal_advance/5)
+
+        # Set forecasts data
+        forecasts: List[ForecastData]
+        if not fcst_data:
+            fd = MonthsProcessor.current_month_fcsts_data()
+            forecasts = [ForecastData(**fd) for i in range(len(targets))]
+        elif [int, str, int] == [type(fcst_data.get(k)) for k in fcst_data.keys()] and \
+                not all([type(trgt_data.get(k)) == list for k in trgt_data.keys()]):
+            forecasts = [ForecastData(**fcst_data)]
+        elif [int, str, int] == [type(fcst_data.get(k)) for k in fcst_data.keys()] and \
+                all([type(trgt_data.get(k)) == list for k in trgt_data.keys()]):
+            forecasts = [ForecastData(**fcst_data) for i in range(len(targets))]
+        elif all([type(fcst_data.get(k)) == list for k in fcst_data.keys()]):
+            zipped_data = zip(fcst_data.get('fyr'), fcst_data.get('monf'), fcst_data.get('nfcsts'))
+            forecasts = [ForecastData(fyr=y, monf=m, nfcsts=n) for y, m, n in zipped_data]
+        else:
+            raise ConfigError
+
+        # Report progress
+        self.progress_bar.report_advance(marginal_advance/5)
 
         # Generate ConfigCPT instances
         for model in self.config_file.get('models').keys():
@@ -308,30 +354,32 @@ class CPT:
 
             for predictor, predictand, data_source in zip(all_predictors, all_predictands, all_data_sources):
 
-                # Create target
-                cpt_config: ConfigCPT = ConfigCPT(
-                    model=model,
-                    target_season=trgt_season,
-                    forecast_data=fcst_data,
-                    predictor_data=PredictorXVariables(
-                        spatial_domain=spd_predictor,
-                        predictor=predictor
-                    ),
-                    predictand_data=PredictandYVariables(
-                        spatial_domain=spd_predictand,
-                        predictand=predictand,
-                        data_source=data_source,
+                for a_trgt_season, a_fcst_data in zip(targets, forecasts):
+
+                    # Create target
+                    cpt_config: ConfigCPT = ConfigCPT(
+                        model=model,
+                        target_season=a_trgt_season,
+                        forecast_data=a_fcst_data,
+                        predictor_data=PredictorXVariables(
+                            spatial_domain=spd_predictor,
+                            predictor=predictor
+                        ),
+                        predictand_data=PredictandYVariables(
+                            spatial_domain=spd_predictand,
+                            predictand=predictand,
+                            data_source=data_source,
+                        )
                     )
-                )
 
-                # Report progress
-                self.progress_bar.report_advance(0.5)
+                    # Report progress
+                    self.progress_bar.report_advance(0.5/len(targets))
 
-                # Run CPT for the created target
-                self.__run_cpt_for_a_specific_target(cpt_config)
+                    # Run CPT for the created target
+                    self.__run_cpt_for_a_specific_target(cpt_config, 0.5/len(targets))
 
         # Report progress
-        self.progress_bar.report_advance(0.5)
+        self.progress_bar.report_advance(marginal_advance/5)
 
     def run(self) -> None:
         """Run CPT"""

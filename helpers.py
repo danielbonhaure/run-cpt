@@ -186,6 +186,20 @@ class MonthsProcessor:
             m1i, m3i = cls.month_abbr_to_int(splitted[0]), cls.month_abbr_to_int(splitted[1])
             return f"{cls.month_int_to_name(m1i)}-{cls.month_int_to_name(m3i)}"
 
+    @classmethod
+    def current_month_trgts_data(cls):
+        month = date.today().month
+        return [dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month+1)),
+                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month+2)),
+                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month+3)),
+                dict(mons=cls.month_int_to_abbr(month),
+                     tgts=f'{cls.month_int_to_abbr(month+1)}-{cls.month_int_to_abbr(month+3)}')]
+
+    @classmethod
+    def current_month_fcsts_data(cls):
+        year, month = date.today().year, date.today().month
+        return dict(fyr=year, monf=cls.month_int_to_abbr(month), nfcsts=1)
+
 
 class YearsProcessor:
 
