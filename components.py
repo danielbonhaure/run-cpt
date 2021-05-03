@@ -216,7 +216,7 @@ class HindcastFile:
             else:
                 self.update_ctrl.report_updated_file(self.abs_path)
 
-    def __create_seasonal_file_from_monthly_files(self):
+    def __create_seasonal_file_from_monthly_files(self, debug: bool = False):
         # Dataframe with files content
         df: pd.DataFrame = pd.DataFrame()
 
@@ -260,7 +260,7 @@ class HindcastFile:
         df.index.set_names('year', level='trng_year', inplace=True)
 
         # Save generated dataframe as cpt file
-        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_hindcast_file(self.abs_path, self.seasonal_file_data, df, False)
+        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_hindcast_file(self.abs_path, self.seasonal_file_data, df, debug)
 
 
 @dataclass
@@ -349,7 +349,7 @@ class ForecastFile:
             else:
                 self.update_ctrl.report_updated_file(self.abs_path)
 
-    def __create_seasonal_file_from_monthly_files(self):
+    def __create_seasonal_file_from_monthly_files(self, debug: bool = False):
         # Dataframe with files content
         df: pd.DataFrame = pd.DataFrame()
 
@@ -377,7 +377,7 @@ class ForecastFile:
             raise AttributeError('Forecast files only support "precip" and "tmp2m" as variables!')
 
         # Save generated dataframe as cpt file
-        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_forecast_file(self.abs_path, self.seasonal_file_data, df, False)
+        CPTFileProcessor.dataframe_to_cpt_noaa_seasonal_forecast_file(self.abs_path, self.seasonal_file_data, df, debug)
 
 
 @dataclass

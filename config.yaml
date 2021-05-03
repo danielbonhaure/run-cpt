@@ -16,14 +16,14 @@ update:
 
 # Must be commented to run the current month
 #target_season:
-#  mons: ['Jan', 'Jan', 'Jan', 'Jan']  # Start month
-#  tgts: ['Feb', 'Mar', 'Apr', 'Feb-Apr']  # Target period
+#  mons: ['Jan', 'Aug']  # Start month
+#  tgts: ['Feb-Apr', 'Dec-Feb']  # Target period
 
 # Also must be commented to run the current month
 #forecast_data:
-#  fyr: 2020  # Forecast first year (year of monf, if target season are in next year, it will be adjusted automatically)
-#  monf: 'Jan'  # Initialization month / First month
-#  nfcsts: 1  # Number of forecast years (1: [2020], 2: [2020,2021], 3: [2020,2021,2022])
+#  fyr: [2020, 2020]  # Forecast first year (year of monf, if target season are in next year, it will be adjusted automatically)
+#  monf: ['Jan', 'Aug']  # Initialization month / First month
+#  nfcsts: [1, 1]  # Number of forecast years (1: [2020], 2: [2020,2021], 3: [2020,2021,2022])
 
 models:
   nmme:
