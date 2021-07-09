@@ -158,7 +158,7 @@ class HindcastFile:
         # Define file name
         self.name = self.__define_hindcast_filename(model, fcst_data, trgt_season, trng_period)
         # Define url
-        url_template = Template(self.config_file.get('url').get('predictor').get('template'))
+        url_template = Template(self.config_file.get('url').get('predictor').get('nmme').get('template'))
         self.url = url_template.substitute(trgt_type=trgt_season.type, file_type="hindcast", file_name=self.name)
         # Define folder
         self.folder = self.config_file.get('folders').get('raw_data').get('hindcasts')
@@ -180,7 +180,7 @@ class HindcastFile:
         for i, month in enumerate(trgt_season.trgt_months_range):
             year = trgt_years[trng_period.original_tini][i]
             f_name = f'{model_name}_{self.variable}_hcst_{fcst_data.monf}ic_{month}_{year}.txt'
-            url_tpl = Template(self.config_file.get('url').get('predictor').get('template'))
+            url_tpl = Template(self.config_file.get('url').get('predictor').get('nmme').get('template'))
             files.append({'name': os.path.join(self.folder, f_name), 'year': year, 'month': month,
                           'url': url_tpl.substitute(trgt_type='monthly', file_type="hindcast", file_name=f_name)})
         return dict(files=files)
@@ -294,7 +294,7 @@ class ForecastFile:
         # Define file name
         self.name = self.__define_forecast_filename(model, fcst_data, trgt_season, fcst_year)
         # Define url
-        url_template = Template(self.config_file.get('url').get('predictor').get('template'))
+        url_template = Template(self.config_file.get('url').get('predictor').get('nmme').get('template'))
         self.url = url_template.substitute(trgt_type=trgt_season.type, file_type="forecast", file_name=self.name)
         # Define folder
         self.folder = self.config_file.get('folders').get('raw_data').get('forecasts')
@@ -316,7 +316,7 @@ class ForecastFile:
         for i, month in enumerate(trgt_season.trgt_months_range):
             year = trgt_years[fcst_year][i]
             f_name = f'{model_name}_{self.variable}_fcst_{fcst_data.monf}ic_{month}_{year}.txt'
-            url_tpl = Template(self.config_file.get('url').get('predictor').get('template'))
+            url_tpl = Template(self.config_file.get('url').get('predictor').get('nmme').get('template'))
             files.append({'name': os.path.join(self.folder, f_name), 'year': year, 'month': month,
                           'url': url_tpl.substitute(trgt_type='monthly', file_type="forecast", file_name=f_name)})
         return dict(files=files)
@@ -664,12 +664,13 @@ class PredictandFile:
     update_ctrl: UpdateControl = field(init=False, default=UpdateControl.Instance())
 
     trgt_season: InitVar[TargetSeason] = None
+    trng_period: InitVar[TrainingPeriod] = None
 
     @property
     def abs_path(self):
         return os.path.join(self.folder, self.name) if self.name else ""
 
-    def __post_init__(self, trgt_season):
+    def __post_init__(self, trgt_season, trng_period):
         # Check data_source attribute
         if self.data_source not in ['chirps', 'era5-land']:
             error_msg = f'The data_source attribute must be "chirps" or "era5-land", not "{self.data_source}"'
@@ -688,7 +689,7 @@ class PredictandFile:
         # Download raw files
         self.__download_raw_file()
         # Create predictand file (extracting data from raw file)
-        self.__create_predictand_file(trgt_season)
+        self.__create_predictand_file(trgt_season, trng_period)
 
     def __define_predictand_filename(self, trgt_season) -> str:
         months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
@@ -697,7 +698,7 @@ class PredictandFile:
     def __download_raw_file(self):
         self.raw_data_file.download_raw_data()
 
-    def __create_predictand_file(self, trgt_season):
+    def __create_predictand_file(self, trgt_season, trng_period):
         if os.path.exists(self.abs_path) and not \
                 self.update_ctrl.must_be_updated('predictands', 'cpt_input_data', self.abs_path):
             return
@@ -750,7 +751,27 @@ class PredictandFile:
             # Group data and get mean
             df = df.groupby(['latitude', 'longitude', 'year']).mean().round(1)
         if self.predictand == 'prcp':
-            df = df.groupby(['latitude', 'longitude', 'year']).sum().round(1)
+            df = df.groupby(['latitude', 'longitude', 'year']).sum(min_count=1).round(1)
+            # Si un punto (lon, lat) tiene poquísima lluvia, como por ejemplo en el desierto de Atacama, entonces
+            # CPT falla en la predicción, para evitar esto, se agregan lluvias falsas de 0.1 mm a algunos de los
+            # elementos de la serie de lluvias (los valores por año son acumulados de 1 o 3 meses)
+            df1 = df.groupby(['latitude', 'longitude']).sum(min_count=1).round(1)
+            if df1.prcp.min() <= 0.6:
+                for lat, lon in df1.query('prcp <= 0.6').index.to_flat_index():
+                    # print(f'Actualizando archivo {self.abs_path,} lat: {lat}, lon: {lon}, valores: [ '
+                    #       f'1995 - {df.loc[lat, lon, 1995].prcp}, 1996 - {df.loc[lat, lon, 1995].prcp}, '
+                    #       f'1997 - {df.loc[lat, lon, 1997].prcp}, 1998 - {df.loc[lat, lon, 1998].prcp}, '
+                    #       f'1999 - {df.loc[lat, lon, 1999].prcp}, 2000 - {df.loc[lat, lon, 2000].prcp}]')
+                    df.loc[lat, lon, trng_period.tini + 4].prcp = 0.1
+                    df.loc[lat, lon, trng_period.tini + 5].prcp = 0.1
+                    df.loc[lat, lon, trng_period.tini + 6].prcp = 0.1
+                    df.loc[lat, lon, trng_period.tini + 7].prcp = 0.1
+                    df.loc[lat, lon, trng_period.tini + 8].prcp = 0.1
+                    df.loc[lat, lon, trng_period.tini + 9].prcp = 0.1
+            del df1
+            # ds = xr.open_dataset('/home/dbonhaure/PycharmProjects/PyCPT/chirps/chirps_recortado.nc')
+            # ds.precip[0, :, :].plot.imshow()
+            # plot(df1.index.get_level_values('longitude'), df1.index.get_level_values('latitude'), 'bo', color='red')
         # Save file in cpt format
         cpt_procesor = CPTFileProcessor(self.grid.longitudes, self.grid.latitudes)
         cpt_procesor.dataframe_to_cpt_format_file(self.abs_path, df)

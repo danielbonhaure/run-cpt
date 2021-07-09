@@ -25,6 +25,7 @@ class ConfigCPT:
     model: str
 
     # Mutable Data
+    trng_period: TrainingPeriod
     target_season: TargetSeason
     forecast_data: ForecastData
     predictor_data: PredictorXVariables
@@ -33,29 +34,24 @@ class ConfigCPT:
     # Model Output Statistic (MOS) method (choose between None, PCR, CCA)
     mos: str = 'CCA'
 
-    # The training period can be inferred by others properties.
-    training_period: TrainingPeriod = field(init=False)
-
     # The output file can be inferred by others properties.
     output_file: OutputFile = None
 
     def __post_init__(self):
-        self.training_period = TrainingPeriod(
-            trgt_season=self.target_season
-        )
         if not self.predictor_data.file_obj:
             self.predictor_data.file_obj = PredictorFile(
                 model=self.model,
                 predictor=self.predictor_data.predictor,
                 fcst_data=self.forecast_data,
                 trgt_season=self.target_season,
-                trng_period=self.training_period
+                trng_period=self.trng_period
             )
         if not self.predictand_data.file_obj:
             self.predictand_data.file_obj = PredictandFile(
                 predictand=self.predictand_data.predictand,
                 data_source=self.predictand_data.data_source,
-                trgt_season=self.target_season
+                trgt_season=self.target_season,
+                trng_period=self.trng_period
             )
         if not self.output_file:
             self.output_file = OutputFile(
@@ -124,24 +120,24 @@ class ConfigCPT:
         # X training period settings
         f.write("4\n")
         # First year of X training period
-        f.write(str(self.training_period.tini)+'\n')
+        f.write(str(self.trng_period.tini)+'\n')
         # Y training period settings
         f.write("5\n")
         # First year of Y training period
-        f.write(str(self.training_period.tini)+'\n')
+        f.write(str(self.trng_period.tini)+'\n')
 
         # Forecast period settings
         f.write("6\n")
         # First year of training period
-        f.write(str(self.training_period.tini)+'\n')
+        f.write(str(self.trng_period.tini)+'\n')
 
         # Length of training period
         f.write("7\n")
-        f.write(str(self.training_period.ntrain)+'\n')
+        f.write(str(self.trng_period.ntrain)+'\n')
 
         # Number of forecasts
         f.write("9\n")
-        f.write(str(self.training_period.ntrain + self.forecast_data.nfcsts)+'\n')
+        f.write(str(self.trng_period.ntrain + self.forecast_data.nfcsts)+'\n')
 
         # Build model and save outputs
         if self.mos == 'CCA' or self.mos == 'PCR':  # Don't use CPT to compute probabilities if MOS='None'
@@ -253,7 +249,7 @@ class CPT:
             # Run CPT
             try:
                 subprocess.check_output(f"{self.cpt_executable} < {params_file} > {cpt_logfile}",
-                                        stderr=subprocess.STDOUT, shell=True, timeout=300)
+                                        stderr=subprocess.STDOUT, shell=True, timeout=180)
             except subprocess.CalledProcessError as e:
                 self.kill_running_cpt()
                 print(f'\n{e.output.decode()}')
@@ -356,9 +352,17 @@ class CPT:
 
                 for a_trgt_season, a_fcst_data in zip(targets, forecasts):
 
+                    # Define training period
+                    a_trng_period = TrainingPeriod(
+                        tini=self.config_file.get('training_period').get('fyr'),
+                        tend=self.config_file.get('training_period').get('lyr'),
+                        trgt_season=a_trgt_season
+                    )
+
                     # Create target
                     cpt_config: ConfigCPT = ConfigCPT(
                         model=model,
+                        trng_period=a_trng_period,
                         target_season=a_trgt_season,
                         forecast_data=a_fcst_data,
                         predictor_data=PredictorXVariables(

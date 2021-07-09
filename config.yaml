@@ -14,16 +14,20 @@ update:
   crc_sas_grid:
     points_in_land: False
 
+training_period:
+  fyr: 1991
+  lyr: 2020
+
 # Must be commented to run the current month
 #target_season:
-#  mons: ['Jan', 'Aug']  # Start month
-#  tgts: ['Feb-Apr', 'Dec-Feb']  # Target period
+#  mons: ['Jun']  # ['Jan', 'Aug']  # Start month
+#  tgts: ['Jul']  # ['Feb-Apr', 'Dec-Feb']  # Target period
 
 # Also must be commented to run the current month
 #forecast_data:
-#  fyr: [2020, 2020]  # Forecast first year (year of monf, if target season are in next year, it will be adjusted automatically)
-#  monf: ['Jan', 'Aug']  # Initialization month / First month
-#  nfcsts: [1, 1]  # Number of forecast years (1: [2020], 2: [2020,2021], 3: [2020,2021,2022])
+#  fyr: [2021]  # [2020, 2020]  # Forecast first year (year of monf, if target season are in next year, it will be adjusted automatically)
+#  monf: ['Jun']  # ['Jan', 'Aug'] # Initialization month / First month
+#  nfcsts: [1]  # [1, 1]  # Number of forecast years (1: [2020], 2: [2020,2021], 3: [2020,2021,2022])
 
 models:
   nmme:
@@ -82,8 +86,17 @@ spatial_domain:
 
 url:
   predictor:
-    # trgt_type: "monthly" or "seasonal", file_type: "hindcast" or "forecast"
-    template: "https://ftp.cpc.ncep.noaa.gov/International/nmme/${trgt_type}_nmme_${file_type}_in_cpt_format/${file_name}"
+    nmme:
+      # trgt_type: "monthly" or "seasonal", file_type: "hindcast" or "forecast"
+      # OBS: NO ESTAN EN FORMATO CPT, DEBEN RE-FORMATEARSE ANTES DE SER UTILIZADOS!!!
+      template: "https://ftp.cpc.ncep.noaa.gov/International/nmme/${trgt_type}_nmme_${file_type}_in_cpt_format/${file_name}"
+    ecmwf:
+      template:
+        # month_str: initialization month, last_year: last year with data Ej: 2021, 2022,
+        # first_month: first target month, last_month: last target month, nla-sla-wlo-elo: predictor spatial domain
+        # OBS: NO REQUIEREN MODIFICACIÓN, SE DESCARGAN Y SE USAN!!!
+        monthly: "http://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.hindcast/.prcp/S/(0000 1 ${month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.forecast/.prcp/S/(0000 1 ${month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/(${first_month}.5)VALUES/Y/(${nla})(${sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(mm/day)/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv"
+        seasonal: "http://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.hindcast/.prcp/S/(0000 1 ${month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.forecast/.prcp/S/(0000 1 ${month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/${first_month}.5/${last_month}.5/RANGE[L]//keepgrids/average/Y/(${nla})(&{sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(mm/day)/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv"
   predictand:
     chirps: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_monthly/netcdf/chirps-v2.0.monthly.nc"
 

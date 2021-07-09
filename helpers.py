@@ -331,7 +331,7 @@ class CPTFileProcessor:
             f.write("Stn\t" + "\t".join(df_to_save.columns.values.tolist()) + "\n")
             f.write("Lat\t" + "\t".join(map(str, self.latitudes)) + "\n")
             f.write("Lon\t" + "\t".join(map(str, self.longitudes)) + "\n")
-        df_to_save.to_csv(filename, sep='\t', mode='a', header=False)
+        df_to_save.to_csv(filename, sep='\t', mode='a', header=False, na_rep='-999')
 
     @classmethod
     def cpt_noaa_monthly_file_to_dataframe(cls, file_name: str):
