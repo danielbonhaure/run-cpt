@@ -5,12 +5,12 @@ update:
   predictors:
     raw_data: False
     locally_created_seasonal_files: False
-    cpt_input_data: True
+    cpt_input_data: False
   predictands:
     raw_data: False
     cutted_chirps_data: False
     interpolated_data: False
-    cpt_input_data: True
+    cpt_input_data: False
   crc_sas_grid:
     points_in_land: False
 
