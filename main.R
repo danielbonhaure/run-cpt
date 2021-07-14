@@ -13,14 +13,22 @@ rm(list = ls()); gc()
 Sys.setenv(TZ = "UTC")
 
 # iii. Cargar paquetes a utilizar
-list.of.packages <- c("yaml")
+list.of.packages <- c("dplyr")
 for (pack in list.of.packages) {
   if (! require(pack, character.only = TRUE)) {
     stop(paste0("Paquete no encontrado: ", pack))
   }
 }
 
-rm(pack); gc()
+# iv. Verificar si están instalados los paquetes necesarios
+list.of.packages <- c("stringr", "tidyr", "yaml", "glue")
+for (pack in list.of.packages) {
+  if(pack %in% rownames(installed.packages()) == FALSE) {
+    stop(paste0("Paquete no encontrado: ", pack))
+  }
+}
+
+rm(pack, list.of.packages); gc()
 # ------------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------#
@@ -100,7 +108,7 @@ fp_split <- stringr::str_split_fixed(fp$file, '_', 5)
 modelo <- fp_split[1]
 variable <- stringr::str_split_fixed(fp_split[2], '-', 2)[2]
 month <- as.numeric(fp_split[4])
-year <- as.numeric(stringr::str_replace(fp_split[5], '.txt', ''))
+first_fcst_year <- as.numeric(stringr::str_replace(fp_split[5], '.txt', ''))
 
 
 #
@@ -247,7 +255,98 @@ data <- gen_data %>%
     pr.mayor.media = 1 - pr.menor.media - pr.media,
     pr.mayor.media.ajustado = 1 - pr.menor.media.ajustado - pr.media.ajustado
   ) %>%
-  dplyr::mutate()
+  dplyr::mutate(
+    escala_abajo = ifelse(pr.menor.media.ajustado > pr.mayor.media.ajustado,
+                          pr.menor.media.ajustado, NA),
+    escala_arriba = ifelse(pr.mayor.media.ajustado >= pr.menor.media.ajustado,
+                           pr.mayor.media.ajustado, NA)
+  ) %>% 
+  dplyr::mutate(
+    codigo_de_color = dplyr::case_when(
+      pr.menor.media.ajustado > pr.mayor.media.ajustado & pr.menor.media.ajustado >= 0.6 ~ -6,
+      pr.menor.media.ajustado > pr.mayor.media.ajustado & pr.menor.media.ajustado >= 0.5 & pr.menor.media.ajustado < 0.6 ~ -5,
+      pr.menor.media.ajustado > pr.mayor.media.ajustado & pr.menor.media.ajustado >= 0.45 & pr.menor.media.ajustado < 0.5 ~ -4,
+      pr.menor.media.ajustado > pr.mayor.media.ajustado & pr.menor.media.ajustado >= 0.4 & pr.menor.media.ajustado < 0.45 ~ -3,
+      pr.menor.media.ajustado > pr.mayor.media.ajustado & pr.menor.media.ajustado >= 0.35 & pr.menor.media.ajustado < 0.4 ~ -2,
+      pr.menor.media.ajustado > pr.mayor.media.ajustado & pr.menor.media.ajustado >= 0 & pr.menor.media.ajustado < 0.35 ~ -1,
+      pr.mayor.media.ajustado >= pr.menor.media.ajustado & pr.mayor.media.ajustado >= 0 & pr.mayor.media.ajustado < 0.35 ~ 1,
+      pr.mayor.media.ajustado >= pr.menor.media.ajustado & pr.mayor.media.ajustado >= 0.35 & pr.mayor.media.ajustado < 0.4 ~ 2,
+      pr.mayor.media.ajustado >= pr.menor.media.ajustado & pr.mayor.media.ajustado >= 0.4 & pr.mayor.media.ajustado < 0.45 ~ 3,
+      pr.mayor.media.ajustado >= pr.menor.media.ajustado & pr.mayor.media.ajustado >= 0.45 & pr.mayor.media.ajustado < 0.5 ~ 4,
+      pr.mayor.media.ajustado >= pr.menor.media.ajustado & pr.mayor.media.ajustado >= 0.5 & pr.mayor.media.ajustado < 0.6 ~ 5,
+      pr.mayor.media.ajustado >= pr.menor.media.ajustado & pr.mayor.media.ajustado >= 0.6 ~ 6
+    )
+  )
+
+
+#
+# SELECCIONAR AÑOS PRONOSTICADOS Y RENOMBRARLOS
+#
+
+# Ocurre que cuando se corre el CPT, algunas veces el año siguiente al último
+# año de entrenamiento no es el año que dice ser sino el 1er año pronosticado.
+# Para saber si se dió esta situación se debe verificar que el año inmediata-
+# mente posterior al último año de entrenamiento sea igual al año de pronos-
+# tico (forecast_data.fyr en el archivo config.yaml). OJO: para corridas con
+# datos del modelo europeo este truco con los años no aplica.
+
+# Obtener el 1er año de entrenamiento
+first_training_year <- min(gen_data$year)
+
+# Calcular el último año de entrenamiento 
+last_training_year <- dplyr::case_when(
+  first_training_year == 1982 ~ 2010,
+  first_training_year == 1983 ~ 2011,
+  first_training_year == 1991 ~ 2020,
+  first_training_year == 1992 ~ 2021
+)
+
+# Verificar años de entrenamiento
+if (!first_training_year %in% c(1982, 1983, 1991, 1992) || 
+    first_training_year %in% c(1982, 1983, 1991, 1992) && !last_training_year %in% unique(data$year)) {
+  if (first_training_year == config$training_period$fyr &&
+      config$training_period$lyr %in% unique(data$year)) {
+    first_training_year <- config$training_period$fyr
+    last_training_year  <- config$training_period$lyr
+    warning(glue::glue('Unknown training period. The values defined in ', 
+                       'the config.yaml file are used!'))
+  } else {
+    stop(glue::glue('Training period is unknown and the first year in file ',
+                    '{fp$file} mismatch with the first training period year ',
+                    'in config.yaml'))
+  }
+}
+
+
+# Calcular desfasaje
+min_date_in_data <- gen_data %>% 
+  dplyr::filter(year > last_training_year) %>%
+  dplyr::pull(year) %>% min()
+  
+desfasaje <- first_fcst_year - min_date_in_data
+
+
+# Renombrar los años segun corresponda y descartar los años de entrenamiento
+mapeo <- purrr::map_dfr(
+  .x = gen_data %>% 
+    dplyr::filter(year > last_training_year) %>%
+    dplyr::pull(year) %>% unique(),
+  .f = function(year) {
+    tibble::tibble(orig_year = year, new_year = year + desfasaje)
+  })
+data <- data %>%
+  dplyr::filter(year > last_training_year) %>%
+  dplyr::left_join(mapeo, by = c('year' = 'orig_year')) %>%
+  dplyr::mutate(new_year = ifelse(is.na(new_year), year, new_year)) %>%
+  dplyr::mutate(year = new_year) %>%
+  dplyr::select(-new_year) %>%
+  dplyr::arrange(year)
+
+
+#
+# GENERAR GRÁFICOS/MAPAS
+#
+
 
 
 # ------------------------------------------------------------------------------

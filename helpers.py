@@ -475,12 +475,17 @@ class ConfigFile:
     def __init__(self):
         self._file_name: str = 'config.yaml'
         self.cpt_config: dict = self.__load_config()
+        self.__create_plot_yaml_file()
 
     def __load_config(self) -> dict:
         if not os.path.exists(self._file_name):
             raise ConfigError(f"Configuration file (i.e. {self._file_name}) not found!")
         with open(self._file_name, 'r') as f:
             return yaml.safe_load(f)
+
+    def __create_plot_yaml_file(self):
+        with open(self.cpt_config.get('files').get('plot_yaml'), 'w') as fp_plot_yaml:
+            fp_plot_yaml.write('\nfiles:\n')
 
     @property
     def file_name(self):

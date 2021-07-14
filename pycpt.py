@@ -354,8 +354,8 @@ class CPT:
 
                     # Define training period
                     a_trng_period = TrainingPeriod(
-                        tini=self.config_file.get('training_period').get('fyr'),
-                        tend=self.config_file.get('training_period').get('lyr'),
+                        tini=self.config_file.get('training_period', {}).get('fyr', TrainingPeriod.tini),
+                        tend=self.config_file.get('training_period', {}).get('lyr', TrainingPeriod.tend),
                         trgt_season=a_trgt_season
                     )
 

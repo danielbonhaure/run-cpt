@@ -457,7 +457,7 @@ class PredictorFile:
 
         # Agregar el contenido de los fcst_files_path
         with open(dst, 'a') as fp_comb:
-            for fcst_file, fcst_year, years_to_add in product(self.fcst_files, fcst_years, fcst_years_count):
+            for fcst_file, fcst_year, years_to_add in zip(self.fcst_files, fcst_years, fcst_years_count):
                 with open(fcst_file.abs_path, 'r') as fp_fcst:
                     for line in fp_fcst.readlines():
                         if all(x not in line for x in ['xmlns:cpt', 'cpt:nfields']):
@@ -853,9 +853,15 @@ class OutputFile:
         self.name = self.__define_output_filename(model, fcst_data, trgt_season, predictor_data, predictand_data)
         # Define folder
         self.folder = self.config_file.get('folders').get('output')
+        # Report output file to plotting module
+        self.__add_filename_to_plot_yaml(trgt_season)
 
     @staticmethod
     def __define_output_filename(model, fcst_data, trgt_season, predictor_data, predictand_data) -> str:
         months_abbr = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
         return f"{model}_{predictor_data.predictor}-{predictand_data.predictand}_" \
                f"{fcst_data.monf}ic_{months_abbr}_{fcst_data.fyr}.txt"
+
+    def __add_filename_to_plot_yaml(self, trgt_season):
+        with open(self.config_file.get('files').get('plot_yaml'), 'a') as fp_plot_yaml:
+            fp_plot_yaml.write(f' - {{ file: "{self.name}", type: "{trgt_season.type}" }}\n')
