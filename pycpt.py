@@ -50,6 +50,7 @@ class ConfigCPT:
             self.predictand_data.file_obj = PredictandFile(
                 predictand=self.predictand_data.predictand,
                 data_source=self.predictand_data.data_source,
+                fcst_data=self.forecast_data,
                 trgt_season=self.target_season,
                 trng_period=self.trng_period
             )
@@ -58,6 +59,7 @@ class ConfigCPT:
                 model=self.model,
                 fcst_data=self.forecast_data,
                 trgt_season=self.target_season,
+                trng_period=self.trng_period,
                 predictor_data=self.predictor_data,
                 predictand_data=self.predictand_data
             )

@@ -319,18 +319,26 @@ class CPTFileProcessor:
         for lat, lon in zip(self.latitudes, self.longitudes):
             df_est = df_to_rename.loc[lat, lon]
             df_est.rename(lambda x: f"E({lon}_{lat})", axis='columns', inplace=True)
-            df_output = pd.concat([df_output, df_est], axis=1)
+            # se concatena en orden inverso, para que la última columna sea la primera
+            df_output = pd.concat([df_est, df_output], axis=1)
         return df_output
 
     def dataframe_to_cpt_format_file(self, filename: str, df_to_save: pd.DataFrame):
         # Rename columns to CPT file column format
         df_to_save = self.rename_dataframe_columns_to_cpt_format(df_to_save)
 
+        # Como en rename_dataframe_columns_to_cpt_format se concatenaron las columnas en orden inverso,
+        # las latitudes y longitudes también deben usarse en orden inverso
+        reversed_lat = self.latitudes.copy()
+        reversed_lat.reverse()
+        reversed_lon = self.longitudes.copy()
+        reversed_lon.reverse()
+
         # Save dataframe
         with open(filename, 'w') as f:
             f.write("Stn\t" + "\t".join(df_to_save.columns.values.tolist()) + "\n")
-            f.write("Lat\t" + "\t".join(map(str, self.latitudes)) + "\n")
-            f.write("Lon\t" + "\t".join(map(str, self.longitudes)) + "\n")
+            f.write("Lat\t" + "\t".join(map(str, reversed_lat)) + "\n")
+            f.write("Lon\t" + "\t".join(map(str, reversed_lon)) + "\n")
         df_to_save.to_csv(filename, sep='\t', mode='a', header=False, na_rep='-999')
 
     @classmethod
@@ -485,6 +493,11 @@ class ConfigFile:
 
     def __create_plot_yaml_file(self):
         with open(self.cpt_config.get('files').get('plot_yaml'), 'w') as fp_plot_yaml:
+            fp_plot_yaml.write('\nfolders:\n')
+            fp_plot_yaml.write(f'  observed_data: {self.cpt_config.get("folders").get("predictands")}\n')
+            fp_plot_yaml.write(f'  generated_data: {self.cpt_config.get("folders").get("output")}\n')
+            fp_plot_yaml.write(f'  shapefiles: {self.cpt_config.get("folders").get("raw_data").get("shapefiles")}\n')
+            fp_plot_yaml.write(f'  output: {self.cpt_config.get("folders").get("output")}\n')
             fp_plot_yaml.write('\nfiles:\n')
 
     @property

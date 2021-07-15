@@ -663,6 +663,7 @@ class PredictandFile:
     # Define update control (It's a singleton!!)
     update_ctrl: UpdateControl = field(init=False, default=UpdateControl.Instance())
 
+    fcst_data: InitVar[ForecastData] = None
     trgt_season: InitVar[TargetSeason] = None
     trng_period: InitVar[TrainingPeriod] = None
 
@@ -670,7 +671,7 @@ class PredictandFile:
     def abs_path(self):
         return os.path.join(self.folder, self.name) if self.name else ""
 
-    def __post_init__(self, trgt_season, trng_period):
+    def __post_init__(self, fcst_data, trgt_season, trng_period):
         # Check data_source attribute
         if self.data_source not in ['chirps', 'era5-land']:
             error_msg = f'The data_source attribute must be "chirps" or "era5-land", not "{self.data_source}"'
@@ -681,7 +682,7 @@ class PredictandFile:
         if self.data_source == 'era5-land':
             self.raw_data_file = Era5LandFile(self.predictand)
         # Define file name
-        self.name = self.__define_predictand_filename(trgt_season)
+        self.name = self.__define_predictand_filename(trgt_season, trng_period, fcst_data)
         # Define folder
         self.folder = self.config_file.get('folders').get('predictands')
         # Define grid
@@ -689,16 +690,18 @@ class PredictandFile:
         # Download raw files
         self.__download_raw_file()
         # Create predictand file (extracting data from raw file)
-        self.__create_predictand_file(trgt_season, trng_period)
+        self.__create_predictand_file(trgt_season, trng_period, fcst_data)
 
-    def __define_predictand_filename(self, trgt_season) -> str:
+    def __define_predictand_filename(self, trgt_season, trng_period, fcst_data) -> str:
         months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
+        # return f"{self.predictand}_{months_indexes}_{trng_period.tini}-{trng_period.tend}_" \
+        #        f"{fcst_data.fyr}-{fcst_data.fyr + fcst_data.nfcsts - 1}.txt"
         return f"{self.predictand}_{months_indexes}.txt"
 
     def __download_raw_file(self):
         self.raw_data_file.download_raw_data()
 
-    def __create_predictand_file(self, trgt_season, trng_period):
+    def __create_predictand_file(self, trgt_season, trng_period, fcst_data):
         if os.path.exists(self.abs_path) and not \
                 self.update_ctrl.must_be_updated('predictands', 'cpt_input_data', self.abs_path):
             return
@@ -739,7 +742,7 @@ class PredictandFile:
         df.set_index('month', append=True, inplace=True)
         df = df.droplevel('time') \
             .reorder_levels(['latitude', 'longitude', 'month', 'year']) \
-            .sort_index()
+            .sort_index(ascending=[False, False, True, True])
 
         # report status
         pb.update_count(7.5)
@@ -772,6 +775,18 @@ class PredictandFile:
             # ds = xr.open_dataset('/home/dbonhaure/PycharmProjects/PyCPT/chirps/chirps_recortado.nc')
             # ds.precip[0, :, :].plot.imshow()
             # plot(df1.index.get_level_values('longitude'), df1.index.get_level_values('latitude'), 'bo', color='red')
+
+        # df_only_trng_period = df.query(f'year >= {trng_period.tini} and year <= {trng_period.tend}').copy()
+        # for delta in range(fcst_data.nfcsts):
+        #     orig_year = fcst_data.fyr + delta
+        #     df_orig_year = df.query(f'year == {orig_year}').copy()
+        #     if not df_orig_year.empty:
+        #         df_new_year = df_orig_year.index.to_frame().reset_index(drop=True)
+        #         df_new_year['year'] = trng_period.tend + delta + 1
+        #         df_new_year[self.predictand] = df_orig_year[self.predictand].to_list()
+        #         df_new_year.set_index(['latitude', 'longitude', 'year'], inplace=True)
+        #         df_only_trng_period = df_only_trng_period.append(df_new_year)
+
         # Save file in cpt format
         cpt_procesor = CPTFileProcessor(self.grid.longitudes, self.grid.latitudes)
         cpt_procesor.dataframe_to_cpt_format_file(self.abs_path, df)
@@ -841,6 +856,7 @@ class OutputFile:
     model: InitVar[str] = None
     fcst_data: InitVar[ForecastData] = None
     trgt_season: InitVar[TargetSeason] = None
+    trng_period: InitVar[TrainingPeriod] = None
     predictor_data: InitVar[PredictorXVariables] = None
     predictand_data: InitVar[PredictandYVariables] = None
 
@@ -848,19 +864,20 @@ class OutputFile:
     def abs_path(self):
         return os.path.join(self.folder, self.name) if self.name else ""
 
-    def __post_init__(self, model, fcst_data, trgt_season, predictor_data, predictand_data):
+    def __post_init__(self, model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data):
         # Define file name
-        self.name = self.__define_output_filename(model, fcst_data, trgt_season, predictor_data, predictand_data)
+        self.name = self.__define_output_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data)
         # Define folder
         self.folder = self.config_file.get('folders').get('output')
         # Report output file to plotting module
         self.__add_filename_to_plot_yaml(trgt_season)
 
     @staticmethod
-    def __define_output_filename(model, fcst_data, trgt_season, predictor_data, predictand_data) -> str:
+    def __define_output_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data) -> str:
         months_abbr = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
         return f"{model}_{predictor_data.predictor}-{predictand_data.predictand}_" \
-               f"{fcst_data.monf}ic_{months_abbr}_{fcst_data.fyr}.txt"
+               f"{fcst_data.monf}ic_{months_abbr}_{trng_period.tini}-{trng_period.tend}_" \
+               f"{fcst_data.fyr}-{fcst_data.fyr + fcst_data.nfcsts - 1}.txt"
 
     def __add_filename_to_plot_yaml(self, trgt_season):
         with open(self.config_file.get('files').get('plot_yaml'), 'a') as fp_plot_yaml:

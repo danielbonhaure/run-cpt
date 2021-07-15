@@ -41,7 +41,7 @@ if (length(args) > 0) {
 } else {
   # No vino el archivo de configuracion por linea de comandos.
   # Utilizo un archivo default
-  archivo.config <- paste0(getwd(), "/config.yaml")
+  archivo.config <- paste0(getwd(), "/plot.yaml")
 }
 
 if (! file.exists(archivo.config)) {
@@ -51,27 +51,7 @@ if (! file.exists(archivo.config)) {
   config <- yaml::yaml.load_file(archivo.config)
 }
 
-# ii. Verificar archivo de configuración
-if (is.null(config$target_season) && !is.null(config$forecast_data) ||
-    !is.null(config$target_season) && is.null(config$forecast_data)) {
-  stop("Error en el archivo de configuración.")
-}
-
-# iii. YAML de parametros 
-if (length(args) > 1) {
-  archivo.plot <- args[2]
-} else {
-  # No vino el archivo de configuracion por linea de comandos. Utilizo un archivo default
-  archivo.plot <- paste0(getwd(), "/plot.yaml")
-}
-if (! file.exists(archivo.plot)) {
-  stop(paste0("El archivo de parámetros ", archivo.plot, " no existe\n"))
-} else {
-  cat(paste0("Leyendo archivo de parámetros ", archivo.plot, "...\n"))
-  config$plot <- yaml::yaml.load_file(archivo.plot)
-}
-
-rm(archivo.config, archivo.plot, args); gc()
+rm(archivo.config, args); gc()
 # ------------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------#
@@ -93,38 +73,47 @@ rm(archivo.config, archivo.plot, args); gc()
 
 
 
-# for (fp in config$plot$files) {
+# for (fp in config$files) {
 #   print(fp)
 # }
 
-fp <- config$plot$files[[1]]
+fp <- config$files[[1]]
+
 
 #
 # PARSEAR NOMBRE DEL ARCHIVO
 #
 
-fp_split <- stringr::str_split_fixed(fp$file, '_', 5)
+fp_split <- stringr::str_split_fixed(fp$file, '_', 6)
 
 modelo <- fp_split[1]
 variable <- stringr::str_split_fixed(fp_split[2], '-', 2)[2]
 month <- as.numeric(fp_split[4])
-first_fcst_year <- as.numeric(stringr::str_replace(fp_split[5], '.txt', ''))
+training_period <- fp_split[5]
+first_training_year <- as.numeric(stringr::str_split_fixed(training_period, '-', 2)[1])
+last_training_year <- as.numeric(stringr::str_split_fixed(training_period, '-', 2)[2])
+forecast_years <- stringr::str_replace(fp_split[6], '.txt', '')
+first_fcst_year <- as.numeric(stringr::str_split_fixed(forecast_years, '-', 2)[1])
+last_fcst_year <- as.numeric(stringr::str_split_fixed(forecast_years, '-', 2)[2])
+
 
 
 #
 # EXTRAER DATOS GENERADOS POR EL SOFTWARE CPT
 #
 
+# Definir path absoluto al archivo
+file_abs_path <- paste0(getwd(), '/', config$folders$generated_data, fp$file)
 # Extraer latitudes (usar nombre de columna como ID)
-y <- read.table(file = paste0(getwd(), '/output/', fp$file), sep = '\t', header = FALSE, skip = 3, nrows = 1)
+y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 3, nrows = 1)
 yy <- y %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lat") %>% 
   dplyr::select(-V1)
 # Extraer longitudes (usar nombre de columna como ID)
-x <- read.table(file = paste0(getwd(), '/output/', fp$file), sep = '\t', header = FALSE, skip = 4, nrows = 1)
+x <- read.table(file =file_abs_path, sep = '\t', header = FALSE, skip = 4, nrows = 1)
 xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
   dplyr::select(-V1)
 # Extraer valores (usar año y columna como ID)
-c <- read.table(file = paste0(getwd(), '/output/', fp$file), sep = '\t', header = FALSE, skip = 5)
+c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 5)
 cc <- c %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = 'value') %>% 
   dplyr::rename(year = V1) %>%
   dplyr::mutate(value = ifelse(value == -999, NA, value)) 
@@ -135,24 +124,27 @@ gen_data <- dplyr::left_join(yy, xx, by = 'columna') %>%
   dplyr::select(-columna)
 
 # Remover objetos que ya no se van a utilizar
-rm(y, yy, x, xx, c, cc); gc()
+rm(file_abs_path, y, yy, x, xx, c, cc); gc()
+
 
 
 #
 # EXTRAER DATOS OBSERVADOS
 #
 
+# Definir path absoluto al archivo
 obs_file <- paste0(variable, '_', month, '.txt')
+file_abs_path <- paste0(getwd(), '/', config$folders$observed_data, obs_file)
 # Extraer latitudes (usar nombre de columna como ID)
-y <- read.table(file = paste0(getwd(), '/input/predictands/', obs_file), sep = '\t', header = FALSE, skip = 1, nrows = 1)
+y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 1, nrows = 1)
 yy <- y %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lat") %>% 
   dplyr::select(-V1)
 # Extraer longitudes (usar nombre de columna como ID)
-x <- read.table(file = paste0(getwd(), '/input/predictands/', obs_file), sep = '\t', header = FALSE, skip = 2, nrows = 1)
+x <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 2, nrows = 1)
 xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
   dplyr::select(-V1)
 # Extraer valores (usar año y columna como ID)
-c <- read.table(file = paste0(getwd(), '/input/predictands/', obs_file), sep = '\t', header = FALSE, skip = 5, na.strings = "-999")
+c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 5, na.strings = "-999")
 cc <- c %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = 'value') %>% 
   dplyr::rename(year = V1) %>%
   dplyr::mutate(value = ifelse(value == -999, NA, value)) 
@@ -163,7 +155,8 @@ obs_data <- dplyr::left_join(yy, xx, by = 'columna') %>%
   dplyr::select(-columna)
 
 # Remover objetos que ya no se van a utilizar
-rm(y, yy, x, xx, c, cc); gc()
+rm(obs_file, file_abs_path, y, yy, x, xx, c, cc); gc()
+
 
 
 #
@@ -178,7 +171,7 @@ sd_obs_data <- obs_data %>%
   )
 
 # Corregir valores fuera de rango (asignar random entre 0 y 0.1, sin 0 y 0.1)
-# el problema es que la correlación lanza warnings si reemplazo todo por 0!!
+# el problema es que la correlación lanza warnings si reemplazo todos por 0!!
 gen_data_corregido <- gen_data %>%
   dplyr::left_join(sd_obs_data, by = c('lat', 'lon')) %>%
   dplyr::mutate(aux_value = runif(n = n(), min = 0, max = 0.1)) %>%
@@ -196,6 +189,7 @@ gen_data <- gen_data_corregido
 
 # Remover objetos que ya no se van a utilizar
 rm(sd_obs_data, gen_data_corregido); gc()
+
 
 
 #
@@ -279,6 +273,7 @@ data <- gen_data %>%
   )
 
 
+
 #
 # SELECCIONAR AÑOS PRONOSTICADOS Y RENOMBRARLOS
 #
@@ -290,31 +285,15 @@ data <- gen_data %>%
 # tico (forecast_data.fyr en el archivo config.yaml). OJO: para corridas con
 # datos del modelo europeo este truco con los años no aplica.
 
-# Obtener el 1er año de entrenamiento
-first_training_year <- min(gen_data$year)
 
-# Calcular el último año de entrenamiento 
-last_training_year <- dplyr::case_when(
-  first_training_year == 1982 ~ 2010,
-  first_training_year == 1983 ~ 2011,
-  first_training_year == 1991 ~ 2020,
-  first_training_year == 1992 ~ 2021
-)
-
-# Verificar años de entrenamiento
-if (!first_training_year %in% c(1982, 1983, 1991, 1992) || 
-    first_training_year %in% c(1982, 1983, 1991, 1992) && !last_training_year %in% unique(data$year)) {
-  if (first_training_year == config$training_period$fyr &&
-      config$training_period$lyr %in% unique(data$year)) {
-    first_training_year <- config$training_period$fyr
-    last_training_year  <- config$training_period$lyr
-    warning(glue::glue('Unknown training period. The values defined in ', 
-                       'the config.yaml file are used!'))
-  } else {
-    stop(glue::glue('Training period is unknown and the first year in file ',
-                    '{fp$file} mismatch with the first training period year ',
-                    'in config.yaml'))
-  }
+# Verificar periodo de entrenamiento
+if (first_training_year != min(gen_data$year)) {
+  stop(glue::glue('Wrong training period for file {fp$file}. First training',
+                  'period year mismatch with the min year in generated data'))
+}
+if (!last_training_year %in% unique(data$year)) {
+  stop(glue::glue('Wrong training period for file {fp$file}. Last training',
+                  'period year are not present in generated data'))
 }
 
 
@@ -347,6 +326,41 @@ data <- data %>%
 # GENERAR GRÁFICOS/MAPAS
 #
 
-
+DATOS <- data %>% dplyr::filter(year == 2020) %>% dplyr::select(Lon = lon, Lat = lat, ANOM = anom)
+DADOS=read.table("TXT/ANOM_PREC_NMME_2020.txt",header = T,sep="")
+COMP <- DADOS %>% dplyr::left_join(DATOS, by = c("Lon", "Lat"))
+source("PLOT.R")
+library(grid)
+############################################################################################
+anom=data.frame(DADOS$Lon,DADOS$Lat,DADOS$ANOM)
+colnames(anom)=c("lon","lat","var")
+## Gerando uma grade regular ##################
+resolucao=0.5
+x.range <- as.numeric(c(-78, -34.10))  # min/max longitude of the interpolation area
+y.range <- as.numeric(c(-60,-10))  
+grd <- expand.grid(x = seq(from = x.range[1], to = x.range[2], by = resolucao), y = seq(from = y.range[1], to = y.range[2], by = resolucao))  # expand points to grid
+coordinates(grd) <- ~x + y
+gridded(grd) <- TRUE
+coordinates(anom) = ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
+idw <- idw(formula = var ~ 1, locations = anom, 
+           newdata = grd)  #
+idw.output = as.data.frame(idw)  # Convertendo para um data.frame
+names(idw.output) <- c("long", "lat", "var") 
+idw.r <- rasterFromXYZ(idw.output[,1:3])
+idw.crp <- crop(idw.r, a)
+idw.msk <- mask(idw.crp, a)
+idw.msk.dfr <- as.data.frame(rasterToPoints(idw.msk))
+seq=c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
+seq.interval=my.brks=seq(1, 12, by=1)
+myColorkey <- list(at=seq.interval, labels=list(at=seq.interval, labels=as.character(seq)), space="bottom",width=1)
+BELOW<- levelplot(var~x*y,data = idw.msk.dfr,contour=F,at=seq,
+                  colorkey=myColorkey,par.settings = anomalia,
+                  main="Precipitation Anomaly Forecast (mm)\nValid for June 2020 - NMME\nIssued: May 2020",
+                  xlab = NULL, ylab = NULL) +
+  layer(sp.lines(a,alpha=1)) + layer(sp.lines(est,alpha=1)) + 
+  layer(sp.lines(pais,alpha=1))
+jpeg('JPG/ANOM_PREC_NMME_2020.jpg',16,21,quality = 300,units = "cm",res = 300)
+BELOW
+dev.off()
 
 # ------------------------------------------------------------------------------

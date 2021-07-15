@@ -1,3 +1,9 @@
 
+folders:
+  observed_data: ./input/predictands/
+  generated_data: ./output/
+  shapefiles: ./input/raw_data/shapefiles/
+  output: ./output/
+
 files:
- - { file: "nmme_precip-prcp_Mayic_6_2020.txt", type: "monthly" }
+ - { file: "nmme_precip-prcp_Mayic_6_1982-2010_2020-2021.txt", type: "monthly" }
