@@ -1,0 +1,56 @@
+library(dplyr)
+
+# Definir path absoluto al archivo
+file_abs_path <- paste0(getwd(), '/input/predictands/prcp_6.txt')
+# Extraer latitudes (usar nombre de columna como ID)
+y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 1, nrows = 1)
+yy <- y %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lat") %>% 
+  dplyr::select(-V1)
+# Extraer longitudes (usar nombre de columna como ID)
+x <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 2, nrows = 1)
+xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
+  dplyr::select(-V1)
+# Extraer valores (usar año y columna como ID)
+c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 3)
+cc <- c %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = 'value') %>% 
+  dplyr::rename(year = V1) %>%
+  dplyr::mutate(value = ifelse(value == -999, NA, value)) 
+
+# Unir los datos extraídos en único dataframe largo (es más facil hacer calculos estadísticos así, con groupby)
+gen_data <- dplyr::left_join(yy, xx, by = 'columna') %>% 
+  dplyr::left_join(cc, by = 'columna') %>% 
+  dplyr::select(-columna)
+
+# Remover objetos que ya no se van a utilizar
+rm(y, yy, x, xx, c, cc); gc()
+
+# Definir path absoluto al archivo
+file_abs_path <- '/home/dbonhaure/Downloads/JUNHO-DANIEL/PRECIPITACION-JUNIO.txt'
+# Extraer latitudes (usar nombre de columna como ID)
+y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 1, nrows = 1)
+yy <- y %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lat") %>% 
+  dplyr::select(-V1)
+# Extraer longitudes (usar nombre de columna como ID)
+x <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 2, nrows = 1)
+xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
+  dplyr::select(-V1)
+# Extraer valores (usar año y columna como ID)
+c <- read.table(file = file_abs_path, header = FALSE, skip = 3, na.strings = "-999")
+cc <- c %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = 'value') %>% 
+  dplyr::rename(year = V1) %>% 
+  dplyr::mutate(value = ifelse(value == -999, NA, value)) 
+
+# Unir los datos extraídos en único dataframe largo (es más facil hacer calculos estadísticos así, con groupby)
+fab_data <- dplyr::left_join(yy, xx, by = 'columna') %>% 
+  dplyr::left_join(cc, by = 'columna') %>% 
+  dplyr::select(-columna)
+
+# Remover objetos que ya no se van a utilizar
+rm(y, yy, x, xx, c, cc); gc()
+
+
+comp_full <- fab_data %>% 
+  dplyr::inner_join(gen_data, by = c("lat", "lon", "year"), suffix = c(".fab", ".gen")) %>%
+  dplyr::mutate(diff = value.fab - value.gen) %>%
+  dplyr::filter(diff > 1) %>% dplyr::arrange(lat, lon)
+
