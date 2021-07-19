@@ -6,4 +6,4 @@ folders:
   output: ./output/
 
 files:
- - { file: "nmme_precip-prcp_Mayic_6_1982-2010_2020-2021.txt", type: "monthly" }
+ - { file: "nmme_precip-prcp_Apric_5_1982-2010_2020-2021.txt", type: "monthly" }
