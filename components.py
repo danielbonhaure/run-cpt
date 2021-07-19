@@ -429,6 +429,11 @@ class PredictorFile:
             self.fcst_files.append(ForecastFile(self.predictor, model, fcst_data, trgt_season, year))
 
     def __download_raw_files(self):
+        if os.path.exists(self.abs_path) and \
+                not self.update_ctrl.must_be_updated('predictors', 'cpt_input_data', self.abs_path):
+            return
+
+        # Download raw files
         self.hcst_file.download_raw_data()
         for fcst_file in self.fcst_files:
             fcst_file.download_raw_data()
