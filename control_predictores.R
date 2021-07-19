@@ -2,6 +2,7 @@ library(dplyr)
 
 # Definir path absoluto al archivo
 file_abs_path <- paste0(getwd(), '/input/predictors/nmme_precip_Mayic_6_1982-2010_2020-2021.txt')
+file_abs_path <- paste0(getwd(), '/input/predictors/nmme_precip_Apric_5_1982-2010_2020-2021.txt')
 # Extraer longitudes (usar nombre de columna como ID)
 x <- read.table(file =file_abs_path, sep = '\t', header = FALSE, skip = 3, nrows = 1)
 xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
@@ -26,7 +27,8 @@ gen_data <- dplyr::left_join(xx, cc, by = 'columna') %>% dplyr::select(-columna)
 rm(file_abs_path, x, xx, cc); gc()
 
 # Definir path absoluto al archivo
-file_abs_path <- '/home/dbonhaure/Downloads/JUNHO-DANIEL/nmme_precip_hcst_Mayic_6_1982-2021.txt'
+file_abs_path <- paste0(getwd(), '/input/predictors/nmme_precip_Mayic_6_1982-2010_2020-2021_fabricio.txt')
+file_abs_path <- paste0(getwd(), '/input/predictors/nmme_precip_Apric_5_1982-2010_2020-2021_fabricio.txt')
 # Extraer longitudes (usar nombre de columna como ID)
 x <- read.table(file =file_abs_path, sep = '\t', header = FALSE, skip = 3, nrows = 1)
 xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 

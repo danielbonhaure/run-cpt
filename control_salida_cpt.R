@@ -2,6 +2,7 @@ library(dplyr)
 
 # Definir path absoluto al archivo
 file_abs_path <- paste0(getwd(), '/output/nmme_precip-prcp_Mayic_6_1982-2010_2020-2021.txt')
+file_abs_path <- paste0(getwd(), '/output/nmme_precip-prcp_Apric_5_1982-2010_2020-2021.txt')
 # Extraer latitudes (usar nombre de columna como ID)
 y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 3, nrows = 1)
 yy <- y %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lat") %>% 
@@ -25,7 +26,8 @@ gen_data <- dplyr::left_join(yy, xx, by = 'columna') %>%
 rm(file_abs_path, y, yy, x, xx, c, cc); gc()
 
 # Definir path absoluto al archivo
-file_abs_path <- '/home/dbonhaure/Downloads/JUNHO-DANIEL/PREV-PREC-NMME.txt'
+file_abs_path <- paste0(getwd(), '/output/nmme_precip-prcp_Mayic_6_1982-2010_2020-2021_fabricio.txt')
+file_abs_path <- paste0(getwd(), '/output/nmme_precip-prcp_Apric_5_1982-2010_2020-2021_fabricio.txt')
 # Extraer latitudes (usar nombre de columna como ID)
 y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 3, nrows = 1)
 yy <- y %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lat") %>% 

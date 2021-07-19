@@ -2,6 +2,7 @@ library(dplyr)
 
 # Definir path absoluto al archivo
 file_abs_path <- paste0(getwd(), '/input/predictands/prcp_6.txt')
+file_abs_path <- paste0(getwd(), '/input/predictands/prcp_5.txt')
 # Extraer latitudes (usar nombre de columna como ID)
 y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 1, nrows = 1)
 yy <- y %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lat") %>% 
@@ -25,7 +26,8 @@ gen_data <- dplyr::left_join(yy, xx, by = 'columna') %>%
 rm(y, yy, x, xx, c, cc); gc()
 
 # Definir path absoluto al archivo
-file_abs_path <- '/home/dbonhaure/Downloads/JUNHO-DANIEL/PRECIPITACION-JUNIO.txt'
+file_abs_path <- paste0(getwd(), '/input/predictands/prcp_6_fabricio.txt')
+file_abs_path <- paste0(getwd(), '/input/predictands/prcp_5_fabricio.txt')
 # Extraer latitudes (usar nombre de columna como ID)
 y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 1, nrows = 1)
 yy <- y %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lat") %>% 
