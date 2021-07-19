@@ -759,18 +759,13 @@ class PredictandFile:
             # CPT falla en la predicción, para evitar esto, se agregan lluvias falsas de 0.1 mm a algunos de los
             # elementos de la serie de lluvias (los valores por año son acumulados de 1 o 3 meses)
             df1 = df.groupby(['latitude', 'longitude']).sum(min_count=1).round(1)
-            if df1.prcp.min() <= 0.6:
-                for lat, lon in df1.query('prcp <= 0.6').index.to_flat_index():
-                    # print(f'Actualizando archivo {self.abs_path,} lat: {lat}, lon: {lon}, valores: [ '
-                    #       f'1995 - {df.loc[lat, lon, 1995].prcp}, 1996 - {df.loc[lat, lon, 1995].prcp}, '
-                    #       f'1997 - {df.loc[lat, lon, 1997].prcp}, 1998 - {df.loc[lat, lon, 1998].prcp}, '
-                    #       f'1999 - {df.loc[lat, lon, 1999].prcp}, 2000 - {df.loc[lat, lon, 2000].prcp}]')
-                    df.loc[lat, lon, trng_period.tini + 4].prcp = 0.1
-                    df.loc[lat, lon, trng_period.tini + 5].prcp = 0.1
-                    df.loc[lat, lon, trng_period.tini + 6].prcp = 0.1
-                    df.loc[lat, lon, trng_period.tini + 7].prcp = 0.1
-                    df.loc[lat, lon, trng_period.tini + 8].prcp = 0.1
-                    df.loc[lat, lon, trng_period.tini + 9].prcp = 0.1
+            if df1.prcp.min() <= 0.2:
+                for lat, lon in df1.query('prcp <= 0.2').index.to_flat_index():
+                    print(f'Actualizando archivo {self.abs_path,} lat: {lat}, lon: {lon}, valores: [ '
+                          f'{trng_period.tini} - {df.loc[lat, lon, trng_period.tini].prcp}, '
+                          f'{trng_period.tend} - {df.loc[lat, lon, trng_period.tend].prcp}]')
+                    df.loc[lat, lon, trng_period.tini].prcp = 0.1
+                    df.loc[lat, lon, trng_period.tend].prcp = 0.1
             del df1
             # ds = xr.open_dataset('/home/dbonhaure/PycharmProjects/PyCPT/chirps/chirps_recortado.nc')
             # ds.precip[0, :, :].plot.imshow()

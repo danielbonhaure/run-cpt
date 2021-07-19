@@ -220,7 +220,7 @@ for (fp in config$files) {
     ) %>% 
     dplyr::ungroup() %>%
     dplyr::mutate(
-      dp = 1 - corr^2
+      dp = 1 - corr^2  # distancia de la previsión en relación a la distribución observada
     ) %>%
     dplyr::mutate(
       pr.menor.media = round2(stats::pnorm(-0.4303, prev_norm, dp), 2),
@@ -270,7 +270,6 @@ for (fp in config$files) {
         pr.mayor.media.ajustado >= pr.menor.media.ajustado & pr.mayor.media.ajustado >= 0.6 ~ 6
       )
     )
-  
   
   
   #
