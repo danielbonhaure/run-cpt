@@ -56,7 +56,7 @@ comp_full <- fab_data %>%
   dplyr::filter(diff > 1) %>% dplyr::arrange(lat, lon)
 
 
-crcsas <- sf::st_read(paste0(config$folders$shapefiles, "/CRC_SAS.shp"))
+crcsas <- sf::st_read("./input/raw_data/shapefiles/CRC_SAS.shp")
 crcsas <- sf::st_set_crs(crcsas, 4326)
 puntos <- sf::st_as_sf(comp_full %>% dplyr::select(lon, lat, diff), coords = c('lon', 'lat'))
 puntos <- sf::st_set_crs(puntos, 4326)
