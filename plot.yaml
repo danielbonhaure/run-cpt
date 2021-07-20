@@ -3,7 +3,7 @@ spatial_domain:
   nla: -10  # Northernmost latitude
   sla: -60  # Southernmost latitude
   wlo: -78  # Westernmost longitude
-  elo: -34.10  # Easternmost longitude
+  elo: -34.1  # Easternmost longitude
 
 folders:
   observed_data: ./input/predictands/

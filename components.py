@@ -3,6 +3,7 @@ from helpers import FilesProcessor, CPTFileProcessor
 from helpers import UpdateControl, ConfigFile
 from helpers import SecondaryProgressBar, crange
 from crcsas_grid import CrcSasGrid
+from errors import ConfigError
 
 import os
 import shutil
@@ -15,7 +16,7 @@ from dataclasses import dataclass, InitVar, field
 from string import Template
 from urllib.error import HTTPError
 from time import sleep
-from itertools import product
+from datetime import date
 
 
 @dataclass
@@ -502,6 +503,7 @@ class PredictorFile:
 class ChirpsFile:
     variable: str
 
+    type: str = field(init=False)
     name: str = field(init=False)
     url: str = field(init=False)
     folder: str = field(init=False)
@@ -517,47 +519,35 @@ class ChirpsFile:
         return os.path.join(self.folder, self.name) if self.name else ""
 
     def __post_init__(self):
+        # Define file type
+        self.type = self.config_file.get('url').get('predictand').get('chirps').get('type')
         # Define file name
-        self.name = self.__define_chirps_filename()
+        self.name = self.__define_chirps_filename(self.type)
         # Define url
-        self.url = self.config_file.get('url').get('predictand').get('chirps')
+        self.url = self.config_file.get('url').get('predictand').get('chirps').get(self.type)
         # Define folder
         self.folder = self.config_file.get('folders').get('raw_data').get('chirps')
         # Define coords to cut chirps file
         self.coords = self.config_file.get('spatial_domain').get('predictand')
 
-    def __define_chirps_filename(self) -> str:
-        return f'{self.variable}_chirps.nc'
+    def __define_chirps_filename(self, chirps_file_type) -> str:
+        return f'{self.variable}_chirps_{chirps_file_type}.nc'
 
-    def download_raw_data(self):
-        chirps_world = self.abs_path.replace('.nc', '_world.nc')
-
-        # Download chirps for the whole world (if needed)
-        if not os.path.exists(chirps_world) or \
-                self.update_ctrl.must_be_updated('predictands', 'raw_data', chirps_world):
-            try:
-                # Download netcdf
-                FilesProcessor.download_file_from_url(self.url, chirps_world, 6000000000)
-            except (HTTPError, AssertionError):
-                os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
-                raise
-            else:
-                # Reportar que el archivo ya fue actualizado
-                self.update_ctrl.report_updated_file(chirps_world)
+    def __cut_chirps_file(self, file_to_cut, cutted_file):
 
         # Update intermediate file (obtained by cutting the downloaded file)
-        if not os.path.exists(self.abs_path) or \
-                self.update_ctrl.must_be_updated('predictands', 'cutted_chirps_data', self.abs_path):
+        if not os.path.exists(cutted_file) or \
+                self.update_ctrl.must_be_updated('predictands', 'cutted_chirps_data', cutted_file):
 
             # create progress bar to track interpolation
-            run_status = f'Cutting file {self.abs_path.split("/").pop(-1)} (PID: {os.getpid()})'
+            run_status = f'Cutting file {file_to_cut.split("/").pop(-1)} (PID: {os.getpid()})'
             pb = SecondaryProgressBar(10, run_status)
 
             # open progress bar
             pb.open()
 
             # Open netcdf
-            with xr.open_dataset(chirps_world) as ds:
+            with xr.open_dataset(file_to_cut) as ds:
                 # report status
                 pb.update_count(1)
                 # Create mask
@@ -574,9 +564,76 @@ class ChirpsFile:
                 # Report status
                 pb.update_count(8)
                 # Save netcdf
-                ds.to_netcdf(self.abs_path)
+                ds.to_netcdf(cutted_file)
                 # report status
                 pb.update_count(10)
+
+            # Reportar que el archivo ya fue actualizado
+            self.update_ctrl.report_updated_file(cutted_file)
+
+            # close progress bar
+            sleep(0.5)
+            pb.close()
+
+    def download_raw_data(self):
+        if self.type == "daily":
+            self.download_daily_raw_data()
+        elif self.type == "monthly":
+            self.download_monthly_raw_data()
+        else:
+            raise ConfigError(f"El tipo indicado para el/los archivo/s chirps es incorrecto! "
+                              f"Solo se adminten alguno de estos 2 tipos: daily, monthly!!")
+
+    def download_daily_raw_data(self):
+        for year in range(1981, date.today().year + 1):
+            year_chirps_url = Template(self.url).substitute(year=year)
+            year_chirps_file = os.path.join(self.folder, year_chirps_url.split('/').pop(-1))
+            year_chirps_file_world = year_chirps_file.replace('.nc', '_world.nc')
+
+            # Download chirps for the whole world (if needed)
+            if not os.path.exists(year_chirps_file_world) or \
+                    self.update_ctrl.must_be_updated('predictands', 'raw_data', year_chirps_file_world):
+                try:
+                    # Download netcdf
+                    FilesProcessor.download_file_from_url(year_chirps_url, year_chirps_file_world, 60000000)
+                except (HTTPError, AssertionError):
+                    os.remove(year_chirps_file_world) if os.path.exists(year_chirps_file_world) else None
+                    raise
+                else:
+                    # Reportar que el archivo ya fue actualizado
+                    self.update_ctrl.report_updated_file(year_chirps_file_world)
+                    # Cortar el archivo, chirps abarca el mundo entero, se deja solo el dominio que usamos
+                    self.__cut_chirps_file(year_chirps_file_world, year_chirps_file)
+
+        # Una vez descargados y cortados los archivos, se los une en uno solo
+        if not os.path.exists(self.abs_path) or \
+                self.update_ctrl.must_be_updated('predictands', 'raw_data', self.abs_path):
+
+            # create progress bar to track interpolation
+            run_status = f'Merging files to make {self.abs_path.split("/").pop(-1)} (PID: {os.getpid()})'
+            pb = SecondaryProgressBar(10, run_status)
+
+            # open progress bar
+            pb.open()
+
+            # Merge all chirps files
+            chirps_files = Template(self.url).substitute(year="*").split('/').pop(-1)
+            ds = xr.open_mfdataset(os.path.join(self.folder, chirps_files))
+
+            # report status
+            pb.update_count(3)
+
+            # Group data by month
+            ds = ds.resample(time='1M').sum()
+
+            # report status
+            pb.update_count(6)
+
+            # Save netcdf
+            ds.to_netcdf(self.abs_path)
+
+            # report status
+            pb.update_count(10)
 
             # Reportar que el archivo ya fue actualizado
             self.update_ctrl.report_updated_file(self.abs_path)
@@ -584,6 +641,24 @@ class ChirpsFile:
             # close progress bar
             sleep(0.5)
             pb.close()
+
+    def download_monthly_raw_data(self):
+        chirps_world = self.abs_path.replace('.nc', '_world.nc')
+
+        # Download chirps for the whole world (if needed)
+        if not os.path.exists(chirps_world) or \
+                self.update_ctrl.must_be_updated('predictands', 'raw_data', chirps_world):
+            try:
+                # Download netcdf
+                FilesProcessor.download_file_from_url(self.url, chirps_world, 6000000000)
+            except (HTTPError, AssertionError):
+                os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
+                raise
+            else:
+                # Reportar que el archivo ya fue actualizado
+                self.update_ctrl.report_updated_file(chirps_world)
+                # Cortar el archivo, chirps abarca el mundo entero, se deja solo el dominio que usamos
+                self.__cut_chirps_file(chirps_world, self.abs_path)
 
 
 @dataclass

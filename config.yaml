@@ -103,7 +103,10 @@ url:
         monthly: "http://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.hindcast/.prcp/S/(0000 1 ${month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.forecast/.prcp/S/(0000 1 ${month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/(${first_month}.5)VALUES/Y/(${nla})(${sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(mm/day)/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv"
         seasonal: "http://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.hindcast/.prcp/S/(0000 1 ${month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.forecast/.prcp/S/(0000 1 ${month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/${first_month}.5/${last_month}.5/RANGE[L]//keepgrids/average/Y/(${nla})(&{sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(mm/day)/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv"
   predictand:
-    chirps: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_monthly/netcdf/chirps-v2.0.monthly.nc"
+    chirps:
+      type: "daily"
+      monthly: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_monthly/netcdf/chirps-v2.0.monthly.nc"
+      daily: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/netcdf/p25/chirps-v2.0.${year}.days_p25.nc"
 
 folders:
   raw_data:

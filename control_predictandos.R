@@ -51,8 +51,17 @@ fab_data <- dplyr::left_join(yy, xx, by = 'columna') %>%
 rm(y, yy, x, xx, c, cc); gc()
 
 
+
 comp_full <- fab_data %>% 
   dplyr::inner_join(gen_data, by = c("lat", "lon", "year"), suffix = c(".fab", ".gen")) %>%
   dplyr::mutate(diff = value.fab - value.gen) %>%
   dplyr::filter(diff > 1) %>% dplyr::arrange(lat, lon)
 
+
+crcsas <- sf::st_read("./input/raw_data/shapefiles/CRC_SAS.shp")
+crcsas <- sf::st_set_crs(crcsas, 4326)
+puntos <- sf::st_as_sf(comp_full %>% dplyr::select(lon, lat, diff), coords = c('lon', 'lat'))
+puntos <- sf::st_set_crs(puntos, 4326)
+library(sf)
+plot(sf::st_geometry(crcsas))
+plot(sf::st_geometry(puntos), add=T)
