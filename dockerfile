@@ -325,9 +325,11 @@ USER $CPT_USER
 #        --volume $(pwd)/input:/opt/pyCPT/input \
 #        --volume $(pwd)/output:/opt/pyCPT/output \
 #        --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
+#        --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \
 #        --detach cpt:latest
 # docker run --name pycpt --rm \
 #        --volume $(pwd)/input:/opt/pyCPT/input \
 #        --volume $(pwd)/output:/opt/pyCPT/output \
 #        --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
+#        --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \
 #        cpt:latest /usr/local/bin/python /opt/pyCPT/main.py
