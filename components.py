@@ -766,9 +766,9 @@ class PredictandFile:
             df1 = df.groupby(['latitude', 'longitude']).sum(min_count=1).round(1)
             if df1.prcp.min() <= 0.2:
                 for lat, lon in df1.query('prcp <= 0.2').index.to_flat_index():
-                    print(f'Actualizando archivo {self.abs_path,} lat: {lat}, lon: {lon}, valores: [ '
-                          f'{trng_period.tini} - {df.loc[lat, lon, trng_period.tini].prcp}, '
-                          f'{trng_period.tend} - {df.loc[lat, lon, trng_period.tend].prcp}]')
+                    # print(f'Actualizando archivo {self.abs_path,} lat: {lat}, lon: {lon}, valores: [ '
+                    #       f'{trng_period.tini} - {df.loc[lat, lon, trng_period.tini].prcp}, '
+                    #       f'{trng_period.tend} - {df.loc[lat, lon, trng_period.tend].prcp}]')
                     df.loc[lat, lon, trng_period.tini].prcp = 0.1
                     df.loc[lat, lon, trng_period.tend].prcp = 0.1
             del df1
