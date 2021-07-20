@@ -83,6 +83,11 @@ spatial_domain:
     sla: -56.25  # Southernmost latitude
     wlo: -78.75  # Westernmost longitude
     elo: -35.75  # Easternmost longitude
+  plot:
+    nla: -10  # Northernmost latitude
+    sla: -60  # Southernmost latitude
+    wlo: -78  # Westernmost longitude
+    elo: -34.10  # Easternmost longitude
 
 url:
   predictor:

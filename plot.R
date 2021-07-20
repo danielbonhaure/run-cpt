@@ -74,13 +74,14 @@ rm(archivo.config, args); gc()
 
 
 for (fp in config$files) {
-
-  fp <- config$files[[1]]
   
   
   #
   # PARSEAR NOMBRE DEL ARCHIVO
   #
+  
+  # fp <- config$files[[1]]
+  # fp$file <- "nmme_precip-prcp_Mayic_6_1982-2010_2020-2021.txt"
   
   fp_split <- stringr::str_split_fixed(fp$file, '_', 6)
   
@@ -94,6 +95,8 @@ for (fp in config$files) {
   forecast_years <- stringr::str_replace(fp_split[6], '.txt', '')
   first_fcst_year <- as.numeric(stringr::str_split_fixed(forecast_years, '-', 2)[1])
   last_fcst_year <- as.numeric(stringr::str_split_fixed(forecast_years, '-', 2)[2])
+  
+  # fp$file <- "nmme_precip-prcp_Mayic_6_1982-2010_2020-2021_fabricio.txt"
   
   
   
@@ -131,8 +134,10 @@ for (fp in config$files) {
   # EXTRAER DATOS OBSERVADOS
   #
   
+  # obs_file <- 'prcp_6_fabricio.txt'
+  
   # Definir path absoluto al archivo
-  obs_file <- paste0(variable, '_', forecast_month, '.txt')
+  obs_file <- paste0(variable, '_', forecast_month, '.txt') 
   file_abs_path <- paste0(getwd(), '/', config$folders$observed_data, obs_file)
   # Extraer latitudes (usar nombre de columna como ID)
   y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 1, nrows = 1)
@@ -143,7 +148,7 @@ for (fp in config$files) {
   xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
     dplyr::select(-V1)
   # Extraer valores (usar año y columna como ID)
-  c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 5)
+  c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 3)
   cc <- c %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = 'value') %>% 
     dplyr::rename(year = V1) %>%
     dplyr::mutate(value = ifelse(value == -999, NA, value)) 
@@ -165,26 +170,44 @@ for (fp in config$files) {
   # Calcular estadísticas sobre de los datos observados
   sd_obs_data <- obs_data %>%
     dplyr::group_by(lat, lon) %>%
-    dplyr::summarise(
+    dplyr::mutate(
+      mx = max(value, na.rm = TRUE),
+      point_to_check = sum(value, na.rm = T) <= 0.2,
       sd = sd(value, na.rm = TRUE) # desviación estándar, excel pt: DESVPAD
-    )
+    ) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(
+      min_valid_value = mx - sd*7,
+      max_valid_value = mx + sd*7
+    ) %>%
+    dplyr::mutate(
+      min_valid_value = ifelse(min_valid_value >= 0, min_valid_value, 0)
+    ) %>%
+    dplyr::select(-mx, -sd)
   
   # Corregir valores fuera de rango (asignar random entre 0 y 0.1, sin 0 y 0.1)
   # el problema es que la correlación lanza warnings si reemplazo todos por 0!!
   gen_data_corregido <- gen_data %>%
-    dplyr::left_join(sd_obs_data, by = c('lat', 'lon')) %>%
-    dplyr::mutate(aux_value = runif(n = n(), min = 0, max = 0.1)) %>%
-    dplyr::mutate(value = ifelse(value >= 7*sd, aux_value, value)) %>%
-    dplyr::select(-sd, -aux_value)
+    dplyr::left_join(sd_obs_data, by = c('lat', 'lon', 'year'), suffix = c(".gen", ".obs")) %>%
+    dplyr::mutate(
+      aux_value = runif(n = n(), min = 0, max = 0.1)) %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+      in_range = dplyr::between(value.gen, min_valid_value, max_valid_value)) %>%
+    dplyr::mutate(
+      value.new = ifelse(!is.na(in_range) & !in_range, aux_value, value.gen)
+    ) %>%
+    dplyr::ungroup() 
   
   # Control
-  control_correccion <- gen_data_corregido %>%
-    dplyr::left_join(gen_data, by = c('lat', 'lon', 'year'), suffix = c('.o', '.c')) %>%
-    dplyr::filter(value.o != value.c) %>%
-    dplyr::left_join(sd_obs_data, by = c('lat', 'lon'))
+  control_correccion <- gen_data_corregido %>% 
+    dplyr::filter(value.gen != value.new)
   
   # Reemplazar gen_data por gen_data_corregido
-  gen_data <- gen_data_corregido
+  if (nrow(control_correccion) > 0) {
+    gen_data <- gen_data_corregido %>% 
+      dplyr::select(lat, lon, year, value = value.new)
+  }
   
   # Remover objetos que ya no se van a utilizar
   rm(sd_obs_data, gen_data_corregido); gc()
@@ -197,30 +220,54 @@ for (fp in config$files) {
   
   # R redondea .5 para abajo, excel para arriba entonces, 
   # se crea una función que redondee igual que excel!!
-  round2 = function(x, n) {
-    posneg = sign(x)
-    z = abs(x)*10^n
-    z = z + 0.5 + sqrt(.Machine$double.eps)
-    z = trunc(z)
-    z = z/10^n
+  round2 <- function(x, n) {
+    posneg <- sign(x)
+    z <- abs(x)*10^n
+    z <- z + 0.5 + sqrt(.Machine$double.eps)
+    z <- trunc(z)
+    z <- z/10^n
     z*posneg
   }
   
-  # Calcular media, varianza, correlación, anomalias y prev_norm 
-  # entre los datos observados y generados por CPT
-  data <- gen_data %>%
-    dplyr::left_join(obs_data, by = c('lat', 'lon', 'year'), suffix = c('.gen', '.obs')) %>%
-    dplyr::group_by(lat, lon) %>%
+  # Calcular media, varianza, correlación. OJO: la media, la varianza y la 
+  # correlación se calculan utilizando solo los datos observados y generados 
+  # en el periodo de entrenamiento!!!
+  data_obs_statistics <- gen_data %>%
+    dplyr::left_join(
+      obs_data, by = c('lat', 'lon', 'year'), suffix = c('.gen', '.obs')
+    ) %>%
+    dplyr::filter(
+      # Fabricio solo usa estos datos observados en la planilla excel, los demas los descarta!
+      dplyr::between(year, first_training_year, last_training_year)  
+    ) %>%
     dplyr::mutate(
+      # Fabricio redondea los datos observados a un solo decimal
+      value.obs = round2(value.obs, 1)  
+    ) %>%
+    dplyr::group_by(lat, lon) %>%
+    dplyr::summarise(
       mean = mean(value.obs, na.rm = TRUE), # media, excel pt: AVERAGE
       var = var(value.obs, na.rm = TRUE), # varianza, excel pt: VAR
-      corr = cor(value.gen, value.obs, use = 'na.or.complete'), # correlation, excel pt: CORREL
+      corr = cor(value.gen, value.obs, use = 'na.or.complete') # correlation, excel pt: CORREL
+    ) %>%
+    dplyr::ungroup()
+  
+  # Se agregan, a los datos generados, la media, la varianza y la correlación 
+  # calculados en el paso previo. Luego se calculan las anomalias (anom), las 
+  # previsiones normalizadas (prev_norm), la distancia de la previsión en
+  # relación a la distribución observada (dp) y las probabilidades de que la
+  # precipitación sea menor, igual o mayor a la media.
+  data <- gen_data %>%
+    dplyr::select(lat, lon, year, value.gen = value) %>%
+    dplyr::left_join(data_obs_statistics, by = c('lat', 'lon')) %>%
+    dplyr::group_by(lat, lon) %>%
+    dplyr::mutate(
       prev_norm = (value.gen - mean) / sqrt(var),
       anom = value.gen - mean
     ) %>% 
     dplyr::ungroup() %>%
     dplyr::mutate(
-      dp = 1 - corr^2  # distancia de la previsión en relación a la distribución observada
+      dp = sqrt(1 - corr^2)  # distancia de la previsión en relación a la distribución observada
     ) %>%
     dplyr::mutate(
       pr.menor.media = round2(stats::pnorm(-0.4303, prev_norm, dp), 2),
@@ -235,8 +282,8 @@ for (fp in config$files) {
     ) %>% 
     dplyr::mutate(
       pr.media = round2(stats::pnorm(0.4303, prev_norm, dp) - pr.menor.media, 2),
-      pr.media.round = round2(pr.menor.media, 1),
-      pr.media.diff = pr.menor.media - pr.menor.media.round,
+      pr.media.round = round2(pr.media, 1),
+      pr.media.diff = pr.media - pr.media.round,
       pr.media.ajuste = dplyr::case_when(
         pr.media.diff >= 0.025 ~ 0.05,
         pr.media.diff > -0.025 & pr.media.diff < 0.025 ~ 0,
@@ -254,6 +301,11 @@ for (fp in config$files) {
       escala_arriba = ifelse(pr.mayor.media.ajustado >= pr.menor.media.ajustado,
                              pr.mayor.media.ajustado, NA)
     ) %>% 
+    dplyr::mutate(  # si no se redondea puede seleccionarse mal el código de color
+      pr.menor.media.ajustado = round2(pr.menor.media.ajustado, 2),
+      pr.media.ajustado = round2(pr.media.ajustado, 2),
+      pr.mayor.media.ajustado = round2(pr.mayor.media.ajustado, 2),
+    ) %>%
     dplyr::mutate(
       codigo_de_color = dplyr::case_when(
         pr.menor.media.ajustado > pr.mayor.media.ajustado & pr.menor.media.ajustado >= 0.6 ~ -6,
@@ -270,6 +322,10 @@ for (fp in config$files) {
         pr.mayor.media.ajustado >= pr.menor.media.ajustado & pr.mayor.media.ajustado >= 0.6 ~ 6
       )
     )
+
+  # Remover objetos que ya no se van a utilizar
+  rm(data_obs_statistics); gc()
+  
   
   
   #
@@ -319,38 +375,91 @@ for (fp in config$files) {
     dplyr::select(-new_year) %>%
     dplyr::arrange(year)
   
+  # Remover objetos que ya no se van a utilizar
+  rm(min_date_in_data, desfasaje, mapeo); gc()
+  
+  
+  
+  #
+  # COMPARAR CON LOS DATOS EN LAS PLANILLAS DE FABRICIO
+  #
+  
+  # data_comp <- purrr::map_dfr(
+  #   .x = unique(data$year),
+  #   .f = function(data_year) {
+  #     DADOS_ANOM <- read.table(glue::glue("TXT/ANOM_PREC_NMME_{data_year}.txt"), header = T, sep="") %>%
+  #       dplyr::select(lon = Lon, lat = Lat, anom = ANOM) %>%
+  #       dplyr::mutate(year = data_year)
+  #     DADOS_CORR <- read.table(glue::glue("TXT/CORR_PREC_NMME.txt"), header = T, sep="") %>%
+  #       dplyr::select(lon = Lon, lat = Lat, corr = CORREL) %>%
+  #       dplyr::mutate(year = data_year)
+  #     DADOS_PREV <- read.table(glue::glue("TXT/PREV_PREC_NMME_{data_year}.txt"), header = T, sep="") %>%
+  #       dplyr::select(lon = Lon, lat = Lat, prev = PREV) %>%
+  #       dplyr::mutate(year = data_year)
+  #     DADOS_PROB <- read.table(glue::glue("TXT/PROB_PREC_NMME_{data_year}.txt"), header = T, sep="") %>%
+  #       dplyr::select(lon = Lon, lat = Lat, codigo_de_color = PROB) %>%
+  #       dplyr::mutate(year = data_year)
+  # 
+  #     data %>%
+  #       dplyr::filter(year == data_year) %>%
+  #       dplyr::select(lat, lon, year, anom, corr, prev = value.gen, codigo_de_color) %>%
+  #       dplyr::mutate(anom = round2(anom, 0), corr = round2(corr, 2), prev = round2(prev, 0)) %>%
+  #       dplyr::left_join(DADOS_ANOM, by = c("lon", "lat", "year"), suffix = c("", ".fab")) %>%
+  #       dplyr::left_join(DADOS_CORR, by = c("lon", "lat", "year"), suffix = c("", ".fab")) %>%
+  #       dplyr::left_join(DADOS_PREV, by = c("lon", "lat", "year"), suffix = c("", ".fab")) %>%
+  #       dplyr::left_join(DADOS_PROB, by = c("lon", "lat", "year"), suffix = c("", ".fab"))
+  # 
+  #   }) %>%
+  #   dplyr::select(lat, lon, year, anom, anom.fab, corr, corr.fab,
+  #                     prev, prev.fab, codigo_de_color, codigo_de_color.fab) %>%
+  #   dplyr::filter(corr != corr.fab | codigo_de_color != codigo_de_color.fab) %>%
+  #   dplyr::filter(codigo_de_color != codigo_de_color.fab)
+  
   
   
   #
   # GENERAR GRÁFICOS/MAPAS
   #
   
+  library(lattice, quietly = TRUE)
+  
   for (data_year in unique(data$year)) {
     for (data_type in c("anom", "corr", "value.gen", "codigo_de_color")) {
     
-      #DADOS=read.table("TXT/ANOM_PREC_NMME_2020.txt",header = T,sep="")
       datos <- data %>% dplyr::filter(year == data_year) %>% 
         dplyr::select(lon, lat, var = !!data_type) %>% 
         dplyr::filter(!is.na(var))
-      #COMP <- DADOS %>% dplyr::left_join(DATOS, by = c("Lon", "Lat"))
+      
+      # Redonder como en las planillas excel
+      if (data_type == "anom") {
+        datos <- datos %>%
+          dplyr::mutate(var = round2(var, 0))
+      } else if (data_type == "corr") {
+        datos <- datos %>%
+          dplyr::mutate(var = round2(var, 2))
+      } else if (data_type == "value.gen") {
+        datos <- datos %>%
+          dplyr::mutate(var = round2(var, 0))
+      }
+      
       ############################################################################################
       ## Gerando uma grade regular ##################
-      resolucao=0.5
-      x.range <- as.numeric(c(min(gen_data$lon), max(gen_data$lon)))  # min/max longitude of the interpolation area
-      y.range <- as.numeric(c(min(gen_data$lat), max(gen_data$lat)))  
+      resolucao <- 0.5
+      x.range <- as.numeric(c(config$spatial_domain$wlo, config$spatial_domain$elo))  # min/max longitude of the interpolation area
+      y.range <- as.numeric(c(config$spatial_domain$sla, config$spatial_domain$nla))
       grd <- expand.grid(x = seq(from = x.range[1], to = x.range[2], by = resolucao), 
                          y = seq(from = y.range[1], to = y.range[2], by = resolucao))  # expand points to grid
       sp::coordinates(grd) <- ~x + y
       sp::gridded(grd) <- TRUE
-      sp::coordinates(datos) = ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
+      sp::coordinates(datos) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
       idw <- gstat::idw(formula = var ~ 1, locations = datos, newdata = grd)  #
-      idw.output = as.data.frame(idw)  # Convertendo para um data.frame
+      idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
       names(idw.output) <- c("long", "lat", "var") 
-      idw.r <- rasterFromXYZ(idw.output[,1:3])
+      idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
       crcsas <- sf::as_Spatial(sf::st_read(paste0(config$folders$shapefiles, "/CRC_SAS.shp")))
-      idw.crp <- crop(idw.r, crcsas)
-      idw.msk <- mask(idw.crp, crcsas)
-      idw.msk.dfr <- as.data.frame(rasterToPoints(idw.msk))
+      idw.crp <- raster::crop(idw.r, crcsas)
+      idw.msk <- raster::mask(idw.crp, crcsas)
+      idw.msk.dfr <- raster::as.data.frame(raster::rasterToPoints(idw.msk))
       if (data_type == "anom") {
         seqq <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
         seq.l <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
@@ -375,7 +484,7 @@ for (fp in config$files) {
                                  "{toupper(modelo)}\nIssued: {initial_month}")
         paleta <- c("#ff6766","#ff9899","#fecccb","#99ffff","#00ffff","#00ccff","#99cccd",
                     "#6599ff","#6665fe","#0000fe")
-        teste=colorRampPalette(paleta)
+        teste <- grDevices::colorRampPalette(paleta)
         par_settings <- rasterVis::rasterTheme(region=teste(11))
         col_regions  <- NULL
         fig_file_name <- paste0(
@@ -390,7 +499,7 @@ for (fp in config$files) {
                                  "{data_year}")
         paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc","#9acc99","#34cc67",
                     "#33cc33","#019934","#006634")
-        teste=grDevices::colorRampPalette(paleta)
+        teste <- grDevices::colorRampPalette(paleta)
         par_settings <- rasterVis::rasterTheme(region=teste(10))
         col_regions  <- NULL
         fig_file_name <- paste0(
@@ -406,6 +515,7 @@ for (fp in config$files) {
                                  "{data_year}")
         paleta <- c("#783301","#a9461d","#cf8033","#e8b832","#fafb01",
                     "#c8c8c8","#c5ffe7","#96feaf","#67ff78","#35e43f","#06c408")
+        prob.b <- colorRampPalette(paleta)
         par_settings <- list(prob.b, layout.heights = list(xlab.key.padding=2.5))
         col_regions <- prob.b(11)
         fig_file_name <- paste0(
@@ -437,12 +547,12 @@ for (fp in config$files) {
                       quality = 75, units = "cm", res = 300)
       print(BELOW)
       if (data_type == "codigo_de_color") {
-        grid::grid.text('Near', rot=0, y=unit(0.09, "npc"), 
-                        x=unit(0.512, "npc"))
-        grid::grid.text('Below', rot=0, y=unit(0.09, "npc"), 
-                        x=unit(0.28, "npc"))
-        grid::grid.text('Above', rot=0, y=unit(0.09, "npc"), 
-                        x=unit(0.75, "npc"))
+        grid::grid.text('Near', rot=0, y=grid::unit(0.09, "npc"), 
+                        x=grid::unit(0.512, "npc"))
+        grid::grid.text('Below', rot=0, y=grid::unit(0.09, "npc"), 
+                        x=grid::unit(0.28, "npc"))
+        grid::grid.text('Above', rot=0, y=grid::unit(0.09, "npc"), 
+                        x=grid::unit(0.75, "npc"))
       }
       grDevices::dev.off()
       

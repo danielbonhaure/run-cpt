@@ -493,6 +493,11 @@ class ConfigFile:
 
     def __create_plot_yaml_file(self):
         with open(self.cpt_config.get('files').get('plot_yaml'), 'w') as fp_plot_yaml:
+            fp_plot_yaml.write('\nspatial_domain:\n')
+            fp_plot_yaml.write(f'  nla: {self.cpt_config.get("spatial_domain").get("plot").get("nla")}  # Northernmost latitude\n')
+            fp_plot_yaml.write(f'  sla: {self.cpt_config.get("spatial_domain").get("plot").get("sla")}  # Southernmost latitude\n')
+            fp_plot_yaml.write(f'  wlo: {self.cpt_config.get("spatial_domain").get("plot").get("wlo")}  # Westernmost longitude\n')
+            fp_plot_yaml.write(f'  elo: {self.cpt_config.get("spatial_domain").get("plot").get("elo")}  # Easternmost longitude\n')
             fp_plot_yaml.write('\nfolders:\n')
             fp_plot_yaml.write(f'  observed_data: {self.cpt_config.get("folders").get("predictands")}\n')
             fp_plot_yaml.write(f'  generated_data: {self.cpt_config.get("folders").get("output")}\n')
