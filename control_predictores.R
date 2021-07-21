@@ -1,4 +1,7 @@
-library(dplyr)
+
+rm(list = ls()); gc()
+
+library(dplyr, quietly = TRUE)
 
 # Definir path absoluto al archivo
 file_abs_path <- paste0(getwd(), '/input/predictors/nmme_precip_Mayic_6_1982-2010_2020-2021.txt')

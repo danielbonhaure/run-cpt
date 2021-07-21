@@ -1,4 +1,7 @@
-library(dplyr)
+
+rm(list = ls()); gc()
+
+library(dplyr, quietly = TRUE)
 
 # Definir path absoluto al archivo
 file_abs_path <- paste0(getwd(), '/input/predictands/prcp_6.txt')
