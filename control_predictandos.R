@@ -60,14 +60,10 @@ comp_full <- fab_data %>%
   dplyr::mutate(diff = value.fab - value.gen) %>%
   dplyr::filter(diff > 1) %>% dplyr::arrange(lat, lon)
 
-cant_puntos <- comp_full %>%
-  dplyr::select(lat, lon) %>%
-  dplyr::distinct()
-
 
 crcsas <- sf::st_read("./input/raw_data/shapefiles/CRC_SAS.shp")
 crcsas <- sf::st_set_crs(crcsas, 4326)
-puntos <- sf::st_as_sf(comp_full %>% dplyr::select(lon, lat, diff), coords = c('lon', 'lat'))
+puntos <- sf::st_as_sf(comp_full %>% dplyr::select(lon, lat) %>% dplyr::distinct(), coords = c('lon', 'lat'))
 puntos <- sf::st_set_crs(puntos, 4326)
 library(sf)
 plot(sf::st_geometry(crcsas))
