@@ -534,46 +534,43 @@ class ChirpsFile:
         return f'{self.variable}_chirps_{chirps_file_type}.nc'
 
     def __cut_chirps_file(self, file_to_cut, cutted_file):
+        """Cortar el archivo, chirps abarca el mundo entero, se deja solo el dominio que usamos"""
 
-        # Update intermediate file (obtained by cutting the downloaded file)
-        if not os.path.exists(cutted_file) or \
-                self.update_ctrl.must_be_updated('predictands', 'cutted_chirps_data', cutted_file):
+        # create progress bar to track interpolation
+        run_status = f'Cutting file {file_to_cut.split("/").pop(-1)} (PID: {os.getpid()})'
+        pb = SecondaryProgressBar(10, run_status)
 
-            # create progress bar to track interpolation
-            run_status = f'Cutting file {file_to_cut.split("/").pop(-1)} (PID: {os.getpid()})'
-            pb = SecondaryProgressBar(10, run_status)
+        # open progress bar
+        pb.open()
 
-            # open progress bar
-            pb.open()
+        # Open netcdf
+        with xr.open_dataset(file_to_cut) as ds:
+            # report status
+            pb.update_count(1)
+            # Create mask
+            mask = ((ds.coords["latitude"] >= self.coords['sla']) & (ds.coords["latitude"] <= self.coords['nla']) &
+                    (ds.coords["longitude"] >= self.coords['wlo']) & (ds.coords["longitude"] <= self.coords['elo']))
+            # Report status
+            pb.update_count(3)
+            # Cut netcdf
+            ds = ds.where(mask, drop=True)
+            # Report status
+            pb.update_count(7)
+            # Rename variable
+            ds = ds.rename(precip=self.variable)
+            # Report status
+            pb.update_count(8)
+            # Save netcdf
+            ds.to_netcdf(cutted_file)
+            # report status
+            pb.update_count(10)
 
-            # Open netcdf
-            with xr.open_dataset(file_to_cut) as ds:
-                # report status
-                pb.update_count(1)
-                # Create mask
-                mask = ((ds.coords["latitude"] >= self.coords['sla']) & (ds.coords["latitude"] <= self.coords['nla']) &
-                        (ds.coords["longitude"] >= self.coords['wlo']) & (ds.coords["longitude"] <= self.coords['elo']))
-                # Report status
-                pb.update_count(3)
-                # Cut netcdf
-                ds = ds.where(mask, drop=True)
-                # Report status
-                pb.update_count(7)
-                # Rename variable
-                ds = ds.rename(precip=self.variable)
-                # Report status
-                pb.update_count(8)
-                # Save netcdf
-                ds.to_netcdf(cutted_file)
-                # report status
-                pb.update_count(10)
+        # Reportar que el archivo ya fue actualizado
+        self.update_ctrl.report_updated_file(cutted_file)
 
-            # Reportar que el archivo ya fue actualizado
-            self.update_ctrl.report_updated_file(cutted_file)
-
-            # close progress bar
-            sleep(0.5)
-            pb.close()
+        # close progress bar
+        sleep(0.5)
+        pb.close()
 
     def download_raw_data(self):
         if self.type == "daily":
@@ -602,8 +599,11 @@ class ChirpsFile:
                 else:
                     # Reportar que el archivo ya fue actualizado
                     self.update_ctrl.report_updated_file(year_chirps_file_world)
-                    # Cortar el archivo, chirps abarca el mundo entero, se deja solo el dominio que usamos
-                    self.__cut_chirps_file(year_chirps_file_world, year_chirps_file)
+
+            # Update intermediate file (obtained by cutting the downloaded file)
+            if not os.path.exists(year_chirps_file) or \
+                    self.update_ctrl.must_be_updated('predictands', 'cutted_chirps_data', year_chirps_file):
+                self.__cut_chirps_file(year_chirps_file_world, year_chirps_file)
 
         # Una vez descargados y cortados los archivos, se los une en uno solo
         if not os.path.exists(self.abs_path) or \
@@ -659,6 +659,11 @@ class ChirpsFile:
                 self.update_ctrl.report_updated_file(chirps_world)
                 # Cortar el archivo, chirps abarca el mundo entero, se deja solo el dominio que usamos
                 self.__cut_chirps_file(chirps_world, self.abs_path)
+
+        # Update intermediate file (obtained by cutting the downloaded file)
+        if not os.path.exists(self.abs_path) or \
+                self.update_ctrl.must_be_updated('predictands', 'cutted_chirps_data', self.abs_path):
+            self.__cut_chirps_file(chirps_world, self.abs_path)
 
 
 @dataclass
