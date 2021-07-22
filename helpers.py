@@ -25,6 +25,7 @@ from itertools import chain
 from collections import namedtuple
 from datetime import date
 from time import sleep
+from urllib.error import HTTPError
 
 
 @contextmanager
@@ -235,7 +236,11 @@ class FilesProcessor:
         # Create progress bar to track download
         pb = DownloadProgressBar(os.path.basename(file_path))
         # Download file
-        f, h = urllib.request.urlretrieve(download_url, file_path, pb)
+        try:
+            f, h = urllib.request.urlretrieve(download_url, file_path, pb)
+        except HTTPError:
+            print(f'URL: {download_url}')
+            raise
         # Check file size
         assert os.stat(file_path).st_size != 0
         assert os.stat(file_path).st_size >= min_valid_size
@@ -305,7 +310,7 @@ class ConfigProcessor:
 
     @classmethod
     def count_iterations(cls, d: Dict):
-        return round(sum([len(v)/3 for v in ConfigProcessor.nested_dict_values(d) if isinstance(v, list)]))
+        return round(sum([len(v)/4 for v in ConfigProcessor.nested_dict_values(d) if isinstance(v, list)]))
 
 
 class CPTFileProcessor:

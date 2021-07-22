@@ -40,8 +40,9 @@ class ConfigCPT:
     def __post_init__(self):
         if not self.predictor_data.file_obj:
             self.predictor_data.file_obj = PredictorFile(
-                model=self.model,
                 predictor=self.predictor_data.predictor,
+                data_source=self.predictor_data.data_source,
+                model=self.model,
                 fcst_data=self.forecast_data,
                 trgt_season=self.target_season,
                 trng_period=self.trng_period
@@ -346,11 +347,13 @@ class CPT:
         # Generate ConfigCPT instances
         for model in self.config_file.get('models').keys():
 
-            all_predictors = self.config_file.get('models').get(model).get('predictors')
+            all_predictors = self.config_file.get('models').get(model).get('predictors').get('variables')
+            all_predictors_data_sources = self.config_file.get('models').get(model).get('predictors').get('data_sources')
             all_predictands = self.config_file.get('models').get(model).get('predictands').get('variables')
-            all_data_sources = self.config_file.get('models').get(model).get('predictands').get('data_sources')
+            all_predictands_data_sources = self.config_file.get('models').get(model).get('predictands').get('data_sources')
 
-            for predictor, predictand, data_source in zip(all_predictors, all_predictands, all_data_sources):
+            for predictor, predictor_data_source, predictand, predictand_data_source \
+                    in zip(all_predictors, all_predictors_data_sources, all_predictands, all_predictands_data_sources):
 
                 for a_trgt_season, a_fcst_data in zip(targets, forecasts):
 
@@ -369,12 +372,13 @@ class CPT:
                         forecast_data=a_fcst_data,
                         predictor_data=PredictorXVariables(
                             spatial_domain=spd_predictor,
-                            predictor=predictor
+                            predictor=predictor,
+                            data_source=predictor_data_source
                         ),
                         predictand_data=PredictandYVariables(
                             spatial_domain=spd_predictand,
                             predictand=predictand,
-                            data_source=data_source,
+                            data_source=predictand_data_source,
                         )
                     )
 

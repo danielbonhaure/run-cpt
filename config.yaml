@@ -8,6 +8,7 @@ update:
     cpt_input_data: False
   predictands:
     raw_data: False
+    last_year_raw_data: False
     cutted_chirps_data: False
     interpolated_data: False
     cpt_input_data: False
@@ -30,39 +31,60 @@ training_period:
 #  nfcsts: [1]  # [1, 1]  # Number of forecast years (1: [2020], 2: [2020,2021], 3: [2020,2021,2022])
 
 models:
+  ecmwf:
+    predictors:
+      variables: [ 'precip', 'tmp2m' ]
+      data_sources: [ 'iridl', 'iridl' ]
+    predictands:
+      variables: [ 'prcp', 't2m'  ]
+      data_sources: [ 'chirps', 'era5-land' ]
   nmme:
-    predictors: [ 'precip', 'tmp2m' ]
+    predictors:
+      variables: [ 'precip', 'tmp2m' ]
+      data_sources: [ 'noaa', 'noaa' ]
     predictands:
       variables: [ 'prcp', 't2m' ]
       data_sources: [ 'chirps', 'era5-land' ]
 #  ncar_ccsm4:
-#    predictors: [ 'precip', 'tmp2m' ]
+#    predictors:
+#      variables: [ 'precip', 'tmp2m' ]
+#      data_sources: [ 'noaa', 'noaa' ]
 #    predictands:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]
 #  nasa:
-#    predictors: [ 'precip' ]
+#    predictors:
+#      variables: [ 'precip' ]
+#      data_sources: [ 'noaa' ]
 #    predictands:
 #      variables: [ 'prcp' ]
 #      data_sources: [ 'chirps' ]
 #  gfdl:
-#    fcsf_name: 'gfdl_spear'
-#    predictors: [ 'precip', 'tmp2m' ]
+#    predictors:
+#      variables: [ 'precip', 'tmp2m' ]
+#      data_sources: [ 'noaa', 'noaa' ]
+#      fcsf_name: 'gfdl_spear'
 #    predictands:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]
 #  cmc2:
-#    predictors: [ 'precip', 'tmp2m' ]
+#    predictors:
+#      variables: [ 'precip', 'tmp2m' ]
+#      data_sources: [ 'noaa', 'noaa' ]
 #    predictands:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]
 #  cmc1:
-#    predictors: [ 'precip', 'tmp2m' ]
+#    predictors:
+#      variables: [ 'precip', 'tmp2m' ]
+#      data_sources: [ 'noaa', 'noaa' ]
 #    predictands:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]
 #  cfsv2:
-#    predictors: [ 'precip', 'tmp2m' ]
+#    predictors:
+#      variables: [ 'precip', 'tmp2m' ]
+#      data_sources: [ 'noaa', 'noaa' ]
 #    predictands:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]
@@ -97,11 +119,13 @@ url:
       template: "https://ftp.cpc.ncep.noaa.gov/International/nmme/${trgt_type}_nmme_${file_type}_in_cpt_format/${file_name}"
     ecmwf:
       template:
-        # month_str: initialization month, last_year: last year with data Ej: 2021, 2022,
-        # first_month: first target month, last_month: last target month, nla-sla-wlo-elo: predictor spatial domain
+        # variable: variable to be downloaded (t2m or prcp)
+        # unit: unit to be downloaded (mm/day for prcp, and degree_Celsius for t2m)
+        # init_month_str: initialization month, last_year: last year with data Ej: 2021, 2022,
+        # first_trgt_month: first target month, last_trgt_month: last target month, nla-sla-wlo-elo: predictor spatial domain
         # OBS: NO REQUIEREN MODIFICACIÓN, SE DESCARGAN Y SE USAN!!!
-        monthly: "http://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.hindcast/.prcp/S/(0000 1 ${month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.forecast/.prcp/S/(0000 1 ${month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/(${first_month}.5)VALUES/Y/(${nla})(${sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(mm/day)/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv"
-        seasonal: "http://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.hindcast/.prcp/S/(0000 1 ${month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.forecast/.prcp/S/(0000 1 ${month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/${first_month}.5/${last_month}.5/RANGE[L]//keepgrids/average/Y/(${nla})(&{sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(mm/day)/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv"
+        monthly: "http://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.hindcast/.${variable}/S/(0000 1 ${init_month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.forecast/.${variable}/S/(0000 1 ${init_month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/(${first_trgt_month}.5)VALUES/Y/(${nla})(${sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(${unit})/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv"
+        seasonal: "http://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.hindcast/.${variable}/S/(0000 1 ${init_month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS5/.forecast/.${variable}/S/(0000 1 ${init_month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/${first_trgt_month}.5/${last_trgt_month}.5/RANGE[L]//keepgrids/average/Y/(${nla})(${sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(${unit})/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv"
   predictand:
     chirps:
       type: "daily"

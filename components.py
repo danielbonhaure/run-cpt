@@ -33,6 +33,10 @@ class TargetSeason:
         return MonthsProcessor.month_abbr_to_int(self.mons)
 
     @property
+    def start_month_str(self) -> str:
+        return self.mons
+
+    @property
     def first_trgt_month_abbr(self) -> str:
         return self.tgts.split('-')[0]
 
@@ -85,6 +89,10 @@ class ForecastData:
     @property
     def init_month_int(self) -> int:
         return MonthsProcessor.month_abbr_to_int(self.monf)
+
+    @property
+    def init_month_str(self) -> str:
+        return self.monf
 
 
 @dataclass
@@ -305,14 +313,14 @@ class ForecastFile:
             self.seasonal_file_data = self.__define_seasonal_file_data(fcst_data, trgt_season, fcst_year)
 
     def __define_forecast_filename(self, model, fcst_data, trgt_season, fcst_year) -> str:
-        model_name = self.config_file.get('models').get(model).get('fcsf_name', model)
+        model_name = self.config_file.get('models').get(model).get('predictors').get('fcsf_name', model)
         months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
         years_to_str = YearsProcessor.fcst_data_to_years_str(fcst_data, trgt_season, fcst_year)
         return f'{model_name}_{self.variable}_fcst_{fcst_data.monf}ic_{months_indexes}_{years_to_str}.txt'
 
     def __define_monthly_files_data(self, model, fcst_data, trgt_season, fcst_year) -> dict:
         files: list = list()
-        model_name = self.config_file.get('models').get(model).get('fcsf_name', model)
+        model_name = self.config_file.get('models').get(model).get('predictors').get('fcsf_name', model)
         trgt_years = fcst_data.trgt_years_by_month(trgt_season)
         for i, month in enumerate(trgt_season.trgt_months_range):
             year = trgt_years[fcst_year][i]
@@ -382,7 +390,7 @@ class ForecastFile:
 
 
 @dataclass
-class PredictorFile:
+class NoaaPredictorFile:
     predictor: str
 
     name: str = field(init=False)
@@ -500,6 +508,94 @@ class PredictorFile:
 
 
 @dataclass
+class IriDLPredictorFile:
+    predictor: str
+
+    name: str = field(init=False)
+    folder: str = field(init=False)
+    url: str = field(init=False)
+
+    # Upload cpt config file (It's a singleton!!)
+    config_file: ConfigFile = field(init=False, default=ConfigFile.Instance())
+    # Define update control (It's a singleton!!)
+    update_ctrl: UpdateControl = field(init=False, default=UpdateControl.Instance())
+
+    model: InitVar[str] = None
+    fcst_data: InitVar[ForecastData] = None
+    trgt_season: InitVar[TargetSeason] = None
+    trng_period: InitVar[TrainingPeriod] = None
+
+    @property
+    def abs_path(self):
+        return os.path.join(self.folder, self.name) if self.name else ""
+
+    def __post_init__(self, model, fcst_data, trgt_season, trng_period):
+        # Define file name
+        self.name = self.__define_predictor_filename(model, fcst_data, trgt_season, trng_period)
+        # Define folder
+        self.folder = self.config_file.get('folders').get('predictors')
+        # Define url
+        self.url = self.__define_url_to_file(fcst_data, trgt_season)
+        # Download raw files
+        self.__download_file()
+
+    def __define_predictor_filename(self, model, fcst_data, trgt_season, trng_period) -> str:
+        months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
+        return f"{model}_{self.predictor}_{fcst_data.monf}ic_{months_indexes}_" \
+               f"{trng_period.tini}-{trng_period.tend}_{fcst_data.fyr}-{fcst_data.lyr}.txt"
+
+    def __define_url_to_file(self, fcst_data, trgt_season):
+        spd_predictor = SpatialDomain(**self.config_file.get('spatial_domain').get('predictor'))
+
+        url = Template(self.config_file.get('url').get('predictor').get('ecmwf').get('template').get(trgt_season.type))\
+            .substitute(
+                variable='prcp' if self.predictor == 'precip' else 't2m',
+                unit='mm/day' if self.predictor == 'precip' else 'degree_Celsius',
+                init_month_str=fcst_data.init_month_str, last_year=fcst_data.lyr,
+                first_trgt_month=trgt_season.first_trgt_month_int, last_trgt_month=trgt_season.last_trgt_month_int,
+                nla=spd_predictor.nla, sla=spd_predictor.sla, wlo=spd_predictor.wlo, elo=spd_predictor.elo
+            )
+
+        return url
+
+    def __download_file(self):
+        if os.path.exists(self.abs_path) and \
+                not self.update_ctrl.must_be_updated('predictors', 'cpt_input_data', self.abs_path):
+            return
+
+        try:
+            FilesProcessor.download_file_from_url(self.url, self.abs_path, 500000)
+        except (HTTPError, AssertionError):
+            os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
+            raise
+        else:
+            self.update_ctrl.report_updated_file(self.abs_path)
+
+
+@dataclass
+class PredictorFile:
+    predictor: str
+    data_source: str  # It can be "noaa" or "iridl"
+
+    predictor_file: Union[NoaaPredictorFile, IriDLPredictorFile] = field(init=False)
+
+    model: InitVar[str] = None
+    fcst_data: InitVar[ForecastData] = None
+    trgt_season: InitVar[TargetSeason] = None
+    trng_period: InitVar[TrainingPeriod] = None
+
+    @property
+    def abs_path(self):
+        return self.predictor_file.abs_path
+
+    def __post_init__(self, model, fcst_data, trgt_season, trng_period):
+        if self.data_source == 'noaa':
+            self.predictor_file = NoaaPredictorFile(self.predictor, model, fcst_data, trgt_season, trng_period)
+        elif self.data_source == 'iridl':
+            self.predictor_file = IriDLPredictorFile(self.predictor, model, fcst_data, trgt_season, trng_period)
+
+
+@dataclass
 class ChirpsFile:
     variable: str
 
@@ -589,11 +685,20 @@ class ChirpsFile:
 
             # Download chirps for the whole world (if needed)
             if not os.path.exists(year_chirps_file_world) or \
-                    self.update_ctrl.must_be_updated('predictands', 'raw_data', year_chirps_file_world):
+                    self.update_ctrl.must_be_updated('predictands', 'raw_data', year_chirps_file_world) or \
+                    (self.update_ctrl.must_be_updated('predictands', 'last_year_raw_data', year_chirps_file_world) and
+                     ((year == date.today().year - 1 and date.today().month <= 2) or year == date.today().year)):
                 try:
                     # Download netcdf
-                    FilesProcessor.download_file_from_url(year_chirps_url, year_chirps_file_world, 60000000)
-                except (HTTPError, AssertionError):
+                    min_valid_size = 60000000 if year != date.today().year else 500
+                    FilesProcessor.download_file_from_url(year_chirps_url, year_chirps_file_world, min_valid_size)
+                except HTTPError as e:
+                    if e.code == 404 and year == date.today().year and date.today().month <= 6:
+                        pass
+                    else:
+                        os.remove(year_chirps_file_world) if os.path.exists(year_chirps_file_world) else None
+                        raise
+                except AssertionError:
                     os.remove(year_chirps_file_world) if os.path.exists(year_chirps_file_world) else None
                     raise
                 else:
@@ -602,7 +707,9 @@ class ChirpsFile:
 
             # Update intermediate file (obtained by cutting the downloaded file)
             if not os.path.exists(year_chirps_file) or \
-                    self.update_ctrl.must_be_updated('predictands', 'cutted_chirps_data', year_chirps_file):
+                    self.update_ctrl.must_be_updated('predictands', 'cutted_chirps_data', year_chirps_file) or \
+                    (self.update_ctrl.must_be_updated('predictands', 'last_year_raw_data', year_chirps_file_world) and
+                     ((year == date.today().year - 1 and date.today().month <= 2) or year == date.today().year)):
                 self.__cut_chirps_file(year_chirps_file_world, year_chirps_file)
 
         # Una vez descargados y cortados los archivos, se los une en uno solo
@@ -888,6 +995,9 @@ class PredictorXVariables:
     # Predictor (choose between precip, tmp2m)
     predictor: str
 
+    # Data source (choose between noaa, iridl)
+    data_source: str
+
     # File that contains input data
     file_obj: PredictorFile = None
 
@@ -946,19 +1056,20 @@ class OutputFile:
 
     def __post_init__(self, model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data):
         # Define file name
-        self.name = self.__define_output_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data)
+        self.name = self.__define_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data)
         # Define folder
         self.folder = self.config_file.get('folders').get('output')
         # Report output file to plotting module
-        self.__add_filename_to_plot_yaml(trgt_season)
+        self.__add_filename_to_plot_yaml(trgt_season, predictor_data)
 
     @staticmethod
-    def __define_output_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data) -> str:
+    def __define_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data) -> str:
         months_abbr = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
         return f"{model}_{predictor_data.predictor}-{predictand_data.predictand}_" \
                f"{fcst_data.monf}ic_{months_abbr}_{trng_period.tini}-{trng_period.tend}_" \
                f"{fcst_data.fyr}-{fcst_data.fyr + fcst_data.nfcsts - 1}.txt"
 
-    def __add_filename_to_plot_yaml(self, trgt_season):
+    def __add_filename_to_plot_yaml(self, trgt_season, predictor_data):
         with open(self.config_file.get('files').get('plot_yaml'), 'a') as fp_plot_yaml:
-            fp_plot_yaml.write(f' - {{ file: "{self.name}", type: "{trgt_season.type}" }}\n')
+            swap_years = "true" if predictor_data.data_source == 'noaa' else "false"
+            fp_plot_yaml.write(f' - {{ file: "{self.name}", type: "{trgt_season.type}", swap_years: {swap_years} }}\n')

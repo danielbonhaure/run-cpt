@@ -82,17 +82,24 @@ for (fp in config$files) {
   
   # fp <- config$files[[1]]
   # fp$file <- "nmme_precip-prcp_Mayic_6_1982-2010_2020-2021.txt"
-  
-  fp_split <- stringr::str_split_fixed(fp$file, '_', 6)
+
+  fp_split <- stringr::str_split_fixed(stringr::str_replace(fp$file, '.txt', ''), '_', 6)
   
   modelo <- fp_split[1]
   variable <- stringr::str_split_fixed(fp_split[2], '-', 2)[2]
-  forecast_month <- as.numeric(fp_split[4])
+  variable_str <- ifelse(variable == 'prcp', 'Precipitation', 'Temperature')
+  variable_unit <- ifelse(variable == 'prcp', 'mm', '°C')
   initial_month <- stringr::str_replace(fp_split[3], 'ic', '')
+  forecast_months <- fp_split[4]
+  first_fcst_month <- as.numeric(stringr::str_split_fixed(forecast_months, '-', 2)[1])
+  last_fcst_month <- as.numeric(stringr::str_split_fixed(forecast_months, '-', 2)[2])
+  forecast_months_str <- ifelse(
+    fp$type == "monthly", month.name[first_fcst_month], 
+    paste0(month.abb[first_fcst_month], '-', month.abb[last_fcst_month]))
   training_period <- fp_split[5]
   first_training_year <- as.numeric(stringr::str_split_fixed(training_period, '-', 2)[1])
   last_training_year <- as.numeric(stringr::str_split_fixed(training_period, '-', 2)[2])
-  forecast_years <- stringr::str_replace(fp_split[6], '.txt', '')
+  forecast_years <- fp_split[6]
   first_fcst_year <- as.numeric(stringr::str_split_fixed(forecast_years, '-', 2)[1])
   last_fcst_year <- as.numeric(stringr::str_split_fixed(forecast_years, '-', 2)[2])
   
@@ -137,7 +144,7 @@ for (fp in config$files) {
   # obs_file <- 'prcp_6_fabricio.txt'
   
   # Definir path absoluto al archivo
-  obs_file <- paste0(variable, '_', forecast_month, '.txt') 
+  obs_file <- paste0(variable, '_', forecast_months, '.txt') 
   file_abs_path <- paste0(getwd(), '/', config$folders$observed_data, obs_file)
   # Extraer latitudes (usar nombre de columna como ID)
   y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 1, nrows = 1)
@@ -164,54 +171,57 @@ for (fp in config$files) {
   
   
   #
-  # CORREGIR RESULTADOS CON VALORES MAYORES A 6 DESV ESTÁNDAR
+  # CORREGIR RESULTADOS CON VALORES MAYORES A 7 DESV ESTÁNDAR (SOLO PRCP)
   #
   
-  # Calcular estadísticas sobre de los datos observados
-  sd_obs_data <- obs_data %>%
-    dplyr::group_by(lat, lon) %>%
-    dplyr::mutate(
-      mx = max(value, na.rm = TRUE),
-      point_to_check = sum(value, na.rm = T) <= 0.2,
-      sd = sd(value, na.rm = TRUE) # desviación estándar, excel pt: DESVPAD
-    ) %>%
-    dplyr::ungroup() %>%
-    dplyr::mutate(
-      min_valid_value = mx - sd*7,
-      max_valid_value = mx + sd*7
-    ) %>%
-    dplyr::mutate(
-      min_valid_value = ifelse(min_valid_value >= 0, min_valid_value, 0)
-    ) %>%
-    dplyr::select(-mx, -sd)
+  if (variable == "prcp") {
+    
+    # Calcular estadísticas sobre de los datos observados
+    sd_obs_data <- obs_data %>%
+      dplyr::group_by(lat, lon) %>%
+      dplyr::mutate(
+        mx = ifelse(any(!is.na(value)), max(value, na.rm = TRUE), NA),
+        point_to_check = sum(value, na.rm = T) <= 0.2,
+        sd = sd(value, na.rm = TRUE) # desviación estándar, excel pt: DESVPAD
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(
+        min_valid_value = mx - sd*7,
+        max_valid_value = mx + sd*7
+      ) %>%
+      dplyr::mutate(
+        min_valid_value = ifelse(min_valid_value >= 0, min_valid_value, 0)
+      ) %>%
+      dplyr::select(-mx, -sd)
+    
+    # Corregir valores fuera de rango (asignar random entre 0 y 0.1, sin 0 y 0.1)
+    # el problema es que la correlación lanza warnings si reemplazo todos por 0!!
+    gen_data_corregido <- gen_data %>%
+      dplyr::left_join(sd_obs_data, by = c('lat', 'lon', 'year'), suffix = c(".gen", ".obs")) %>%
+      dplyr::mutate(
+        aux_value = runif(n = n(), min = 0, max = 0.1)) %>%
+      dplyr::rowwise() %>%
+      dplyr::mutate(
+        in_range = dplyr::between(value.gen, min_valid_value, max_valid_value)) %>%
+      dplyr::mutate(
+        value.new = ifelse(!is.na(in_range) & !in_range, aux_value, value.gen)
+      ) %>%
+      dplyr::ungroup() 
+    
+    # Control
+    control_correccion <- gen_data_corregido %>% 
+      dplyr::filter(value.gen != value.new)
+    
+    # Reemplazar gen_data por gen_data_corregido
+    if (nrow(control_correccion) > 0) {
+      gen_data <- gen_data_corregido %>% 
+        dplyr::select(lat, lon, year, value = value.new)
+    }
+    
+    # Remover objetos que ya no se van a utilizar
+    rm(sd_obs_data, gen_data_corregido); gc()
   
-  # Corregir valores fuera de rango (asignar random entre 0 y 0.1, sin 0 y 0.1)
-  # el problema es que la correlación lanza warnings si reemplazo todos por 0!!
-  gen_data_corregido <- gen_data %>%
-    dplyr::left_join(sd_obs_data, by = c('lat', 'lon', 'year'), suffix = c(".gen", ".obs")) %>%
-    dplyr::mutate(
-      aux_value = runif(n = n(), min = 0, max = 0.1)) %>%
-    dplyr::rowwise() %>%
-    dplyr::mutate(
-      in_range = dplyr::between(value.gen, min_valid_value, max_valid_value)) %>%
-    dplyr::mutate(
-      value.new = ifelse(!is.na(in_range) & !in_range, aux_value, value.gen)
-    ) %>%
-    dplyr::ungroup() 
-  
-  # Control
-  control_correccion <- gen_data_corregido %>% 
-    dplyr::filter(value.gen != value.new)
-  
-  # Reemplazar gen_data por gen_data_corregido
-  if (nrow(control_correccion) > 0) {
-    gen_data <- gen_data_corregido %>% 
-      dplyr::select(lat, lon, year, value = value.new)
   }
-  
-  # Remover objetos que ya no se van a utilizar
-  rm(sd_obs_data, gen_data_corregido); gc()
-  
   
   
   #
@@ -350,33 +360,45 @@ for (fp in config$files) {
                     'period year are not present in generated data'))
   }
   
+
+  if (fp$swap_years) {
+    # En caso que los años deban se renombrados, se hace lo siguiente:
   
-  # Calcular desfasaje
-  min_date_in_data <- gen_data %>% 
-    dplyr::filter(year > last_training_year) %>%
-    dplyr::pull(year) %>% min()
-    
-  desfasaje <- first_fcst_year - min_date_in_data
-  
-  
-  # Renombrar los años segun corresponda y descartar los años de entrenamiento
-  mapeo <- purrr::map_dfr(
-    .x = gen_data %>% 
+    # Identificar el año inmediatamente posterior al periodo de entrenamiento
+    min_date_in_data <- gen_data %>% 
       dplyr::filter(year > last_training_year) %>%
-      dplyr::pull(year) %>% unique(),
-    .f = function(year) {
-      tibble::tibble(orig_year = year, new_year = year + desfasaje)
-    })
-  data <- data %>%
-    dplyr::filter(year > last_training_year) %>%
-    dplyr::left_join(mapeo, by = c('year' = 'orig_year')) %>%
-    dplyr::mutate(new_year = ifelse(is.na(new_year), year, new_year)) %>%
-    dplyr::mutate(year = new_year) %>%
-    dplyr::select(-new_year) %>%
-    dplyr::arrange(year)
+      dplyr::pull(year) %>% min()
+    # Calcular desfasaje entre el año inmediatamente posterior al periodo 
+    # de entrenamiento y el primer año de pronóstico
+    desfasaje <- first_fcst_year - min_date_in_data
+    
+    # Definir un mapeo que permita renombrar los años
+    mapeo <- purrr::map_dfr(
+      .x = gen_data %>% 
+        dplyr::filter(year > last_training_year) %>%
+        dplyr::pull(year) %>% unique(),
+      .f = function(year) {
+        tibble::tibble(orig_year = year, new_year = year + desfasaje)
+      })
+    # Renombrar los años segun corresponda y descartar los años de entrenamiento
+    data <- data %>%
+      dplyr::filter(year > last_training_year) %>%
+      dplyr::left_join(mapeo, by = c('year' = 'orig_year')) %>%
+      dplyr::mutate(new_year = ifelse(is.na(new_year), year, new_year)) %>%
+      dplyr::mutate(year = new_year) %>%
+      dplyr::select(-new_year) %>%
+      dplyr::arrange(year)
+    
+    # Remover objetos que ya no se van a utilizar
+    rm(min_date_in_data, desfasaje, mapeo); gc()
   
-  # Remover objetos que ya no se van a utilizar
-  rm(min_date_in_data, desfasaje, mapeo); gc()
+  } else {
+    # En caso que los años NO deban se renombrados, se hace lo siguiente:
+    
+    data <- data %>%
+      dplyr::filter(year >= first_fcst_year, year <= last_fcst_year) 
+    
+  }
   
   
   
@@ -463,10 +485,9 @@ for (fp in config$files) {
       if (data_type == "anom") {
         seqq <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
         seq.l <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
-        main_title <- glue::glue("Precipitation Anomaly Forecast (mm)\nValid for ",
-                                 "{month.name[forecast_month]} {data_year} - ",
-                                 "{toupper(modelo)}\nIssued: {initial_month} ",
-                                 "{data_year}")
+        main_title <- glue::glue("{variable_str} Anomaly Forecast ({variable_unit})",
+                                 "\n{toupper(modelo)} valid for {forecast_months_str}",
+                                 "\nIssued: {initial_month} {data_year}")
         paleta <- c("#fe0000","#ff6766","#ff6766","#ff9899","#fecccb","#fecccb","#ffffff",
                     "#ffffff","#ccccfe","#9a99ff","#6599ff","#6665fe","#0000fe","#0000fe")
         teste <- grDevices::colorRampPalette(paleta)
@@ -480,8 +501,9 @@ for (fp in config$files) {
         seqq <- c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
         seq.l <- c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
         main_title <- glue::glue("Correlation between Forecast and Observation ",
-                                 "(1982-2010)\nValid for {month.name[forecast_month]} - ",
-                                 "{toupper(modelo)}\nIssued: {initial_month}")
+                                 "({first_training_year}-{last_training_year})",
+                                 "\n{toupper(modelo)} valid for {forecast_months_str}",
+                                 "\nIssued: {initial_month}")
         paleta <- c("#ff6766","#ff9899","#fecccb","#99ffff","#00ffff","#00ccff","#99cccd",
                     "#6599ff","#6665fe","#0000fe")
         teste <- grDevices::colorRampPalette(paleta)
@@ -494,9 +516,9 @@ for (fp in config$files) {
       } else if (data_type == "value.gen") {  # PREV_PREC¨
         seqq <- c(0,1,25,50,100,150,200,250,300,400,500)
         seq.l <- c(0,1,25,50,100,150,200,250,300,400,500)
-        main_title <- glue::glue("Precipitation (mm)\nValid for {month.name[forecast_month]} ",
-                                 "{data_year} - {toupper(modelo)}\nIssued: {initial_month} ",
-                                 "{data_year}")
+        main_title <- glue::glue("{variable_str} ({variable_unit})",
+                                 "\n{toupper(modelo)} valid for {forecast_months_str} ",
+                                 "\nIssued: {initial_month} {data_year}")
         paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc","#9acc99","#34cc67",
                     "#33cc33","#019934","#006634")
         teste <- grDevices::colorRampPalette(paleta)
@@ -509,10 +531,9 @@ for (fp in config$files) {
       } else if (data_type == "codigo_de_color") {  # PROB_PREC
         seqq <- c(-6,-5,-4,-3,-2,-1,1,2,3,4,5,6)
         seq.l <- c("70","60","50","45","40","35","35","40","45","50","60","70")
-        main_title <- glue::glue("Precipitation - Probability Forecast\nValid for ",
-                                 "{month.name[forecast_month]} {data_year} - ",
-                                 "{toupper(modelo)}\nIssued: {initial_month} ",
-                                 "{data_year}")
+        main_title <- glue::glue("{variable_str} - Probability Forecast ",
+                                 "\n{toupper(modelo)} valid for {forecast_months_str}",
+                                 "\nIssued: {initial_month} {data_year}")
         paleta <- c("#783301","#a9461d","#cf8033","#e8b832","#fafb01",
                     "#c8c8c8","#c5ffe7","#96feaf","#67ff78","#35e43f","#06c408")
         prob.b <- colorRampPalette(paleta)
@@ -542,7 +563,7 @@ for (fp in config$files) {
                                   col.regions = col_regions,
                                   main = main_title,
                                   xlab = NULL, ylab = NULL) +
-        latticeExtra::layer(sp.lines(pais, alpha=1))
+        latticeExtra::layer(sp::sp.lines(pais, alpha=1))
       grDevices::jpeg(filename = fig_file_name, width = 16, height = 21, 
                       quality = 75, units = "cm", res = 300)
       print(BELOW)
