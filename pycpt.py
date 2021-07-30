@@ -357,6 +357,26 @@ class CPT:
 
                 for a_trgt_season, a_fcst_data in zip(targets, forecasts):
 
+                    # IRI Climate Data Library has data up to 5 months ahead of the initial month
+                    mf = MonthsProcessor.num_of_months_from_month_to_month
+                    if predictor_data_source == 'iridl' and (
+                            mf(a_fcst_data.init_month_int, a_trgt_season.first_trgt_month_int) > 5 or
+                            mf(a_fcst_data.init_month_int, a_trgt_season.last_trgt_month_int) > 5):
+                        # Report progress
+                        self.progress_bar.report_advance(1/len(targets))
+                        # Break current iteration and continue with next iteration
+                        continue
+
+                    # NOAA ftp service has data up to 6 months ahead of the initial month
+                    mf = MonthsProcessor.num_of_months_from_month_to_month
+                    if predictor_data_source == 'noaa' and (
+                            mf(a_fcst_data.init_month_int, a_trgt_season.first_trgt_month_int) > 6 or
+                            mf(a_fcst_data.init_month_int, a_trgt_season.last_trgt_month_int) > 6):
+                        # Report progress
+                        self.progress_bar.report_advance(1/len(targets))
+                        # Break current iteration and continue with next iteration
+                        continue
+
                     # Define training period
                     a_trng_period = TrainingPeriod(
                         tini=self.config_file.get('training_period', {}).get('fyr', TrainingPeriod.tini),

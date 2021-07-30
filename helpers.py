@@ -201,6 +201,11 @@ class MonthsProcessor:
         year, month = date.today().year, date.today().month
         return dict(fyr=year, monf=cls.month_int_to_abbr(month), nfcsts=1)
 
+    @classmethod
+    def num_of_months_from_month_to_month(cls, first_month, last_month):
+        last_month = last_month if last_month >= first_month else 12 + last_month
+        return last_month - first_month
+
 
 class YearsProcessor:
 

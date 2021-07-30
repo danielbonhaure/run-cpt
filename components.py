@@ -547,14 +547,19 @@ class IriDLPredictorFile:
     def __define_url_to_file(self, fcst_data, trgt_season):
         spd_predictor = SpatialDomain(**self.config_file.get('spatial_domain').get('predictor'))
 
+        mf = MonthsProcessor.num_of_months_from_month_to_month
+
         url = Template(self.config_file.get('url').get('predictor').get('ecmwf').get('template').get(trgt_season.type))\
             .substitute(
                 variable='prcp' if self.predictor == 'precip' else 't2m',
                 unit='mm/day' if self.predictor == 'precip' else 'degree_Celsius',
                 init_month_str=fcst_data.init_month_str, last_year=fcst_data.lyr,
-                first_trgt_month=trgt_season.first_trgt_month_int, last_trgt_month=trgt_season.last_trgt_month_int,
+                months_after_init_month_t1=mf(fcst_data.init_month_int, trgt_season.first_trgt_month_int),
+                months_after_init_month_t2=mf(fcst_data.init_month_int, trgt_season.last_trgt_month_int),
                 nla=spd_predictor.nla, sla=spd_predictor.sla, wlo=spd_predictor.wlo, elo=spd_predictor.elo
             )
+        # print(f"init_month: {fcst_data.init_month_int}, first_target_month: {trgt_season.first_trgt_month_int}, "
+        #       f"last_target_month: {trgt_season.last_trgt_month_int}, file_name: {self.abs_path}, url: {url}")
 
         return url
 
