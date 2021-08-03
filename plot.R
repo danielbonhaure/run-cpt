@@ -498,8 +498,8 @@ for (fp in config$files) {
           stringr::str_replace(fp$file, '.txt', ''),
           '_', data_year, '_anom.jpg')
       } else if (data_type == "corr") {
-        seqq <- c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
-        seq.l <- c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+        seqq <- c(-1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+        seq.l <- c(-1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
         main_title <- glue::glue("Correlation between Forecast and Observation ",
                                  "({first_training_year}-{last_training_year})",
                                  "\n{toupper(modelo)} valid for {forecast_months_str}",
