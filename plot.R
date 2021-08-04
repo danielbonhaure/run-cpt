@@ -87,7 +87,7 @@ for (fp in config$files) {
   
   modelo <- fp_split[1]
   variable <- stringr::str_split_fixed(fp_split[2], '-', 2)[2]
-  variable_str <- ifelse(variable == 'prcp', 'Precipitation', 'Temperature')
+  variable_str <- ifelse(variable == 'prcp', 'Precipitation', 'Average Temperature')
   variable_unit <- ifelse(variable == 'prcp', 'mm', '°C')
   initial_month <- stringr::str_replace(fp_split[3], 'ic', '')
   forecast_months <- fp_split[4]
@@ -483,13 +483,21 @@ for (fp in config$files) {
       idw.msk <- raster::mask(idw.crp, crcsas)
       idw.msk.dfr <- raster::as.data.frame(raster::rasterToPoints(idw.msk))
       if (data_type == "anom") {
-        seqq <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
-        seq.l <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
+        if (variable == 'prcp') {
+          seqq <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
+          seq.l <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
+        } else if (variable == 't2m') {
+          seqq <- c(-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4)
+          seq.l <- c(-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4)
+        }
         main_title <- glue::glue("{variable_str} Anomaly Forecast ({variable_unit})",
                                  "\n{toupper(modelo)} valid for {forecast_months_str}",
                                  "\nIssued: {initial_month} {data_year}")
-        paleta <- c("#fe0000","#ff6766","#ff6766","#ff9899","#fecccb","#fecccb","#ffffff",
-                    "#ffffff","#ccccfe","#9a99ff","#6599ff","#6665fe","#0000fe","#0000fe")
+        paleta <- c('#67001f','#b2182b','#d6604d','#f4a582','#fddbc7',
+                    '#f7f7f7','#d1e5f0','#92c5de','#4393c3','#2166ac',
+                    '#053061')
+        if (variable == 't2m')
+          paleta <- rev(paleta)
         teste <- grDevices::colorRampPalette(paleta)
         par_settings <- rasterVis::rasterTheme(region=teste(14))
         col_regions  <- NULL
@@ -513,14 +521,25 @@ for (fp in config$files) {
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
           '_', data_year, '_corr.jpg')
-      } else if (data_type == "value.gen") {  # PREV_PREC¨
-        seqq <- c(0,1,25,50,100,150,200,250,300,400,500)
-        seq.l <- c(0,1,25,50,100,150,200,250,300,400,500)
+      } else if (data_type == "value.gen") {  # PREV_PREC
+        if (variable == 'prcp') {
+          seqq <- c(0,1,25,50,100,150,200,250,300,400,500)
+          seq.l <- c(0,1,25,50,100,150,200,250,300,400,500)
+        } else if (variable == 't2m') {
+          seqq <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
+          seq.l <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
+        }
         main_title <- glue::glue("{variable_str} ({variable_unit})",
                                  "\n{toupper(modelo)} valid for {forecast_months_str} ",
                                  "\nIssued: {initial_month} {data_year}")
-        paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc","#9acc99","#34cc67",
-                    "#33cc33","#019934","#006634")
+        if (variable == 'prcp') {
+          paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc",
+                      "#9acc99","#34cc67","#33cc33","#019934","#006634")
+        } else if (variable == 't2m') {
+          paleta <- c("#9a99ff","#ccccfe","#99ffff","#cdffcc","#ffffcb",
+                      "#ffcb99","#ffcc00","#ff9a66","#ff9934","#cd9933",
+                      "#cc6733","#ff6634","#fe0000")
+        }
         teste <- grDevices::colorRampPalette(paleta)
         par_settings <- rasterVis::rasterTheme(region=teste(10))
         col_regions  <- NULL
@@ -534,8 +553,15 @@ for (fp in config$files) {
         main_title <- glue::glue("{variable_str} - Probability Forecast ",
                                  "\n{toupper(modelo)} valid for {forecast_months_str}",
                                  "\nIssued: {initial_month} {data_year}")
-        paleta <- c("#783301","#a9461d","#cf8033","#e8b832","#fafb01",
-                    "#c8c8c8","#c5ffe7","#96feaf","#67ff78","#35e43f","#06c408")
+        if (variable == 'prcp') {
+          paleta <- c("#783301","#a9461d","#cf8033","#e8b832","#fafb01",
+                      "#c8c8c8","#c5ffe7","#96feaf","#67ff78","#35e43f",
+                      "#06c408")
+        } else if (variable == 't2m') {
+          paleta <- c("#6665fe","#6599ff","#9a99ff","#00ccff","#99ffff",
+                      "#e5e5e5","#ffffff","#feff99","#ffff66","#ffcc00",
+                      "#ff9a66")
+        }
         prob.b <- colorRampPalette(paleta)
         par_settings <- list(prob.b, layout.heights = list(xlab.key.padding=2.5))
         col_regions <- prob.b(11)

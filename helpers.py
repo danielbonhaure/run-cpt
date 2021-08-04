@@ -190,6 +190,10 @@ class MonthsProcessor:
     @classmethod
     def current_month_trgts_data(cls):
         month = date.today().month
+        return cls.gen_trgts_data(month)
+
+    @classmethod
+    def gen_trgts_data(cls, month: int):
         return [dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month+1)),
                 dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month+2)),
                 dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month+3)),
@@ -199,6 +203,10 @@ class MonthsProcessor:
     @classmethod
     def current_month_fcsts_data(cls):
         year, month = date.today().year, date.today().month
+        return cls.gen_fcsts_data(year, month)
+
+    @classmethod
+    def gen_fcsts_data(cls, year: int, month: int):
         return dict(fyr=year, monf=cls.month_int_to_abbr(month), nfcsts=1)
 
     @classmethod

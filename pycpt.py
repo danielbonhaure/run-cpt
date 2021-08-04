@@ -11,6 +11,7 @@ import signal
 
 from typing import List
 from dataclasses import dataclass, field
+from datetime import date
 
 
 @dataclass
@@ -311,7 +312,8 @@ class CPT:
         # Set targets seasons
         targets: List[TargetSeason]
         if not trgt_data:
-            tds = MonthsProcessor.current_month_trgts_data()
+            initial_month = self.config_file.get('initial_month', date.today().month)
+            tds = MonthsProcessor.gen_trgts_data(initial_month)
             targets = [TargetSeason(**td) for td in tds]
         elif [str, str] == [type(trgt_data.get(k)) for k in trgt_data.keys()]:
             targets = [TargetSeason(**trgt_data)]
@@ -327,7 +329,9 @@ class CPT:
         # Set forecasts data
         forecasts: List[ForecastData]
         if not fcst_data:
-            fd = MonthsProcessor.current_month_fcsts_data()
+            initial_year = self.config_file.get('initial_year', date.today().year)
+            initial_month = self.config_file.get('initial_month', date.today().month)
+            fd = MonthsProcessor.gen_fcsts_data(initial_year, initial_month)
             forecasts = [ForecastData(**fd) for i in range(len(targets))]
         elif [int, str, int] == [type(fcst_data.get(k)) for k in fcst_data.keys()] and \
                 not all([type(trgt_data.get(k)) == list for k in trgt_data.keys()]):

@@ -30,6 +30,14 @@ training_period:
 #  monf: ['Jun']  # ['Jan', 'Aug'] # Initialization month / First month
 #  nfcsts: [1]  # [1, 1]  # Number of forecast years (1: [2020], 2: [2020,2021], 3: [2020,2021,2022])
 
+# When this information is provided, the target season and forecast
+# are created using this month and year instead of the current month
+# Comment the following two lines to run the current month
+# initial_month: 7
+# initial_year: 2021
+
+# OBS:
+# Predictors can have two more attributes (fcst_name and hcst_name)
 models:
   ecmwf:
     predictors:
@@ -63,7 +71,6 @@ models:
 #    predictors:
 #      variables: [ 'precip', 'tmp2m' ]
 #      data_sources: [ 'noaa', 'noaa' ]
-#      fcsf_name: 'gfdl_spear'
 #    predictands:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]

@@ -313,14 +313,14 @@ class ForecastFile:
             self.seasonal_file_data = self.__define_seasonal_file_data(fcst_data, trgt_season, fcst_year)
 
     def __define_forecast_filename(self, model, fcst_data, trgt_season, fcst_year) -> str:
-        model_name = self.config_file.get('models').get(model).get('predictors').get('fcsf_name', model)
+        model_name = self.config_file.get('models').get(model).get('predictors').get('fcst_name', model)
         months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
         years_to_str = YearsProcessor.fcst_data_to_years_str(fcst_data, trgt_season, fcst_year)
         return f'{model_name}_{self.variable}_fcst_{fcst_data.monf}ic_{months_indexes}_{years_to_str}.txt'
 
     def __define_monthly_files_data(self, model, fcst_data, trgt_season, fcst_year) -> dict:
         files: list = list()
-        model_name = self.config_file.get('models').get(model).get('predictors').get('fcsf_name', model)
+        model_name = self.config_file.get('models').get(model).get('predictors').get('fcst_name', model)
         trgt_years = fcst_data.trgt_years_by_month(trgt_season)
         for i, month in enumerate(trgt_season.trgt_months_range):
             year = trgt_years[fcst_year][i]
