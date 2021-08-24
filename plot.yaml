@@ -9,6 +9,8 @@ folders:
   observed_data: ./input/predictands/
   generated_data: ./output/
   shapefiles: ./input/raw_data/shapefiles/
+  forecasts: ./input/raw_data/forecasts/
+  predictors: ./input/predictors/
   output: ./output/
 
 files:

@@ -71,11 +71,12 @@ rm(archivo.config, args); gc()
 # -----------------------------------------------------------------------------#
 # --- PASO 4. Leer archivos de salida del CPT y generar gráficos----
 
-
+# Leer shapes a ser utlizados en los gráficos
+crcsas_sp <- sf::as_Spatial(sf::st_read(paste0(config$folders$shapefiles, "/CRC_SAS.shp")))
+pais_sp <- as(sf::st_read(paste0(config$folders$shapefiles, "/10m_admin_0_countries.shp")), 'Spatial')
 
 for (fp in config$files) {
-  
-  
+
   #
   # PARSEAR NOMBRE DEL ARCHIVO
   #
@@ -89,12 +90,16 @@ for (fp in config$files) {
   variable <- stringr::str_split_fixed(fp_split[2], '-', 2)[2]
   variable_str <- ifelse(variable == 'prcp', 'Precipitation', 'Average Temperature')
   variable_unit <- ifelse(variable == 'prcp', 'mm', '°C')
+  variable_fcst <- ifelse(variable == 'prcp', 'precip', 'tmp2m')
   initial_month <- stringr::str_replace(fp_split[3], 'ic', '')
   forecast_months <- fp_split[4]
   first_fcst_month <- as.numeric(stringr::str_split_fixed(forecast_months, '-', 2)[1])
   last_fcst_month <- as.numeric(stringr::str_split_fixed(forecast_months, '-', 2)[2])
   forecast_months_str <- ifelse(
     fp$type == "monthly", month.name[first_fcst_month], 
+    paste0(month.abb[first_fcst_month], '-', month.abb[last_fcst_month]))
+  forecast_months_abb <- ifelse(
+    fp$type == "monthly", month.abb[first_fcst_month], 
     paste0(month.abb[first_fcst_month], '-', month.abb[last_fcst_month]))
   training_period <- fp_split[5]
   first_training_year <- as.numeric(stringr::str_split_fixed(training_period, '-', 2)[1])
@@ -104,6 +109,96 @@ for (fp in config$files) {
   last_fcst_year <- as.numeric(stringr::str_split_fixed(forecast_years, '-', 2)[2])
   
   # fp$file <- "nmme_precip-prcp_Mayic_6_1982-2010_2020-2021_fabricio.txt"
+  
+  #
+  # EXTRAER DATOS DEL ARCHIVO FORECAST SIN CALIBRAR
+  #
+  
+  # Definir path absoluto al archivo
+  if (modelo %in% c('ecmwf')) {
+    
+    forecast_file <- glue::glue("{modelo}_{variable_fcst}_{initial_month}ic_",
+                                "{forecast_months}_{training_period}_",
+                                "{forecast_years}.txt")
+    file_abs_path <- paste0(getwd(), '/', config$folders$predictors, forecast_file)
+    # Extraer latitudes (usar nombre de columna como ID)
+    x <- read.table(file =file_abs_path, sep = '\t', header = FALSE, skip = 5, nrows = 1)
+    xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
+      dplyr::select(-V1)
+    # Extraer valores (usar año y columna como ID)
+    cc <- purrr::map2_dfr(
+      .x = c(first_training_year:last_training_year, first_fcst_year:last_fcst_year),
+      .y = seq(from = 6, 
+               length.out = length(c(first_training_year:last_training_year, first_fcst_year:last_fcst_year)), 
+               by = length(c(config$spatial_domain$nla:config$spatial_domain$sla))+2),
+      .f = function(year, skip) {
+        c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = skip, 
+                        nrows = length(c(config$spatial_domain$nla:config$spatial_domain$sla)))
+        cc <- c %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = 'value') %>% 
+          dplyr::rename(lat = V1) %>% dplyr::mutate(year = year) %>%
+          dplyr::mutate(value = ifelse(value == -999, NA, value)) %>%
+          dplyr::select(columna, lat, year, dplyr::everything())
+      }
+    )
+    
+    # Unir los datos extraídos en único dataframe largo (es más facil hacer calculos estadísticos así, con groupby)
+    n_days <- ifelse(
+      fp$type == "monthly", lubridate::days_in_month(first_fcst_month), 
+      sum(lubridate::days_in_month(first_fcst_month:last_fcst_month)))
+    
+    fcst_data <- dplyr::left_join(xx, cc, by = 'columna') %>% 
+      dplyr::select(-columna) %>% 
+      dplyr::rowwise() %>%
+      dplyr::mutate(value = ifelse(variable == 'prcp', value * n_days, value)) %>%
+      dplyr::ungroup() %>%
+      dplyr::filter(year >= first_fcst_year)
+    
+    # Si los datos descargados están en grados Kelvin, pasarlos a grados Celsius
+    # Algunos archivos fueron descargados en grados Kelvin! Se agrega este control
+    # por si se llega a leer alguno de ellos en algún momento!
+    if (mean(fcst_data$value) > 200 && variable == 't2m')
+      fcst_data <- fcst_data %>% 
+        dplyr::mutate(value = value - 273.15) 
+    
+    # Remover objetos que ya no se van a utilizar
+    rm(forecast_file, file_abs_path, x, xx, cc, n_days); gc()
+    
+  } else {
+    
+    fcst_data <- purrr::map_dfr(
+      .x = c(first_fcst_year:last_fcst_year),
+      .f = function(year) {
+        
+        year_str <- ifelse(fp$type == "monthly", year, paste0(year, '-', 
+                           ifelse(first_fcst_month < last_fcst_month, year, year+1)))
+        forecast_file <- glue::glue("{modelo}_{variable_fcst}_fcst_{initial_month}ic_",
+                                    "{forecast_months}_{year_str}.txt")
+        file_abs_path <- paste0(getwd(), '/', config$folders$forecasts, forecast_file)
+        # Extraer latitudes (usar nombre de columna como ID)
+        x <- read.table(file =file_abs_path, sep = '\t', header = FALSE, skip = 3, nrows = 1)
+        xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
+          dplyr::select(-V1)
+        # Extraer valores (usar año y columna como ID)
+        c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 4, nrows = 181)
+        cc <- c %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = 'value') %>% 
+          dplyr::rename(lat = V1) %>% dplyr::mutate(year = year) %>%
+          dplyr::mutate(value = ifelse(value == -999, NA, value)) %>%
+          dplyr::select(columna, lat, year, dplyr::everything())
+        
+        # Unir los datos extraídos en único dataframe largo (es más facil hacer calculos estadísticos así, con groupby)
+        n_days <- ifelse(
+          fp$type == "monthly", lubridate::days_in_month(first_fcst_month), 
+          sum(lubridate::days_in_month(first_fcst_month:last_fcst_month)))
+        
+        fcst_data <- dplyr::left_join(xx, cc, by = 'columna') %>% 
+          dplyr::select(-columna) %>% 
+          dplyr::rowwise() %>%
+          dplyr::mutate(value = ifelse(variable == 'prcp', value * n_days, value)) %>%
+          dplyr::ungroup() 
+      }
+    )
+    
+  }
   
   
   
@@ -442,15 +537,41 @@ for (fp in config$files) {
   #
   # GENERAR GRÁFICOS/MAPAS
   #
+
+  # # Graficar datos pronosticados sin calibrar
+  # crcsas_sf <- sf::st_read(
+  #   paste0(config$folders$shapefiles, "/CRC_SAS.shp")) %>%
+  #   sf::st_transform(crs = 4326) %>%
+  #   sf::st_geometry()
+  # # El problema a resolver es que datos_sf va de 0 a 360, mientras
+  # # que crcsas_sf va de -180 a 180. Solución: restar 180 a lon.
+  # datos_sf <- fcst_data %>% 
+  #   dplyr::filter(year == data_year) %>% 
+  #   dplyr::select(-year) %>%
+  #   dplyr::mutate(lon = lon - 180) %>%
+  #   sf::st_as_sf(coords = c('lon', 'lat'), crs = 4326)  %>% 
+  #   sf::st_filter(crcsas_sf)
   
   library(lattice, quietly = TRUE)
   
   for (data_year in unique(data$year)) {
-    for (data_type in c("anom", "corr", "value.gen", "codigo_de_color")) {
     
-      datos <- data %>% dplyr::filter(year == data_year) %>% 
-        dplyr::select(lon, lat, var = !!data_type) %>% 
-        dplyr::filter(!is.na(var))
+    # Graficar datos pronosticados calibrados
+    for (data_type in c("anom", "corr", "value.gen", 
+                        "codigo_de_color", "value.fcst")) {
+      
+      if (data_type == "value.fcst") {
+        datos <- fcst_data %>% 
+          dplyr::filter(year == data_year) %>% 
+          dplyr::mutate(lon = ifelse(lon > 180, -360 + lon, lon)) %>%
+          dplyr::select(lon, lat, var = value) %>% 
+          dplyr::filter(!is.na(var))
+      } else {
+        datos <- data %>% 
+          dplyr::filter(year == data_year) %>% 
+          dplyr::select(lon, lat, var = !!data_type) %>% 
+          dplyr::filter(!is.na(var))
+      }   
       
       # Redonder como en las planillas excel
       if (data_type == "anom") {
@@ -462,11 +583,14 @@ for (fp in config$files) {
       } else if (data_type == "value.gen") {
         datos <- datos %>%
           dplyr::mutate(var = round2(var, 0))
+      } else if (data_type == "value.fcst") {
+        datos <- datos %>%
+          dplyr::mutate(var = round2(var, 0))
       }
       
       ############################################################################################
       ## Gerando uma grade regular ##################
-      resolucao <- 0.5
+      resolucao <- ifelse(data_type == "value.fcst", 1, 0.5)
       x.range <- as.numeric(c(config$spatial_domain$wlo, config$spatial_domain$elo))  # min/max longitude of the interpolation area
       y.range <- as.numeric(c(config$spatial_domain$sla, config$spatial_domain$nla))
       grd <- expand.grid(x = seq(from = x.range[1], to = x.range[2], by = resolucao), 
@@ -474,13 +598,12 @@ for (fp in config$files) {
       sp::coordinates(grd) <- ~x + y
       sp::gridded(grd) <- TRUE
       sp::coordinates(datos) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
-      idw <- gstat::idw(formula = var ~ 1, locations = datos, newdata = grd)  #
+      idw <- gstat::idw(formula = var ~ 1, locations = datos, newdata = grd)
       idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
-      names(idw.output) <- c("long", "lat", "var") 
+      names(idw.output) <- c("lon", "lat", "var") 
       idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
-      crcsas <- sf::as_Spatial(sf::st_read(paste0(config$folders$shapefiles, "/CRC_SAS.shp")))
-      idw.crp <- raster::crop(idw.r, crcsas)
-      idw.msk <- raster::mask(idw.crp, crcsas)
+      idw.crp <- raster::crop(idw.r, crcsas_sp)
+      idw.msk <- raster::mask(idw.crp, crcsas_sp)
       idw.msk.dfr <- raster::as.data.frame(raster::rasterToPoints(idw.msk))
       if (data_type == "anom") {
         if (variable == 'prcp') {
@@ -531,7 +654,8 @@ for (fp in config$files) {
         }
         main_title <- glue::glue("{variable_str} ({variable_unit})",
                                  "\n{toupper(modelo)} valid for {forecast_months_str} ",
-                                 "\nIssued: {initial_month} {data_year}")
+                                 "\nIssued: {initial_month} {data_year} ",
+                                 "\n (calibrated forecast)")
         if (variable == 'prcp') {
           paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc",
                       "#9acc99","#34cc67","#33cc33","#019934","#006634")
@@ -569,6 +693,33 @@ for (fp in config$files) {
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
           '_', data_year, '_prob.jpg')
+      } else if (data_type == "value.fcst") {  
+        if (variable == 'prcp') {
+          seqq <- c(0,1,25,50,100,150,200,250,300,400,500)
+          seq.l <- c(0,1,25,50,100,150,200,250,300,400,500)
+        } else if (variable == 't2m') {
+          seqq <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
+          seq.l <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
+        }
+        main_title <- glue::glue("{variable_str} ({variable_unit})",
+                                 "\n{toupper(modelo)} valid for {forecast_months_str} ",
+                                 "\nIssued: {initial_month} {data_year} ",
+                                 "\n (uncalibrated forecast)")
+        if (variable == 'prcp') {
+          paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc",
+                      "#9acc99","#34cc67","#33cc33","#019934","#006634")
+        } else if (variable == 't2m') {
+          paleta <- c("#9a99ff","#ccccfe","#99ffff","#cdffcc","#ffffcb",
+                      "#ffcb99","#ffcc00","#ff9a66","#ff9934","#cd9933",
+                      "#cc6733","#ff6634","#fe0000")
+        }
+        teste <- grDevices::colorRampPalette(paleta)
+        par_settings <- rasterVis::rasterTheme(region=teste(10))
+        col_regions  <- NULL
+        fig_file_name <- paste0(
+          config$folders$output, 
+          stringr::str_replace(fp$file, '.txt', ''),
+          '_', data_year, '_fcst.jpg')
       }
       seq.interval <- seq(1, length(seqq), by=1)
       myColorkey <- list(
@@ -578,7 +729,6 @@ for (fp in config$files) {
           labels = as.character(seq.l)), 
         space = "bottom",
         width = 1)
-      pais <- as(sf::st_read(paste0(config$folders$shapefiles, "/10m_admin_0_countries.shp")), 'Spatial')
       
       BELOW <- lattice::levelplot(x = var ~ x * y, 
                                   data = idw.msk.dfr,
@@ -589,7 +739,7 @@ for (fp in config$files) {
                                   col.regions = col_regions,
                                   main = main_title,
                                   xlab = NULL, ylab = NULL) +
-        latticeExtra::layer(sp::sp.lines(pais, alpha=1))
+        latticeExtra::layer(sp::sp.lines(pais_sp, alpha=1))
       grDevices::jpeg(filename = fig_file_name, width = 16, height = 21, 
                       quality = 75, units = "cm", res = 300)
       print(BELOW)

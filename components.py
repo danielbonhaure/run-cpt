@@ -552,7 +552,7 @@ class IriDLPredictorFile:
         url = Template(self.config_file.get('url').get('predictor').get('ecmwf').get('template').get(trgt_season.type))\
             .substitute(
                 variable='prcp' if self.predictor == 'precip' else 't2m',
-                unit='mm/day' if self.predictor == 'precip' else 'degree_Celsius',
+                unit='mm/day' if self.predictor == 'precip' else 'Celsius_scale',
                 init_month_str=fcst_data.init_month_str, last_year=fcst_data.lyr,
                 months_after_init_month_t1=mf(fcst_data.init_month_int, trgt_season.first_trgt_month_int),
                 months_after_init_month_t2=mf(fcst_data.init_month_int, trgt_season.last_trgt_month_int),

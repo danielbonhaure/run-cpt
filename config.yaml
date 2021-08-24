@@ -127,7 +127,7 @@ url:
     ecmwf:
       template:
         # variable: variable to be downloaded (t2m or prcp)
-        # unit: unit to be downloaded (mm/day for prcp, and degree_Celsius for t2m)
+        # unit: unit to be downloaded (mm/day for prcp, and Celsius_scale for t2m)
         # init_month_str: initialization month, last_year: last year with data Ej: 2021, 2022,
         # first_trgt_month: first target month, last_trgt_month: last target month, nla-sla-wlo-elo: predictor spatial domain
         # OBS: NO REQUIEREN MODIFICACIÓN, SE DESCARGAN Y SE USAN!!!
