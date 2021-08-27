@@ -588,7 +588,7 @@ for (fp in config$files) {
           dplyr::mutate(var = round2(var, 0))
       }
       
-      ############################################################################################
+      ##########################################################################
       ## Gerando uma grade regular ##################
       resolucao <- ifelse(data_type == "value.fcst", 1, 0.5)
       x.range <- as.numeric(c(config$spatial_domain$wlo, config$spatial_domain$elo))  # min/max longitude of the interpolation area
@@ -604,7 +604,13 @@ for (fp in config$files) {
       idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
       idw.crp <- raster::crop(idw.r, crcsas_sp)
       idw.msk <- raster::mask(idw.crp, crcsas_sp)
+      raster::crs(idw.msk) <- "EPSG:4326"
       idw.msk.dfr <- raster::as.data.frame(raster::rasterToPoints(idw.msk))
+      idw.msk.sf <- sf::st_as_sf(idw.msk.dfr, coords = c("x", "y"), remove = F) %>%
+        sf::st_set_crs(sf::st_crs(4326)) %>% dplyr::rename(lon = x, lat = y)
+      
+      ##########################################################################
+      ## Generar atributos de los gráficos ##################
       if (data_type == "anom") {
         if (variable == 'prcp') {
           seqq <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
@@ -618,7 +624,7 @@ for (fp in config$files) {
                                  "\nIssued: {initial_month} {data_year}")
         paleta <- c('#67001f','#b2182b','#d6604d','#f4a582','#fddbc7',
                     '#f7f7f7','#d1e5f0','#92c5de','#4393c3','#2166ac',
-                    '#053061')
+                    '#053061','#1d0036')
         if (variable == 't2m')
           paleta <- rev(paleta)
         teste <- grDevices::colorRampPalette(paleta)
@@ -627,7 +633,7 @@ for (fp in config$files) {
         fig_file_name <- paste0(
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
-          '_', data_year, '_anom.jpg')
+          '_', data_year, '_anom')
       } else if (data_type == "corr") {
         seqq <- c(-1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
         seq.l <- c(-1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
@@ -635,15 +641,16 @@ for (fp in config$files) {
                                  "({first_training_year}-{last_training_year})",
                                  "\n{toupper(modelo)} valid for {forecast_months_str}",
                                  "\nIssued: {initial_month}")
-        paleta <- c("#ff6766","#ff9899","#fecccb","#99ffff","#00ffff","#00ccff","#99cccd",
-                    "#6599ff","#6665fe","#0000fe")
+        paleta <- c("#ff6766","#ff9899","#fecccb","#99ffff","#00ffff",
+                    "#00ccff","#99cccd","#6599ff","#6665fe","#0000fe",
+                    "#010189")
         teste <- grDevices::colorRampPalette(paleta)
         par_settings <- rasterVis::rasterTheme(region=teste(11))
         col_regions  <- NULL
         fig_file_name <- paste0(
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
-          '_', data_year, '_corr.jpg')
+          '_', data_year, '_corr')
       } else if (data_type == "value.gen") {  # PREV_PREC
         if (variable == 'prcp') {
           seqq <- c(0,1,25,50,100,150,200,250,300,400,500)
@@ -655,14 +662,15 @@ for (fp in config$files) {
         main_title <- glue::glue("{variable_str} ({variable_unit})",
                                  "\n{toupper(modelo)} valid for {forecast_months_str} ",
                                  "\nIssued: {initial_month} {data_year} ",
-                                 "\n (calibrated forecast)")
+                                 "\n(calibrated forecast)")
         if (variable == 'prcp') {
           paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc",
-                      "#9acc99","#34cc67","#33cc33","#019934","#006634")
+                      "#9acc99","#34cc67","#33cc33","#019934","#006634",
+                      "#00381d")
         } else if (variable == 't2m') {
           paleta <- c("#9a99ff","#ccccfe","#99ffff","#cdffcc","#ffffcb",
                       "#ffcb99","#ffcc00","#ff9a66","#ff9934","#cd9933",
-                      "#cc6733","#ff6634","#fe0000")
+                      "#cc6733","#ff6634","#fe0000","#c10202")
         }
         teste <- grDevices::colorRampPalette(paleta)
         par_settings <- rasterVis::rasterTheme(region=teste(10))
@@ -670,7 +678,7 @@ for (fp in config$files) {
         fig_file_name <- paste0(
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
-          '_', data_year, '_prev.jpg')
+          '_', data_year, '_prev')
       } else if (data_type == "codigo_de_color") {  # PROB_PREC
         seqq <- c(-6,-5,-4,-3,-2,-1,1,2,3,4,5,6)
         seq.l <- c("70","60","50","45","40","35","35","40","45","50","60","70")
@@ -680,11 +688,11 @@ for (fp in config$files) {
         if (variable == 'prcp') {
           paleta <- c("#783301","#a9461d","#cf8033","#e8b832","#fafb01",
                       "#c8c8c8","#c5ffe7","#96feaf","#67ff78","#35e43f",
-                      "#06c408")
+                      "#06c408","#018d03")
         } else if (variable == 't2m') {
           paleta <- c("#6665fe","#6599ff","#9a99ff","#00ccff","#99ffff",
-                      "#e5e5e5","#ffffff","#feff99","#ffff66","#ffcc00",
-                      "#ff9a66")
+                      "#eaf6f6","#fafaf3","#feff99","#ffff66","#ffcc00",
+                      "#ff9a66","#fb6c22")
         }
         prob.b <- colorRampPalette(paleta)
         par_settings <- list(prob.b, layout.heights = list(xlab.key.padding=2.5))
@@ -692,7 +700,7 @@ for (fp in config$files) {
         fig_file_name <- paste0(
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
-          '_', data_year, '_prob.jpg')
+          '_', data_year, '_prob')
       } else if (data_type == "value.fcst") {  
         if (variable == 'prcp') {
           seqq <- c(0,1,25,50,100,150,200,250,300,400,500)
@@ -704,14 +712,15 @@ for (fp in config$files) {
         main_title <- glue::glue("{variable_str} ({variable_unit})",
                                  "\n{toupper(modelo)} valid for {forecast_months_str} ",
                                  "\nIssued: {initial_month} {data_year} ",
-                                 "\n (uncalibrated forecast)")
+                                 "\n(uncalibrated forecast)")
         if (variable == 'prcp') {
           paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc",
-                      "#9acc99","#34cc67","#33cc33","#019934","#006634")
+                      "#9acc99","#34cc67","#33cc33","#019934","#006634",
+                      "#00381d")
         } else if (variable == 't2m') {
           paleta <- c("#9a99ff","#ccccfe","#99ffff","#cdffcc","#ffffcb",
                       "#ffcb99","#ffcc00","#ff9a66","#ff9934","#cd9933",
-                      "#cc6733","#ff6634","#fe0000")
+                      "#cc6733","#ff6634","#fe0000","#c10202")
         }
         teste <- grDevices::colorRampPalette(paleta)
         par_settings <- rasterVis::rasterTheme(region=teste(10))
@@ -719,8 +728,179 @@ for (fp in config$files) {
         fig_file_name <- paste0(
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
-          '_', data_year, '_fcst.jpg')
+          '_', data_year, '_fcst')
       }
+      
+      
+      ##########################################################################
+      ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html)
+      tag.map.title <- htmltools::tags$style(htmltools::HTML("
+        .leaflet-control.map-title { 
+          transform: translate(-50%,20%);
+          position: fixed !important;
+          left: 50%;
+          text-align: center;
+          padding-left: 10px; 
+          padding-right: 10px; 
+          background: rgba(255,255,255,0.75);
+          font-weight: bold;
+          font-size: 14px;
+        }
+      "))
+      title <- htmltools::tags$div(
+        tag.map.title, 
+        htmltools::HTML(stringr::str_replace_all(main_title, '\n', '<br>'))
+      ) 
+      m <- leaflet::leaflet() %>% leaflet::addTiles() %>%
+        leaflet::addRasterImage(
+          x = idw.msk, colors = paleta , opacity = 0.8) %>%
+        leaflet::addLegend(
+          colors = paleta, labels = seq.l, title = "Valores") %>%
+        leaflet::addControl(
+          html = title, position = "topleft", className="map-title") %>%
+        leaflet::addSimpleGraticule()
+      htmlwidgets::saveWidget(m, paste0(fig_file_name, ".html"), selfcontained = TRUE)
+      # mapview::mapshot(m, file = paste0(fig_file_name, ".png"))
+      
+      
+      ##########################################################################
+      ## GRAFICOS CON GGPLOT GGMAP
+      
+      # bbox_crcsas <- c(
+      #   left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla+3, 
+      #   right = config$spatial_domain$elo+2, top = config$spatial_domain$nla+3)
+      # ggmap_crcsas <- ggmap::get_stamenmap(
+      #   bbox = bbox_crcsas, zoom = 5, maptype = "toner-lite", crs = sf::st_crs(4326))
+      # ggmap::ggmap(ggmap_crcsas) +
+      #   ggplot2::geom_sf(data= idw.msk.sf)
+      
+      # ggmap_crcsas + ggmap::inset_raster(
+      #   raster = raster::as.raster(idw.msk),
+      #   xmin = config$spatial_domain$wlo, xmax = config$spatial_domain$elo,
+      #   ymin = config$spatial_domain$sla, ymax = config$spatial_domain$nla,
+      #   interpolate = FALSE)
+      
+      ##########################################################################
+      ## GRAFICOS CON GGPLOT GGPLOT
+      bbox <- list(
+        left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla, 
+        right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+      
+      main_title_split <- unlist(stringr::str_split(main_title, '\n'))
+      sub_title <- paste0(paste(tail(main_title_split, -1), collapse = ''))
+      world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+      
+      calc_grupo <- function(x) {
+        for (i in seq(length(seqq))) {
+          if (i < length(seqq)) {
+            if (x >= seqq[i] && x < seqq[i+1]) 
+              return (seqq[i])
+          } else {
+            if (x >= seqq[i]) 
+              return (seqq[i])
+          }
+        }
+        return (NA)
+      }
+      
+      format_group_levels <- function() {
+        if (data_type == 'codigo_de_color') {
+          return (c("Below", head(seqq, 5),
+                    "Near", tail(head(seqq, 7), 2),
+                    "Above", tail(seqq, 5)))
+        }
+        return (seqq)
+      }
+      
+      format_legend_values <- function() {
+        if (data_type == 'codigo_de_color') {
+          return (c("white", head(paleta, 5),
+                    "white", tail(head(paleta, 7), 2),
+                    "white", tail(paleta, 5)))
+        }
+        return (paleta)
+      }
+      
+      format_legend_labels <- function() {
+        if (data_type == 'codigo_de_color')
+          return (c("Below", head(seq.l, 5),
+                    "Near", tail(head(seq.l, 7), 2),
+                    "Above", tail(seq.l, 5)))
+        if (data_type == 'corr' || data_type == 'anom')
+          return (seq.l)
+        resultado <- c()
+        for (i in seq(length(seq.l))) {
+          max_nchar <- ifelse(
+            is.numeric(seq.l), max(nchar(abs(seq.l))), max(nchar(seq.l)))
+          norm_val <- function(val) {
+            repl_val <- ifelse(is.numeric(val), "0", " ")
+            return (stringr::str_pad(val, max_nchar, side="left", pad=repl_val))
+          }
+          if (i < length(seq.l)) {
+            e <- paste0('[', seq.l[i], ', ', seq.l[i+1], ')')
+            resultado <- c(resultado, e)
+          } else {
+            e <- paste0('[', seq.l[i], ', ', 'Inf', ')')
+            resultado <- c(resultado, e)
+          }
+        }
+        return (resultado)
+      }
+      
+      ggplot2::ggplot() + 
+        ggplot2::geom_raster( 
+          mapping = ggplot2::aes(
+            x = x, y = y, 
+            fill = factor(grupo, levels = format_group_levels())),
+          data = idw.msk.dfr %>% dplyr::rowwise() %>%
+            dplyr::mutate(grupo = calc_grupo(var)) %>%
+            dplyr::ungroup(), 
+          alpha = 1) +
+        ggplot2::scale_discrete_manual(
+          aesthetics = "fill",
+          breaks = format_group_levels(),
+          values = format_legend_values(), 
+          labels = format_legend_labels(),
+          drop = FALSE) +
+        # ggplot2::scale_fill_continuous(
+        #   limits=c(min(seqq), max(seqq)), breaks=seqq) +
+        # ggplot2::scale_fill_gradientn(
+        #   colours = paleta, limits=c(min(seqq), max(seqq)),
+        #   breaks = seqq, labels = format(seq.l)) +
+        # ggplot2::scale_fill_gradient2(
+        #   low = "blue", mid = "white", high = "red", 
+        #   midpoint = mean(idw.msk.dfr$var)) +
+        ggplot2::geom_sf(
+          data = world,
+          fill = "black",
+          alpha = 0.1) +
+        ggplot2::coord_sf(
+          xlim = c(bbox$left-2, bbox$right),
+          ylim = c(bbox$bottom, bbox$top+3),
+          expand = FALSE) +
+        ggplot2::labs(fill = "") + 
+        ggplot2::xlab("Longitude") + 
+        ggplot2::ylab("Latitude") + 
+        ggplot2::ggtitle(
+          main_title_split[1], subtitle = sub_title) +
+        # ggspatial::annotation_scale(
+        #   location = "bl", width_hint = 0.4) +
+        # ggspatial::annotation_north_arrow(
+        #   location = "br", which_north = "true", 
+        #   style = ggspatial::north_arrow_fancy_orienteering) +
+        ggplot2::theme(
+          panel.grid.major = ggplot2::element_line(
+            color = gray(0.5), linetype = "dashed", size = 0.5), 
+          panel.background = ggplot2::element_rect(
+            fill = "aliceblue"),
+          legend.key.height = ggplot2::unit(1, 'cm'))
+        ggplot2::ggsave(
+          filename = paste0(fig_file_name, ".png"),
+          width = 20, height = 25, units = "cm", dpi = 600
+          )
+      
+      ##########################################################################
+      ## GRAFICOS DE FABRICIO
       seq.interval <- seq(1, length(seqq), by=1)
       myColorkey <- list(
         at = seq.interval, 
@@ -740,8 +920,8 @@ for (fp in config$files) {
                                   main = main_title,
                                   xlab = NULL, ylab = NULL) +
         latticeExtra::layer(sp::sp.lines(pais_sp, alpha=1))
-      grDevices::jpeg(filename = fig_file_name, width = 16, height = 21, 
-                      quality = 75, units = "cm", res = 300)
+      grDevices::jpeg(filename = paste0(fig_file_name, '.jpg'), width = 16, 
+                      height = 21, quality = 75, units = "cm", res = 300)
       print(BELOW)
       if (data_type == "codigo_de_color") {
         grid::grid.text('Near', rot=0, y=grid::unit(0.09, "npc"), 
