@@ -12,21 +12,22 @@ folders:
   forecasts: ./input/raw_data/forecasts/
   predictors: ./input/predictors/
   output: ./output/
+  images: ./input/raw_data/images/
 
 files:
- - { file: "ecmwf_precip-prcp_Julic_8_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_Julic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_Julic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_Julic_8-10_1991-2020_2021-2021.txt", type: "seasonal", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_Julic_8_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_Julic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_Julic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_Julic_8-10_1991-2020_2021-2021.txt", type: "seasonal", swap_years: false }
- - { file: "nmme_precip-prcp_Julic_8_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_Julic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_Julic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_Julic_8-10_1991-2020_2021-2021.txt", type: "seasonal", swap_years: true }
- - { file: "nmme_tmp2m-t2m_Julic_8_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_tmp2m-t2m_Julic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_tmp2m-t2m_Julic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_tmp2m-t2m_Julic_8-10_1991-2020_2021-2021.txt", type: "seasonal", swap_years: true }
+ - { file: "ecmwf_precip-prcp_Augic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_Augic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_Augic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_Augic_9-11_1991-2020_2021-2021.txt", type: "seasonal", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_Augic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_Augic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_Augic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_Augic_9-11_1991-2020_2021-2021.txt", type: "seasonal", swap_years: false }
+ - { file: "nmme_precip-prcp_Augic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_Augic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_Augic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_Augic_9-11_1991-2020_2021-2021.txt", type: "seasonal", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_Augic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_Augic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_Augic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_Augic_9-11_1991-2020_2021-2021.txt", type: "seasonal", swap_years: true }

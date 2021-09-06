@@ -72,10 +72,13 @@ rm(archivo.config, args); gc()
 # --- PASO 4. Leer archivos de salida del CPT y generar gráficos----
 
 # Leer shapes a ser utlizados en los gráficos
-crcsas_sp <- sf::as_Spatial(sf::st_read(paste0(config$folders$shapefiles, "/CRC_SAS.shp")))
-pais_sp <- as(sf::st_read(paste0(config$folders$shapefiles, "/10m_admin_0_countries.shp")), 'Spatial')
+crcsas_sf <- sf::st_read(paste0(config$folders$shapefiles, "/CRC_SAS.shp"))
+crcsas_sp <- sf::as_Spatial(crcsas_sf)
+paises_sf <- sf::st_read(paste0(config$folders$shapefiles, "/10m_admin_0_countries.shp"))
+paises_sp <- as(paises_sf, 'Spatial')
 
 for (fp in config$files) {
+  print(glue::glue("Processing file: {fp$file}"))
 
   #
   # PARSEAR NOMBRE DEL ARCHIVO
@@ -88,10 +91,11 @@ for (fp in config$files) {
   
   modelo <- fp_split[1]
   variable <- stringr::str_split_fixed(fp_split[2], '-', 2)[2]
-  variable_str <- ifelse(variable == 'prcp', 'Precipitation', 'Average Temperature')
+  variable_str <- ifelse(variable == 'prcp', 'Precipitation', 'Average Air Temperature - 2m')
   variable_unit <- ifelse(variable == 'prcp', 'mm', '°C')
   variable_fcst <- ifelse(variable == 'prcp', 'precip', 'tmp2m')
   initial_month <- stringr::str_replace(fp_split[3], 'ic', '')
+  initial_month_int <- which(initial_month == month.abb)[[1]]
   forecast_months <- fp_split[4]
   first_fcst_month <- as.numeric(stringr::str_split_fixed(forecast_months, '-', 2)[1])
   last_fcst_month <- as.numeric(stringr::str_split_fixed(forecast_months, '-', 2)[2])
@@ -599,6 +603,8 @@ for (fp in config$files) {
       sp::gridded(grd) <- TRUE
       sp::coordinates(datos) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
       idw <- gstat::idw(formula = var ~ 1, locations = datos, newdata = grd)
+      # OBS: al interpolar codigo_de_color, el valor deja de ser un entero,
+      # analizar si esto correcto? no se debería redondear?
       idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
       names(idw.output) <- c("lon", "lat", "var") 
       idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
@@ -610,121 +616,58 @@ for (fp in config$files) {
         sf::st_set_crs(sf::st_crs(4326)) %>% dplyr::rename(lon = x, lat = y)
       
       ##########################################################################
-      ## Generar atributos de los gráficos ##################
-      if (data_type == "anom") {
-        if (variable == 'prcp') {
-          seqq <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
-          seq.l <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
-        } else if (variable == 't2m') {
-          seqq <- c(-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4)
-          seq.l <- c(-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4)
+      ## Generar atributos globales de los gráficos ##################
+      if (first_fcst_month > initial_month_int) {
+        month_year <- glue::glue("{month.abb[first_fcst_month]} {data_year}")
+      } else {
+        month_year <- glue::glue("{month.abb[first_fcst_month]} {data_year+1}")
+      }
+      if (fp$type == "seasonal") {
+        if (last_fcst_month > initial_month_int) {
+          month_year <- glue::glue("{month_year} - {month.abb[last_fcst_month]} {data_year}")
+        } else {
+          month_year <- glue::glue("{month_year} - {month.abb[last_fcst_month]} {data_year+1}")
         }
+      } 
+      if (data_type == "anom") {
         main_title <- glue::glue("{variable_str} Anomaly Forecast ({variable_unit})",
-                                 "\n{toupper(modelo)} valid for {forecast_months_str}",
+                                 "\n{toupper(modelo)} valid for {month_year} ",
                                  "\nIssued: {initial_month} {data_year}")
-        paleta <- c('#67001f','#b2182b','#d6604d','#f4a582','#fddbc7',
-                    '#f7f7f7','#d1e5f0','#92c5de','#4393c3','#2166ac',
-                    '#053061','#1d0036')
-        if (variable == 't2m')
-          paleta <- rev(paleta)
-        teste <- grDevices::colorRampPalette(paleta)
-        par_settings <- rasterVis::rasterTheme(region=teste(14))
-        col_regions  <- NULL
         fig_file_name <- paste0(
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
           '_', data_year, '_anom')
       } else if (data_type == "corr") {
-        seqq <- c(-1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
-        seq.l <- c(-1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
         main_title <- glue::glue("Correlation between Forecast and Observation ",
                                  "({first_training_year}-{last_training_year})",
-                                 "\n{toupper(modelo)} valid for {forecast_months_str}",
+                                 "\n{toupper(modelo)} valid for {forecast_months_str} ",
                                  "\nIssued: {initial_month}")
-        paleta <- c("#ff6766","#ff9899","#fecccb","#99ffff","#00ffff",
-                    "#00ccff","#99cccd","#6599ff","#6665fe","#0000fe",
-                    "#010189")
-        teste <- grDevices::colorRampPalette(paleta)
-        par_settings <- rasterVis::rasterTheme(region=teste(11))
-        col_regions  <- NULL
         fig_file_name <- paste0(
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
           '_', data_year, '_corr')
       } else if (data_type == "value.gen") {  # PREV_PREC
-        if (variable == 'prcp') {
-          seqq <- c(0,1,25,50,100,150,200,250,300,400,500)
-          seq.l <- c(0,1,25,50,100,150,200,250,300,400,500)
-        } else if (variable == 't2m') {
-          seqq <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
-          seq.l <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
-        }
         main_title <- glue::glue("{variable_str} ({variable_unit})",
-                                 "\n{toupper(modelo)} valid for {forecast_months_str} ",
+                                 "\n{toupper(modelo)} valid for {month_year} ",
                                  "\nIssued: {initial_month} {data_year} ",
                                  "\n(calibrated forecast)")
-        if (variable == 'prcp') {
-          paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc",
-                      "#9acc99","#34cc67","#33cc33","#019934","#006634",
-                      "#00381d")
-        } else if (variable == 't2m') {
-          paleta <- c("#9a99ff","#ccccfe","#99ffff","#cdffcc","#ffffcb",
-                      "#ffcb99","#ffcc00","#ff9a66","#ff9934","#cd9933",
-                      "#cc6733","#ff6634","#fe0000","#c10202")
-        }
-        teste <- grDevices::colorRampPalette(paleta)
-        par_settings <- rasterVis::rasterTheme(region=teste(10))
-        col_regions  <- NULL
         fig_file_name <- paste0(
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
           '_', data_year, '_prev')
       } else if (data_type == "codigo_de_color") {  # PROB_PREC
-        seqq <- c(-6,-5,-4,-3,-2,-1,1,2,3,4,5,6)
-        seq.l <- c("70","60","50","45","40","35","35","40","45","50","60","70")
         main_title <- glue::glue("{variable_str} - Probability Forecast ",
-                                 "\n{toupper(modelo)} valid for {forecast_months_str}",
+                                 "\n{toupper(modelo)} valid for {month_year} ",
                                  "\nIssued: {initial_month} {data_year}")
-        if (variable == 'prcp') {
-          paleta <- c("#783301","#a9461d","#cf8033","#e8b832","#fafb01",
-                      "#c8c8c8","#c5ffe7","#96feaf","#67ff78","#35e43f",
-                      "#06c408","#018d03")
-        } else if (variable == 't2m') {
-          paleta <- c("#6665fe","#6599ff","#9a99ff","#00ccff","#99ffff",
-                      "#eaf6f6","#fafaf3","#feff99","#ffff66","#ffcc00",
-                      "#ff9a66","#fb6c22")
-        }
-        prob.b <- colorRampPalette(paleta)
-        par_settings <- list(prob.b, layout.heights = list(xlab.key.padding=2.5))
-        col_regions <- prob.b(11)
         fig_file_name <- paste0(
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
           '_', data_year, '_prob')
-      } else if (data_type == "value.fcst") {  
-        if (variable == 'prcp') {
-          seqq <- c(0,1,25,50,100,150,200,250,300,400,500)
-          seq.l <- c(0,1,25,50,100,150,200,250,300,400,500)
-        } else if (variable == 't2m') {
-          seqq <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
-          seq.l <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
-        }
+      } else if (data_type == "value.fcst") {
         main_title <- glue::glue("{variable_str} ({variable_unit})",
-                                 "\n{toupper(modelo)} valid for {forecast_months_str} ",
+                                 "\n{toupper(modelo)} valid for {month_year} ",
                                  "\nIssued: {initial_month} {data_year} ",
                                  "\n(uncalibrated forecast)")
-        if (variable == 'prcp') {
-          paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc",
-                      "#9acc99","#34cc67","#33cc33","#019934","#006634",
-                      "#00381d")
-        } else if (variable == 't2m') {
-          paleta <- c("#9a99ff","#ccccfe","#99ffff","#cdffcc","#ffffcb",
-                      "#ffcb99","#ffcc00","#ff9a66","#ff9934","#cd9933",
-                      "#cc6733","#ff6634","#fe0000","#c10202")
-        }
-        teste <- grDevices::colorRampPalette(paleta)
-        par_settings <- rasterVis::rasterTheme(region=teste(10))
-        col_regions  <- NULL
         fig_file_name <- paste0(
           config$folders$output, 
           stringr::str_replace(fp$file, '.txt', ''),
@@ -733,33 +676,243 @@ for (fp in config$files) {
       
       
       ##########################################################################
+      ## Generacion de etiquetas en base a intervalos
+      EtiquetasIntervalos <- function(intervalos, formato.numero = "%.2f") {
+        etiquetas <- purrr::map2(
+          .x = intervalos[seq(from = 1, to = length(intervalos) - 1, by = 1)],
+          .y = intervalos[seq(from = 2, to = length(intervalos), by = 1)],
+          .f = function(desde, hasta) {
+            if (is.infinite(desde)) {
+              if (desde < hasta)
+                return (sprintf(paste0("Less than ", formato.numero), hasta))
+              if (desde == hasta)
+                return (sprintf(paste0("Equal to ", formato.numero), hasta))
+              if (desde > hasta)
+                return (sprintf(paste0("Greater than ", formato.numero), hasta))
+            } else if (is.infinite(hasta)) {
+              if (desde < hasta)
+                return (sprintf(paste0("Greater than ", formato.numero), desde))
+              if (desde == hasta)
+                return (sprintf(paste0("Equal to ", formato.numero), desde))
+              if (desde > hasta)
+                return (sprintf(paste0("Less than ", formato.numero), desde))
+            } else {
+              if (desde < hasta)
+                return (sprintf(paste0(formato.numero, "+ to ", formato.numero), desde, hasta))
+              if (desde == hasta)
+                return (sprintf(paste0(formato.numero, " to ", formato.numero), desde, hasta))
+              if (desde > hasta)
+                return (sprintf(paste0(formato.numero, "- to ", formato.numero), desde, hasta))
+            }
+          }
+        ) %>% unlist()
+        
+        return (etiquetas)
+      }
+      
+   
+      ##########################################################################
       ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html)
+      if (data_type == "anom") {
+        if (variable == 'prcp') {
+          breaks <- c(-Inf,-200,-100,-50,-20,-10,-5,5,10,20,50,100,200,Inf)
+          labels <- EtiquetasIntervalos(breaks, "%d")
+        } else if (variable == 't2m') {
+          breaks <- c(-Inf,-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4,Inf)
+          labels <- EtiquetasIntervalos(breaks, "%.1f")
+        }
+        legend_labels <- labels
+        paleta <- grDevices::colorRampPalette(
+          colors = RColorBrewer::brewer.pal(11, 'RdBu'))( 13 )
+        paleta <- if (variable == 't2m') rev(paleta) else paleta
+        legend_paleta <- paleta
+        grouped.idw.msk <- idw.msk
+      } else if (data_type == "corr") {
+        breaks <- c(-1,-0.5,0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+        labels <- EtiquetasIntervalos(breaks, "%.1f")
+        legend_labels <- labels
+        paleta <- grDevices::colorRampPalette(
+          colors = RColorBrewer::brewer.pal(11, 'RdBu'))( 20 )
+        paleta <- tail(paleta, 12)
+        legend_paleta <- paleta
+        grouped.idw.msk <- idw.msk
+      } else if (data_type == "value.gen") {  # PREV_PREC
+        if (variable == 'prcp') {
+          breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
+          labels <- EtiquetasIntervalos(breaks, "%d")
+          legend_labels <- labels
+          paleta <- grDevices::colorRampPalette(
+            colors = RColorBrewer::brewer.pal(9, 'Blues'))( 12 )
+          legend_paleta <- paleta
+        } else if (variable == 't2m') {
+          breaks <- c(-Inf,-10,8,10,12,14,16,18,20,22,24,26,28,30,32,Inf)
+          labels <- EtiquetasIntervalos(breaks, "%d")
+          legend_labels <- labels
+          paleta <- grDevices::colorRampPalette(
+            colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 15 )
+          paleta <- tail(viridis::turbo(22), 15)
+          legend_paleta <- paleta
+        }
+        grouped.idw.msk <- idw.msk
+      } else if (data_type == "codigo_de_color") {  # PROB_PREC
+        breaks <- c(-6,-5,-4,-3,-2,0,2,3,4,5,6)
+        # groups <- c("(-Inf,-6]" == -6,
+        #             "(-6,-5]"   == -5,
+        #             "(-5,-4]"   == -4,
+        #             "(-4,-3]"   == -3,
+        #             "(-3,-2]"   == -2,
+        #             "(-2,+2)"   == 0,
+        #             "[+2,+3)"   == +2,
+        #             "[+3,+4)"   == +3,
+        #             "[+4,+5)"   == +4,
+        #             "[+5,+6)"   == +5,
+        #             "[+6,Inf)"  == +6)
+        labels <- c("Greater or equal to 60",
+                    "50 to less than 60",
+                    "45 to less than 50",
+                    "40 to less than 45",
+                    "35 to less than 40",
+                    "40+",  # -2 a 2 excluyendo los extremos 
+                    "35 to less than 40",
+                    "40 to less than 45",
+                    "45 to less than 50",
+                    "50 to less than 60",
+                    "Greater or equal to 60")
+        legend_labels <- c("<b>Below Normal</b>", head(labels, 5),
+                           "<b>Near Normal</b>", tail(head(labels, 6), 1),
+                           "<b>Above Normal</b>", tail(labels, 5))
+        if (variable == 'prcp') {
+          paleta <- c(rev(RColorBrewer::brewer.pal(5, 'YlOrBr')),
+                      'lightgray',
+                      tail(RColorBrewer::brewer.pal(6, 'BuGn'), 5))
+        } else if (variable == 't2m') {
+          paleta <- c(rev(tail(RColorBrewer::brewer.pal(6, 'GnBu'), 5)),
+                      'lightgray',
+                      RColorBrewer::brewer.pal(5, 'YlOrRd'))
+        }
+        legend_paleta <- c("", head(paleta, 5),
+                           "", tail(head(paleta, 6), 1),
+                           "", tail(paleta, 5))
+        # groups <- c("(-Inf,-6]" == -6,
+        #             "(-6,-5]"   == -5,
+        #             "(-5,-4]"   == -4,
+        #             "(-4,-3]"   == -3,
+        #             "(-3,-2]"   == -2,
+        #             "(-2,+2)"   == 0,
+        #             "[+2,+3)"   == +2,
+        #             "[+3,+4)"   == +3,
+        #             "[+4,+5)"   == +4,
+        #             "[+5,+6)"   == +5,
+        #             "[+6,Inf)"  == +6)
+        grouped.idw.msk.dfr <- idw.msk.dfr %>%
+          dplyr::mutate(
+            grupo = dplyr::case_when(
+              var <= -2 ~ ceiling(var), 
+              var >= 2 ~ floor(var),
+              TRUE ~ 0))
+        grouped.idw.msk <- raster::rasterFromXYZ(
+          xyz = grouped.idw.msk.dfr %>% dplyr::select(x, y, grupo)) %>%
+          raster::crop(crcsas_sp) %>% raster::mask(crcsas_sp) 
+        raster::crs(grouped.idw.msk) <- "EPSG:4326"
+      } else if (data_type == "value.fcst") {  
+        if (variable == 'prcp') {
+          breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
+          labels <- EtiquetasIntervalos(breaks, "%d")
+          legend_labels <- labels
+          paleta <- grDevices::colorRampPalette(
+            colors = RColorBrewer::brewer.pal(9, 'Blues'))( 12 )
+          legend_paleta <- paleta
+        } else if (variable == 't2m') {
+          breaks <- c(-Inf,-10,8,10,12,14,16,18,20,22,24,26,28,30,32,Inf)
+          labels <- EtiquetasIntervalos(breaks, "%d")
+          legend_labels <- labels
+          paleta <- grDevices::colorRampPalette(
+            colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 15 )
+          paleta <- tail(viridis::turbo(22), 15)
+          legend_paleta <- paleta
+        }
+        grouped.idw.msk <- idw.msk
+      }
+      
+      # Generacion de HTML con logo
+      GenerarHTMLLogo <- function(logo.file) {
+        logo.ascii <- base::readBin(con = logo.file,
+                                    what = "raw",
+                                    n = base::file.info(logo.file)[1, "size"])
+        logo.b64   <- RCurl::base64Encode(txt = logo.ascii,
+                                          mode = "character")
+        html       <- paste0("<img src='data:image/png;base64,", logo.b64, 
+                             "' border=\"0\" alt=\"CRC-SAS\"/>")
+        return (html)
+      }
+      
       tag.map.title <- htmltools::tags$style(htmltools::HTML("
-        .leaflet-control.map-title { 
-          transform: translate(-50%,20%);
-          position: fixed !important;
-          left: 50%;
+        .leaflet-control.map-title {
           text-align: center;
-          padding-left: 10px; 
-          padding-right: 10px; 
-          background: rgba(255,255,255,0.75);
+          padding-left: 10px;
+          padding-right: 10px;
           font-weight: bold;
           font-size: 14px;
         }
       "))
       title <- htmltools::tags$div(
-        tag.map.title, 
+        tag.map.title,
         htmltools::HTML(stringr::str_replace_all(main_title, '\n', '<br>'))
-      ) 
-      m <- leaflet::leaflet() %>% leaflet::addTiles() %>%
+      )
+      library(leaflet)
+      m <- leaflet::leaflet() %>% 
+        leaflet::addTiles(
+          urlTemplate = paste0("//server.arcgisonline.com/ArcGIS/rest",
+                               "/services/World_Street_Map/MapServer",
+                               "/tile/{z}/{y}/{x}")) %>%
+        leaflet::addPolygons(
+          data = crcsas_sf,
+          stroke = TRUE, 
+          opacity = 1.0, 
+          weight = 1, 
+          fillOpacity = 0.0, 
+          smoothFactor = 0.5, 
+          color = "#000000") %>%
         leaflet::addRasterImage(
-          x = idw.msk, colors = paleta , opacity = 0.8) %>%
+          x = grouped.idw.msk, 
+          project = TRUE,
+          colors = if (data_type != 'codigo_de_color') 
+            leaflet::colorBin(
+              palette = paleta,
+              bins = breaks,
+              na.color = "transparent") 
+          else 
+            leaflet::colorNumeric(
+              palette = paleta, 
+              domain = breaks,
+              na.color = "transparent"),
+          opacity = 0.8, 
+          group = "discrete") %>%
         leaflet::addLegend(
-          colors = paleta, labels = seq.l, title = "Valores") %>%
+          title = variable_str,
+          colors = legend_paleta,
+          labels = legend_labels,
+          position = "bottomright") %>%
         leaflet::addControl(
-          html = title, position = "topleft", className="map-title") %>%
-        leaflet::addSimpleGraticule()
-      htmlwidgets::saveWidget(m, paste0(fig_file_name, ".html"), selfcontained = TRUE)
+          html = GenerarHTMLLogo(
+            paste0(config$folders$images, "logo-crcsas.png")), 
+          position = "bottomleft") %>%
+        leaflet::addControl(
+          html = title, 
+          position = "topright", 
+          className="map-title info") %>%
+        leaflet::addSimpleGraticule() %>%
+        leaflet.extras2::addEasyprint(
+          options = leaflet.extras2::easyprintOptions(
+            title = "Descargar mapa a PNG",
+            exportOnly = TRUE,
+            sizeModes = c('Current'),
+            hideControlContainer = FALSE,
+            filename = fig_file_name))
+      htmlwidgets::saveWidget(
+        widget = m, 
+        file = paste0(fig_file_name, ".html"), 
+        selfcontained = TRUE)
       # mapview::mapshot(m, file = paste0(fig_file_name, ".png"))
       
       
@@ -782,85 +935,144 @@ for (fp in config$files) {
       
       ##########################################################################
       ## GRAFICOS CON GGPLOT GGPLOT
-      bbox <- list(
-        left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla, 
-        right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+      if (data_type == "anom") {
+        if (variable == 'prcp') {
+          breaks <- c(-Inf,-200,-100,-50,-20,-10,-5,5,10,20,50,100,200,Inf)
+          groups <- levels(cut(breaks, breaks, include.lowest = T))
+          labels <- EtiquetasIntervalos(breaks, "%d")
+        } else if (variable == 't2m') {
+          breaks <- c(-Inf,-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4,Inf)
+          groups <- levels(cut(breaks, breaks, include.lowest = T))
+          labels <- EtiquetasIntervalos(breaks, "%.1f")
+        }
+        paleta <- grDevices::colorRampPalette(
+          colors = RColorBrewer::brewer.pal(11, 'RdBu'))( 13 )
+        paleta <- if (variable == 't2m') rev(paleta) else paleta
+        grouped.idw.msk.dfr <- idw.msk.dfr %>%
+          dplyr::mutate(grupo = cut(.$var, breaks, include.lowest = F))
+      } else if (data_type == "corr") {
+        breaks <- c(-1,-0.5,0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+        groups <- levels(cut(breaks, breaks, include.lowest = T))
+        labels <- EtiquetasIntervalos(breaks, "%.1f")
+        paleta <- grDevices::colorRampPalette(
+          colors = RColorBrewer::brewer.pal(11, 'RdBu'))( 20 )
+        paleta <- tail(paleta, 12)
+        grouped.idw.msk.dfr <- idw.msk.dfr %>%
+          dplyr::mutate(grupo = cut(.$var, breaks, include.lowest = F))
+      } else if (data_type == "value.gen") {  # PREV_PREC
+        if (variable == 'prcp') {
+          breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
+          groups <- levels(cut(breaks, breaks, include.lowest = T))
+          labels <- EtiquetasIntervalos(breaks, "%d")
+          paleta <- grDevices::colorRampPalette(
+            colors = RColorBrewer::brewer.pal(9, 'Blues'))( 12 )
+        } else if (variable == 't2m') {
+          breaks <- c(-Inf,-10,8,10,12,14,16,18,20,22,24,26,28,30,32,Inf)
+          groups <- levels(cut(breaks, breaks, include.lowest = T))
+          labels <- EtiquetasIntervalos(breaks, "%d")
+          paleta <- grDevices::colorRampPalette(
+            colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 15 )
+          paleta <- tail(viridis::turbo(22), 15)
+        }
+        grouped.idw.msk.dfr <- idw.msk.dfr %>%
+          dplyr::mutate(grupo = cut(.$var, breaks, include.lowest = F))
+      } else if (data_type == "codigo_de_color") {  # PROB_PREC
+        breaks <- c(-Inf,-6,-5,-4,-3,-2,-1,1,2,3,4,5,6,Inf)
+        # groups <- c("(-Inf,-6]","(-6,-5]","(-5,-4]","(-4,-3]","(-3,-2]",
+        #             "(-2,+2)",
+        #             "[+2,+3)","[+3,+4)","[+4,+5)","[+5,+6)","[+6,Inf)")
+        groups <- c(levels(cut(head(breaks, 6),head(breaks, 6),right=T)),
+                    "(-2,2)",
+                    levels(cut(tail(breaks, 6),tail(breaks, 6),right=F)))
+        groups <- c("Below Normal", head(groups, 5),
+                    "Near Normal", tail(head(groups, 6), 1),
+                    "Above Normal", tail(groups, 5))
+        labels <- c("Greater or equal to 60",
+                    "50 to less than 60",
+                    "45 to less than 50",
+                    "40 to less than 45",
+                    "35 to less than 40",
+                    "40+",  # -2 a 2 excluyendo los extremos 
+                    "35 to less than 40",
+                    "40 to less than 45",
+                    "45 to less than 50",
+                    "50 to less than 60",
+                    "Greater or equal to 60")
+        labels <- c("Below Normal", head(labels, 5),
+                    "Near Normal", tail(head(labels, 6), 1),
+                    "Above Normal", tail(labels, 5))
+        if (variable == 'prcp') {
+          paleta <- c(rev(RColorBrewer::brewer.pal(5, 'YlOrBr')),
+                      'lightgray',
+                      tail(RColorBrewer::brewer.pal(6, 'BuGn'), 5))
+        } else if (variable == 't2m') {
+          paleta <- c(rev(tail(RColorBrewer::brewer.pal(6, 'GnBu'), 5)),
+                      'lightgray',
+                      RColorBrewer::brewer.pal(5, 'YlOrRd'))
+        }
+        paleta <- c("white", head(paleta, 5),
+                    "white", tail(head(paleta, 6), 1),
+                    "white", tail(paleta, 5))
+        # groups <- c("(-Inf,-6]","(-6,-5]","(-5,-4]","(-4,-3]","(-3,-2]",
+        #             "(-2,+2)",
+        #             "[+2,+3)","[+3,+4)","[+4,+5)","[+5,+6)","[+6,Inf)")
+        grouped.idw.msk.dfr <- idw.msk.dfr %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            grupo = dplyr::if_else(
+              var <= -2, 
+              as.character(cut(var, head(breaks, 6), right=T)), 
+              NA_character_)) %>%
+          dplyr::mutate(
+            grupo = dplyr::if_else(
+              var >= 2, 
+              as.character(cut(var, tail(breaks, 6), right=F)), 
+              grupo)) %>%
+          dplyr::mutate(
+            grupo = dplyr::if_else(
+              is.na(grupo),
+              "(-2,2)",
+              grupo)) %>%
+          dplyr::ungroup()
+      } else if (data_type == "value.fcst") {  
+        if (variable == 'prcp') {
+          breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
+          groups <- levels(cut(breaks, breaks, include.lowest = T))
+          labels <- EtiquetasIntervalos(breaks, "%d")
+          paleta <- grDevices::colorRampPalette(
+            colors = RColorBrewer::brewer.pal(9, 'Blues'))( 12 )
+        } else if (variable == 't2m') {
+          breaks <- c(-Inf,-10,8,10,12,14,16,18,20,22,24,26,28,30,32,Inf)
+          groups <- levels(cut(breaks, breaks, include.lowest = T))
+          labels <- EtiquetasIntervalos(breaks, "%d")
+          paleta <- grDevices::colorRampPalette(
+            colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 15 )
+          paleta <- tail(viridis::turbo(22), 15)
+        }
+        grouped.idw.msk.dfr <- idw.msk.dfr %>%
+          dplyr::mutate(grupo = cut(.$var, breaks, include.lowest = F))
+      }
       
+      bbox <- list(
+        left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
+        right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+
       main_title_split <- unlist(stringr::str_split(main_title, '\n'))
       sub_title <- paste0(paste(tail(main_title_split, -1), collapse = ''))
       world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
-      
-      calc_grupo <- function(x) {
-        for (i in seq(length(seqq))) {
-          if (i < length(seqq)) {
-            if (x >= seqq[i] && x < seqq[i+1]) 
-              return (seqq[i])
-          } else {
-            if (x >= seqq[i]) 
-              return (seqq[i])
-          }
-        }
-        return (NA)
-      }
-      
-      format_group_levels <- function() {
-        if (data_type == 'codigo_de_color') {
-          return (c("Below", head(seqq, 5),
-                    "Near", tail(head(seqq, 7), 2),
-                    "Above", tail(seqq, 5)))
-        }
-        return (seqq)
-      }
-      
-      format_legend_values <- function() {
-        if (data_type == 'codigo_de_color') {
-          return (c("white", head(paleta, 5),
-                    "white", tail(head(paleta, 7), 2),
-                    "white", tail(paleta, 5)))
-        }
-        return (paleta)
-      }
-      
-      format_legend_labels <- function() {
-        if (data_type == 'codigo_de_color')
-          return (c("Below", head(seq.l, 5),
-                    "Near", tail(head(seq.l, 7), 2),
-                    "Above", tail(seq.l, 5)))
-        if (data_type == 'corr' || data_type == 'anom')
-          return (seq.l)
-        resultado <- c()
-        for (i in seq(length(seq.l))) {
-          max_nchar <- ifelse(
-            is.numeric(seq.l), max(nchar(abs(seq.l))), max(nchar(seq.l)))
-          norm_val <- function(val) {
-            repl_val <- ifelse(is.numeric(val), "0", " ")
-            return (stringr::str_pad(val, max_nchar, side="left", pad=repl_val))
-          }
-          if (i < length(seq.l)) {
-            e <- paste0('[', seq.l[i], ', ', seq.l[i+1], ')')
-            resultado <- c(resultado, e)
-          } else {
-            e <- paste0('[', seq.l[i], ', ', 'Inf', ')')
-            resultado <- c(resultado, e)
-          }
-        }
-        return (resultado)
-      }
-      
-      ggplot2::ggplot() + 
-        ggplot2::geom_raster( 
+
+      ggplot2::ggplot() +
+        ggplot2::geom_raster(
           mapping = ggplot2::aes(
-            x = x, y = y, 
-            fill = factor(grupo, levels = format_group_levels())),
-          data = idw.msk.dfr %>% dplyr::rowwise() %>%
-            dplyr::mutate(grupo = calc_grupo(var)) %>%
-            dplyr::ungroup(), 
+            x = x, y = y,
+            fill = factor(grupo, levels = groups)),
+          data = grouped.idw.msk.dfr,
           alpha = 1) +
         ggplot2::scale_discrete_manual(
           aesthetics = "fill",
-          breaks = format_group_levels(),
-          values = format_legend_values(), 
-          labels = format_legend_labels(),
+          breaks = groups,
+          values = paleta,
+          labels = labels,
           drop = FALSE) +
         # ggplot2::scale_fill_continuous(
         #   limits=c(min(seqq), max(seqq)), breaks=seqq) +
@@ -868,39 +1080,113 @@ for (fp in config$files) {
         #   colours = paleta, limits=c(min(seqq), max(seqq)),
         #   breaks = seqq, labels = format(seq.l)) +
         # ggplot2::scale_fill_gradient2(
-        #   low = "blue", mid = "white", high = "red", 
+        #   low = "blue", mid = "white", high = "red",
         #   midpoint = mean(idw.msk.dfr$var)) +
         ggplot2::geom_sf(
           data = world,
           fill = "black",
-          alpha = 0.1) +
+          alpha = 0.05) +
         ggplot2::coord_sf(
           xlim = c(bbox$left-2, bbox$right),
           ylim = c(bbox$bottom, bbox$top+3),
           expand = FALSE) +
-        ggplot2::labs(fill = "") + 
-        ggplot2::xlab("Longitude") + 
-        ggplot2::ylab("Latitude") + 
+        ggplot2::labs(fill = "") +
+        ggplot2::xlab("") +
+        ggplot2::ylab("") +
         ggplot2::ggtitle(
           main_title_split[1], subtitle = sub_title) +
         # ggspatial::annotation_scale(
         #   location = "bl", width_hint = 0.4) +
         # ggspatial::annotation_north_arrow(
-        #   location = "br", which_north = "true", 
+        #   location = "br", which_north = "true",
         #   style = ggspatial::north_arrow_fancy_orienteering) +
         ggplot2::theme(
           panel.grid.major = ggplot2::element_line(
-            color = gray(0.5), linetype = "dashed", size = 0.5), 
+            color = gray(0.8), linetype = "dashed", size = 0.5),
           panel.background = ggplot2::element_rect(
-            fill = "aliceblue"),
+            colour = "gray", size = 2, fill = "aliceblue"),
           legend.key.height = ggplot2::unit(1, 'cm'))
         ggplot2::ggsave(
           filename = paste0(fig_file_name, ".png"),
-          width = 20, height = 25, units = "cm", dpi = 600
-          )
+          width = 20, height = 25, units = "cm", dpi = 600)
       
       ##########################################################################
       ## GRAFICOS DE FABRICIO
+      if (data_type == "anom") {
+        if (variable == 'prcp') {
+          seqq <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
+          seq.l <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
+        } else if (variable == 't2m') {
+          seqq <- c(-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4)
+          seq.l <- c(-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4)
+        }
+        paleta <- c('#67001f','#b2182b','#d6604d','#f4a582','#fddbc7',
+                    '#f7f7f7','#d1e5f0','#92c5de','#4393c3','#2166ac',
+                    '#053061','#1d0036')
+        paleta <- if (variable == 't2m') rev(paleta) else paleta
+        teste <- grDevices::colorRampPalette(paleta)
+        par_settings <- rasterVis::rasterTheme(region=teste(14))
+        col_regions  <- NULL
+      } else if (data_type == "corr") {
+        seqq <- c(-1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+        seq.l <- c(-1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+        paleta <- c("#ff6766","#ff9899","#fecccb","#99ffff","#00ffff",
+                    "#00ccff","#99cccd","#6599ff","#6665fe","#0000fe",
+                    "#010189")
+        teste <- grDevices::colorRampPalette(paleta)
+        par_settings <- rasterVis::rasterTheme(region=teste(11))
+        col_regions  <- NULL
+      } else if (data_type == "value.gen") {  # PREV_PREC
+        if (variable == 'prcp') {
+          seqq <- c(0,1,25,50,100,150,200,250,300,400,500)
+          seq.l <- c(0,1,25,50,100,150,200,250,300,400,500)
+          paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc",
+                      "#9acc99","#34cc67","#33cc33","#019934","#006634",
+                      "#00381d")
+        } else if (variable == 't2m') {
+          seqq <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
+          seq.l <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
+          paleta <- c("#9a99ff","#ccccfe","#99ffff","#cdffcc","#ffffcb",
+                      "#ffcb99","#ffcc00","#ff9a66","#ff9934","#cd9933",
+                      "#cc6733","#ff6634","#fe0000","#c10202")
+        }
+        teste <- grDevices::colorRampPalette(paleta)
+        par_settings <- rasterVis::rasterTheme(region=teste(10))
+        col_regions  <- NULL
+      } else if (data_type == "codigo_de_color") {  # PROB_PREC
+        seqq <- c(-6,-5,-4,-3,-2,-1,1,2,3,4,5,6)
+        seq.l <- c("70","60","50","45","40","35","35","40","45","50","60","70")
+        if (variable == 'prcp') {
+          paleta <- c("#783301","#a9461d","#cf8033","#e8b832","#fafb01",
+                      "#c8c8c8","#c5ffe7","#96feaf","#67ff78","#35e43f",
+                      "#06c408","#018d03")
+        } else if (variable == 't2m') {
+          paleta <- c("#6665fe","#6599ff","#9a99ff","#00ccff","#99ffff",
+                      "#eaf6f6","#fafaf3","#feff99","#ffff66","#ffcc00",
+                      "#ff9a66","#fb6c22")
+        }
+        prob.b <- colorRampPalette(paleta)
+        par_settings <- list(prob.b, layout.heights = list(xlab.key.padding=2.5))
+        col_regions <- prob.b(11)
+      } else if (data_type == "value.fcst") {  
+        if (variable == 'prcp') {
+          seqq <- c(0,1,25,50,100,150,200,250,300,400,500)
+          seq.l <- c(0,1,25,50,100,150,200,250,300,400,500)
+          paleta <- c("#ff6634","#ff9934","#ffcc00","#ffffcd","#cdffcc",
+                      "#9acc99","#34cc67","#33cc33","#019934","#006634",
+                      "#00381d")
+        } else if (variable == 't2m') {
+          seqq <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
+          seq.l <- c(-10,8,10,12,14,16,18,20,22,24,26,28,30,32)
+          paleta <- c("#9a99ff","#ccccfe","#99ffff","#cdffcc","#ffffcb",
+                      "#ffcb99","#ffcc00","#ff9a66","#ff9934","#cd9933",
+                      "#cc6733","#ff6634","#fe0000","#c10202")
+        }
+        teste <- grDevices::colorRampPalette(paleta)
+        par_settings <- rasterVis::rasterTheme(region=teste(10))
+        col_regions  <- NULL
+      }
+      
       seq.interval <- seq(1, length(seqq), by=1)
       myColorkey <- list(
         at = seq.interval, 
@@ -919,7 +1205,7 @@ for (fp in config$files) {
                                   col.regions = col_regions,
                                   main = main_title,
                                   xlab = NULL, ylab = NULL) +
-        latticeExtra::layer(sp::sp.lines(pais_sp, alpha=1))
+        latticeExtra::layer(sp::sp.lines(paises_sp, alpha=1))
       grDevices::jpeg(filename = paste0(fig_file_name, '.jpg'), width = 16, 
                       height = 21, quality = 75, units = "cm", res = 300)
       print(BELOW)
