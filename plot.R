@@ -560,7 +560,8 @@ for (fp in config$files) {
   
   for (data_year in unique(data$year)) {
     
-    # Graficar datos pronosticados calibrados
+    ############################################################################
+    # Graficar datos (escalas discretas)  #############
     for (data_type in c("anom", "corr", "value.gen", 
                         "codigo_de_color", "value.fcst")) {
       
@@ -592,19 +593,25 @@ for (fp in config$files) {
           dplyr::mutate(var = round2(var, 0))
       }
       
+      # Guardar datos como sf 
+      datos.sf <- sf::st_as_sf(datos, coords = c("lon", "lat")) %>%
+        sf::st_set_crs(sf::st_crs(4326))
+      
       ##########################################################################
       ## Gerando uma grade regular ##################
       resolucao <- ifelse(data_type == "value.fcst", 1, 0.5)
+      # x.range <- as.numeric(c(-78.75, -35.75))
+      # y.range <- as.numeric(c(-59.75, -9.75))
       x.range <- as.numeric(c(config$spatial_domain$wlo, config$spatial_domain$elo))  # min/max longitude of the interpolation area
       y.range <- as.numeric(c(config$spatial_domain$sla, config$spatial_domain$nla))
       grd <- expand.grid(x = seq(from = x.range[1], to = x.range[2], by = resolucao), 
                          y = seq(from = y.range[1], to = y.range[2], by = resolucao))  # expand points to grid
       sp::coordinates(grd) <- ~x + y
       sp::gridded(grd) <- TRUE
-      sp::coordinates(datos) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
-      idw <- gstat::idw(formula = var ~ 1, locations = datos, newdata = grd)
-      # OBS: al interpolar codigo_de_color, el valor deja de ser un entero,
-      # analizar si esto correcto? no se debería redondear?
+      #
+      datos.sp <- datos
+      sp::coordinates(datos.sp) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
+      idw <- gstat::idw(formula = var ~ 1, locations = datos.sp, newdata = grd)
       idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
       names(idw.output) <- c("lon", "lat", "var") 
       idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
@@ -612,8 +619,20 @@ for (fp in config$files) {
       idw.msk <- raster::mask(idw.crp, crcsas_sp)
       raster::crs(idw.msk) <- "EPSG:4326"
       idw.msk.dfr <- raster::as.data.frame(raster::rasterToPoints(idw.msk))
-      idw.msk.sf <- sf::st_as_sf(idw.msk.dfr, coords = c("x", "y"), remove = F) %>%
-        sf::st_set_crs(sf::st_crs(4326)) %>% dplyr::rename(lon = x, lat = y)
+      idw.msk.sf <- sf::st_as_sf(idw.msk.dfr, coords = c("x", "y")) %>%
+        sf::st_set_crs(sf::st_crs(4326))
+      
+      # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
+      # plot(sf::st_geometry(idw.msk.sf), col = "red", cex = .7)
+      # plot(sf::st_geometry(datos.sf), col = "blue", cex = .5, add = T)
+      # CONCLUSIÓN: 
+      # 1. La interpolacion se hace para completar puntos faltantes, por
+      # ejemplo, puntos muy al sur, que no se generan al usar chirps!
+      # 2. Luego de tranformar los puntos originales a raster, interpolalos
+      # y volver a obtener trasnformar el raster a puntos, se obtienen los 
+      # mismos puntos (no pude identificar cómo se crea el raster a partir 
+      # del punto original, es decir si se lo usa como centro, extremo 
+      # izquierdo superior, etc.)
       
       ##########################################################################
       ## Generar atributos globales de los gráficos ##################
@@ -676,86 +695,181 @@ for (fp in config$files) {
       
       
       ##########################################################################
-      ## Generacion de etiquetas en base a intervalos
-      EtiquetasIntervalos <- function(intervalos, formato.numero = "%.2f") {
-        etiquetas <- purrr::map2(
-          .x = intervalos[seq(from = 1, to = length(intervalos) - 1, by = 1)],
-          .y = intervalos[seq(from = 2, to = length(intervalos), by = 1)],
-          .f = function(desde, hasta) {
-            if (is.infinite(desde)) {
-              if (desde < hasta)
-                return (sprintf(paste0("Less than ", formato.numero), hasta))
-              if (desde == hasta)
-                return (sprintf(paste0("Equal to ", formato.numero), hasta))
-              if (desde > hasta)
-                return (sprintf(paste0("Greater than ", formato.numero), hasta))
-            } else if (is.infinite(hasta)) {
-              if (desde < hasta)
-                return (sprintf(paste0("Greater than ", formato.numero), desde))
-              if (desde == hasta)
-                return (sprintf(paste0("Equal to ", formato.numero), desde))
-              if (desde > hasta)
-                return (sprintf(paste0("Less than ", formato.numero), desde))
-            } else {
-              if (desde < hasta)
-                return (sprintf(paste0(formato.numero, "+ to ", formato.numero), desde, hasta))
-              if (desde == hasta)
-                return (sprintf(paste0(formato.numero, " to ", formato.numero), desde, hasta))
-              if (desde > hasta)
-                return (sprintf(paste0(formato.numero, "- to ", formato.numero), desde, hasta))
+      ## Generacion de etiquetas en base a grupos ##################
+      EtiquetasGrupos <- function(grupos, formato.numero = "%.2f") {
+        
+        etiquetas <- purrr::map(
+          .x = grupos,
+          .f = function(grupo) {
+            g_i <- stringr::str_sub(grupo, +1, +1)
+            g_f <- stringr::str_sub(grupo, -1, -1)
+            g_n <- stringr::str_replace_all(grupo, "[\\[\\]\\(\\)]", "")
+            desde <- as.numeric(stringr::str_split_fixed(g_n, ",", 2)[1])
+            hasta <- as.numeric(stringr::str_split_fixed(g_n, ",", 2)[2])
+            
+            if (is.infinite(desde) && is.finite(hasta)) {
+              if (desde < hasta) {
+                if (g_f == ")")
+                  return (sprintf(paste0("< ", formato.numero), hasta))
+                if (g_f == "]")
+                  return (sprintf(paste0("<= ", formato.numero), hasta))
+              }
+              if (desde > hasta) {
+                if (g_f == ")")
+                  return (sprintf(paste0("> ", formato.numero), hasta))
+                if (g_f == "]")
+                  return (sprintf(paste0(">= ", formato.numero), hasta))
+              }
             }
-          }
-        ) %>% unlist()
+            
+            if (is.finite(desde) && is.infinite(hasta)) {
+              if (desde < hasta) {
+                if (g_i == "(")
+                  return (sprintf(paste0("> ", formato.numero), desde))
+                if (g_i == "[")
+                  return (sprintf(paste0(">= ", formato.numero), desde))
+              }
+              if (desde > hasta) {
+                if (g_i == "(")
+                  return (sprintf(paste0("< ", formato.numero), desde))
+                if (g_i == "[")
+                  return (sprintf(paste0("<= ", formato.numero), desde))
+              }
+            }
+            
+            if (is.finite(desde) && is.finite(hasta)) {
+              if (desde < hasta) {
+                if (g_i == "(" && g_f == ")")
+                  return (sprintf(paste0(formato.numero, "+ .. ", formato.numero, "(-)"), desde, hasta))
+                if (g_i == "[" && g_f == ")")
+                  return (sprintf(paste0(formato.numero, " .. ", formato.numero, "(-)"), desde, hasta))
+                if (g_i == "(" && g_f == "]")
+                  return (sprintf(paste0(formato.numero, "+ .. ", formato.numero), desde, hasta))
+                if (g_i == "[" && g_f == "]")
+                  return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
+              }
+              if (desde > hasta) {
+                if (g_i == "(" && g_f == ")")
+                  return (sprintf(paste0(formato.numero, "- .. ", formato.numero, "(+)"), desde, hasta))
+                if (g_i == "[" && g_f == ")")
+                  return (sprintf(paste0(formato.numero, " .. ", formato.numero, "(+)"), desde, hasta))
+                if (g_i == "(" && g_f == "]")
+                  return (sprintf(paste0(formato.numero, "- .. ", formato.numero), desde, hasta))
+                if (g_i == "[" && g_f == "]")
+                  return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
+              }
+            }
+            
+          }) %>% unlist()
         
         return (etiquetas)
       }
       
    
       ##########################################################################
-      ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html)
+      ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
       if (data_type == "anom") {
         if (variable == 'prcp') {
           breaks <- c(-Inf,-200,-100,-50,-20,-10,-5,5,10,20,50,100,200,Inf)
-          labels <- EtiquetasIntervalos(breaks, "%d")
+          groups <- c(
+            levels(cut(head(breaks, 7), head(breaks, 7), include.lowest = TRUE, right = FALSE)),
+            "(-5,5)",
+            levels(cut(tail(breaks, 7), tail(breaks, 7), include.lowest = TRUE, right = FALSE)))
+          labels <- EtiquetasGrupos(groups, "%d")
+          grouped.idw.msk.dfr <- idw.msk.dfr %>%
+            dplyr::rowwise() %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                var <= -5, 
+                as.character(cut(var, head(breaks, 7), include.lowest = T, right = F)), 
+                NA_character_)) %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                var >= 5, 
+                as.character(cut(var, tail(breaks, 7), include.lowest = T, right = F)), 
+                grupo)) %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                is.na(grupo),
+                "(-5,5)",
+                grupo)) %>%
+            dplyr::mutate(
+              indice_grupo = which(groups == grupo)
+            ) %>%
+            dplyr::ungroup()
         } else if (variable == 't2m') {
           breaks <- c(-Inf,-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4,Inf)
-          labels <- EtiquetasIntervalos(breaks, "%.1f")
+          groups <- c(
+            levels(cut(head(breaks, 7), head(breaks, 7), include.lowest = TRUE, right = FALSE)),
+            "(-0.1,0.1)",
+            levels(cut(tail(breaks, 7), tail(breaks, 7), include.lowest = TRUE, right = FALSE)))
+          labels <- EtiquetasGrupos(groups, "%.1f")
+          grouped.idw.msk.dfr <- idw.msk.dfr %>%
+            dplyr::rowwise() %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                var <= -0.1, 
+                as.character(cut(var, head(breaks, 7), include.lowest = T, right = F)), 
+                NA_character_)) %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                var >= 0.1, 
+                as.character(cut(var, tail(breaks, 7), include.lowest = T, right = F)), 
+                grupo)) %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                is.na(grupo),
+                "(-0.1,0.1)",
+                grupo)) %>%
+            dplyr::mutate(
+              indice_grupo = which(groups == grupo)
+            ) %>%
+            dplyr::ungroup()
         }
+        domain <- c(1:length(groups))
         legend_labels <- labels
         paleta <- grDevices::colorRampPalette(
           colors = RColorBrewer::brewer.pal(11, 'RdBu'))( 13 )
         paleta <- if (variable == 't2m') rev(paleta) else paleta
         legend_paleta <- paleta
-        grouped.idw.msk <- idw.msk
+        grouped.idw.msk <- raster::rasterFromXYZ(
+          xyz = grouped.idw.msk.dfr %>% dplyr::select(x, y, indice_grupo)) %>%
+          raster::crop(crcsas_sp) %>% raster::mask(crcsas_sp) 
+        raster::crs(grouped.idw.msk) <- "EPSG:4326"
       } else if (data_type == "corr") {
-        breaks <- c(-1,-0.5,0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
-        labels <- EtiquetasIntervalos(breaks, "%.1f")
+        breaks <- c(-1,-0.5,-0.1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+        groups <- levels(cut(breaks, breaks, include.lowest = TRUE, right = FALSE))
+        domain <- breaks
+        labels <- EtiquetasGrupos(groups, "%.1f")
         legend_labels <- labels
-        paleta <- grDevices::colorRampPalette(
-          colors = RColorBrewer::brewer.pal(11, 'RdBu'))( 20 )
-        paleta <- tail(paleta, 12)
+        r_plt  <- head(rev(RColorBrewer::brewer.pal(3, 'Reds')), 2)
+        b_plt  <- tail(grDevices::colorRampPalette(
+          colors = RColorBrewer::brewer.pal(9, 'Blues'))( 11 ), 9)
+        paleta <- c(r_plt, "#ffffff", b_plt) 
         legend_paleta <- paleta
         grouped.idw.msk <- idw.msk
       } else if (data_type == "value.gen") {  # PREV_PREC
         if (variable == 'prcp') {
           breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
-          labels <- EtiquetasIntervalos(breaks, "%d")
-          legend_labels <- labels
           paleta <- grDevices::colorRampPalette(
             colors = RColorBrewer::brewer.pal(9, 'Blues'))( 12 )
           legend_paleta <- paleta
         } else if (variable == 't2m') {
-          breaks <- c(-Inf,-10,8,10,12,14,16,18,20,22,24,26,28,30,32,Inf)
-          labels <- EtiquetasIntervalos(breaks, "%d")
-          legend_labels <- labels
-          paleta <- grDevices::colorRampPalette(
-            colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 15 )
-          paleta <- tail(viridis::turbo(22), 15)
+          breaks <- c(-Inf,-10,-6,-3,0,3,6,9,12,15,18,21,24,27,30,33,Inf)
+          # paleta <- grDevices::colorRampPalette(
+          #   colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 16 )
+          # paleta <- tail(viridis::turbo(22), 16)
+          paleta <- viridis::plasma(16)
           legend_paleta <- paleta
         }
+        groups <- levels(cut(breaks, breaks, include.lowest = TRUE, right = FALSE))
+        domain <- breaks
+        labels <- EtiquetasGrupos(groups, "%d")
+        legend_labels <- labels
         grouped.idw.msk <- idw.msk
       } else if (data_type == "codigo_de_color") {  # PROB_PREC
         breaks <- c(-6,-5,-4,-3,-2,0,2,3,4,5,6)
+        domain <- breaks
         # groups <- c("(-Inf,-6]" == -6,
         #             "(-6,-5]"   == -5,
         #             "(-5,-4]"   == -4,
@@ -767,17 +881,17 @@ for (fp in config$files) {
         #             "[+4,+5)"   == +4,
         #             "[+5,+6)"   == +5,
         #             "[+6,Inf)"  == +6)
-        labels <- c("Greater or equal to 60",
-                    "50 to less than 60",
-                    "45 to less than 50",
-                    "40 to less than 45",
-                    "35 to less than 40",
+        labels <- c(">=60",
+                    "50 .. 60-",
+                    "45 .. 50-",
+                    "40 .. 45-",
+                    "35 .. 40-",
                     "40+",  # -2 a 2 excluyendo los extremos 
-                    "35 to less than 40",
-                    "40 to less than 45",
-                    "45 to less than 50",
-                    "50 to less than 60",
-                    "Greater or equal to 60")
+                    "35 .. 40-",
+                    "40 .. 45-",
+                    "45 .. 50-",
+                    "50 .. 60-",
+                    ">= 60")
         legend_labels <- c("<b>Below Normal</b>", head(labels, 5),
                            "<b>Near Normal</b>", tail(head(labels, 6), 1),
                            "<b>Above Normal</b>", tail(labels, 5))
@@ -817,20 +931,20 @@ for (fp in config$files) {
       } else if (data_type == "value.fcst") {  
         if (variable == 'prcp') {
           breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
-          labels <- EtiquetasIntervalos(breaks, "%d")
-          legend_labels <- labels
           paleta <- grDevices::colorRampPalette(
             colors = RColorBrewer::brewer.pal(9, 'Blues'))( 12 )
           legend_paleta <- paleta
         } else if (variable == 't2m') {
-          breaks <- c(-Inf,-10,8,10,12,14,16,18,20,22,24,26,28,30,32,Inf)
-          labels <- EtiquetasIntervalos(breaks, "%d")
-          legend_labels <- labels
-          paleta <- grDevices::colorRampPalette(
-            colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 15 )
-          paleta <- tail(viridis::turbo(22), 15)
+          breaks <- c(-Inf,-10,-6,-3,0,3,6,9,12,15,18,21,24,27,30,33,Inf)
+          # paleta <- grDevices::colorRampPalette(
+          #   colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 15 )
+          # paleta <- tail(viridis::turbo(22), 15)
+          paleta <- viridis::plasma(16)
           legend_paleta <- paleta
         }
+        groups <- levels(cut(breaks, breaks, include.lowest = TRUE, right = FALSE))
+        labels <- EtiquetasGrupos(groups, "%d")
+        legend_labels <- labels
         grouped.idw.msk <- idw.msk
       }
       
@@ -860,11 +974,17 @@ for (fp in config$files) {
         htmltools::HTML(stringr::str_replace_all(main_title, '\n', '<br>'))
       )
       library(leaflet)
+      library(plainview)
       m <- leaflet::leaflet() %>% 
         leaflet::addTiles(
           urlTemplate = paste0("//server.arcgisonline.com/ArcGIS/rest",
                                "/services/World_Street_Map/MapServer",
                                "/tile/{z}/{y}/{x}")) %>%
+        # leafem::addMouseCoordinates() %>%
+        leaflet::addControl(
+          html = title,
+          position = "topright",
+          className="map-title info") %>%
         leaflet::addPolygons(
           data = crcsas_sf,
           stroke = TRUE, 
@@ -876,18 +996,24 @@ for (fp in config$files) {
         leaflet::addRasterImage(
           x = grouped.idw.msk, 
           project = TRUE,
-          colors = if (data_type != 'codigo_de_color') 
-            leaflet::colorBin(
-              palette = paleta,
-              bins = breaks,
-              na.color = "transparent") 
-          else 
-            leaflet::colorNumeric(
-              palette = paleta, 
-              domain = breaks,
-              na.color = "transparent"),
+          colors = leaflet::colorNumeric(
+            palette = paleta, 
+            domain = domain,
+            na.color = "transparent"),
           opacity = 0.8, 
-          group = "discrete") %>%
+          group = variable_fcst,
+          layerId = variable_fcst)  %>%
+        leafem::addImageQuery(
+          x = idw.msk, 
+          project = TRUE,
+          type = "mousemove", 
+          digits = 1, 
+          prefix = "",
+          group = variable_fcst,
+          layerId = variable_fcst,
+          position = "topright") %>%
+        # leaflet::addCircles(
+        #   data = idw.msk.sf) %>%
         leaflet::addLegend(
           title = variable_str,
           colors = legend_paleta,
@@ -897,10 +1023,6 @@ for (fp in config$files) {
           html = GenerarHTMLLogo(
             paste0(config$folders$images, "logo-crcsas.png")), 
           position = "bottomleft") %>%
-        leaflet::addControl(
-          html = title, 
-          position = "topright", 
-          className="map-title info") %>%
         leaflet::addSimpleGraticule() %>%
         leaflet.extras2::addEasyprint(
           options = leaflet.extras2::easyprintOptions(
@@ -911,69 +1033,98 @@ for (fp in config$files) {
             filename = fig_file_name))
       htmlwidgets::saveWidget(
         widget = m, 
-        file = paste0(fig_file_name, ".html"), 
+        file = paste0(fig_file_name, "_leaflet.html"), 
         selfcontained = TRUE)
       # mapview::mapshot(m, file = paste0(fig_file_name, ".png"))
       
       
       ##########################################################################
-      ## GRAFICOS CON GGPLOT GGMAP
-      
-      # bbox_crcsas <- c(
-      #   left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla+3, 
-      #   right = config$spatial_domain$elo+2, top = config$spatial_domain$nla+3)
-      # ggmap_crcsas <- ggmap::get_stamenmap(
-      #   bbox = bbox_crcsas, zoom = 5, maptype = "toner-lite", crs = sf::st_crs(4326))
-      # ggmap::ggmap(ggmap_crcsas) +
-      #   ggplot2::geom_sf(data= idw.msk.sf)
-      
-      # ggmap_crcsas + ggmap::inset_raster(
-      #   raster = raster::as.raster(idw.msk),
-      #   xmin = config$spatial_domain$wlo, xmax = config$spatial_domain$elo,
-      #   ymin = config$spatial_domain$sla, ymax = config$spatial_domain$nla,
-      #   interpolate = FALSE)
-      
-      ##########################################################################
-      ## GRAFICOS CON GGPLOT GGPLOT
+      ## GRAFICOS CON GGPLOT GGPLOT ####
       if (data_type == "anom") {
         if (variable == 'prcp') {
           breaks <- c(-Inf,-200,-100,-50,-20,-10,-5,5,10,20,50,100,200,Inf)
-          groups <- levels(cut(breaks, breaks, include.lowest = T))
-          labels <- EtiquetasIntervalos(breaks, "%d")
+          groups <- c(
+            levels(cut(head(breaks, 7), head(breaks, 7), include.lowest = TRUE, right = FALSE)),
+            "(-5,5)",
+            levels(cut(tail(breaks, 7), tail(breaks, 7), include.lowest = TRUE, right = FALSE)))
+          labels <- EtiquetasGrupos(groups, "%d")
+          grouped.idw.msk.dfr <- idw.msk.dfr %>%
+            dplyr::rowwise() %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                var <= -5, 
+                as.character(cut(var, head(breaks, 7), include.lowest = T, right = F)), 
+                NA_character_)) %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                var >= 5, 
+                as.character(cut(var, tail(breaks, 7), include.lowest = T, right = F)), 
+                grupo)) %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                is.na(grupo),
+                "(-5,5)",
+                grupo)) %>%
+            dplyr::mutate(
+              indice_grupo = which(groups == grupo)
+            ) %>%
+            dplyr::ungroup()
         } else if (variable == 't2m') {
           breaks <- c(-Inf,-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4,Inf)
-          groups <- levels(cut(breaks, breaks, include.lowest = T))
-          labels <- EtiquetasIntervalos(breaks, "%.1f")
+          groups <- c(
+            levels(cut(head(breaks, 7), head(breaks, 7), include.lowest = TRUE, right = FALSE)),
+            "(-0.1,0.1)",
+            levels(cut(tail(breaks, 7), tail(breaks, 7), include.lowest = TRUE, right = FALSE)))
+          labels <- EtiquetasGrupos(groups, "%.1f")
+          grouped.idw.msk.dfr <- idw.msk.dfr %>%
+            dplyr::rowwise() %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                var <= -0.1, 
+                as.character(cut(var, head(breaks, 7), include.lowest = T, right = F)), 
+                NA_character_)) %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                var >= 0.1, 
+                as.character(cut(var, tail(breaks, 7), include.lowest = T, right = F)), 
+                grupo)) %>%
+            dplyr::mutate(
+              grupo = dplyr::if_else(
+                is.na(grupo),
+                "(-0.1,0.1)",
+                grupo)) %>%
+            dplyr::mutate(
+              indice_grupo = which(groups == grupo)
+            ) %>%
+            dplyr::ungroup()
         }
         paleta <- grDevices::colorRampPalette(
           colors = RColorBrewer::brewer.pal(11, 'RdBu'))( 13 )
         paleta <- if (variable == 't2m') rev(paleta) else paleta
-        grouped.idw.msk.dfr <- idw.msk.dfr %>%
-          dplyr::mutate(grupo = cut(.$var, breaks, include.lowest = F))
       } else if (data_type == "corr") {
-        breaks <- c(-1,-0.5,0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+        breaks <- c(-1,-0.5,-0.1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
         groups <- levels(cut(breaks, breaks, include.lowest = T))
-        labels <- EtiquetasIntervalos(breaks, "%.1f")
-        paleta <- grDevices::colorRampPalette(
-          colors = RColorBrewer::brewer.pal(11, 'RdBu'))( 20 )
-        paleta <- tail(paleta, 12)
+        labels <- EtiquetasGrupos(groups, "%.1f")
+        r_plt  <- head(rev(RColorBrewer::brewer.pal(3, 'Reds')), 2)
+        b_plt  <- tail(grDevices::colorRampPalette(
+          colors = RColorBrewer::brewer.pal(9, 'Blues'))( 11 ), 9)
+        paleta <- c(r_plt, "#ffffff", b_plt) 
         grouped.idw.msk.dfr <- idw.msk.dfr %>%
           dplyr::mutate(grupo = cut(.$var, breaks, include.lowest = F))
       } else if (data_type == "value.gen") {  # PREV_PREC
         if (variable == 'prcp') {
           breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
-          groups <- levels(cut(breaks, breaks, include.lowest = T))
-          labels <- EtiquetasIntervalos(breaks, "%d")
           paleta <- grDevices::colorRampPalette(
             colors = RColorBrewer::brewer.pal(9, 'Blues'))( 12 )
         } else if (variable == 't2m') {
-          breaks <- c(-Inf,-10,8,10,12,14,16,18,20,22,24,26,28,30,32,Inf)
-          groups <- levels(cut(breaks, breaks, include.lowest = T))
-          labels <- EtiquetasIntervalos(breaks, "%d")
-          paleta <- grDevices::colorRampPalette(
-            colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 15 )
-          paleta <- tail(viridis::turbo(22), 15)
+          breaks <- c(-Inf,-10,-6,-3,0,3,6,9,12,15,18,21,24,27,30,33,Inf)
+          # paleta <- grDevices::colorRampPalette(
+          #   colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 16 )
+          # paleta <- tail(viridis::turbo(22), 16)
+          paleta <- viridis::plasma(16)
         }
+        groups <- levels(cut(breaks, breaks, include.lowest = T))
+        labels <- EtiquetasGrupos(groups, "%d")
         grouped.idw.msk.dfr <- idw.msk.dfr %>%
           dplyr::mutate(grupo = cut(.$var, breaks, include.lowest = F))
       } else if (data_type == "codigo_de_color") {  # PROB_PREC
@@ -987,17 +1138,17 @@ for (fp in config$files) {
         groups <- c("Below Normal", head(groups, 5),
                     "Near Normal", tail(head(groups, 6), 1),
                     "Above Normal", tail(groups, 5))
-        labels <- c("Greater or equal to 60",
-                    "50 to less than 60",
-                    "45 to less than 50",
-                    "40 to less than 45",
-                    "35 to less than 40",
+        labels <- c(">=60",
+                    "50 .. 60-",
+                    "45 .. 50-",
+                    "40 .. 45-",
+                    "35 .. 40-",
                     "40+",  # -2 a 2 excluyendo los extremos 
-                    "35 to less than 40",
-                    "40 to less than 45",
-                    "45 to less than 50",
-                    "50 to less than 60",
-                    "Greater or equal to 60")
+                    "35 .. 40-",
+                    "40 .. 45-",
+                    "45 .. 50-",
+                    "50 .. 60-",
+                    ">= 60")
         labels <- c("Below Normal", head(labels, 5),
                     "Near Normal", tail(head(labels, 6), 1),
                     "Above Normal", tail(labels, 5))
@@ -1037,18 +1188,17 @@ for (fp in config$files) {
       } else if (data_type == "value.fcst") {  
         if (variable == 'prcp') {
           breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
-          groups <- levels(cut(breaks, breaks, include.lowest = T))
-          labels <- EtiquetasIntervalos(breaks, "%d")
           paleta <- grDevices::colorRampPalette(
             colors = RColorBrewer::brewer.pal(9, 'Blues'))( 12 )
         } else if (variable == 't2m') {
-          breaks <- c(-Inf,-10,8,10,12,14,16,18,20,22,24,26,28,30,32,Inf)
-          groups <- levels(cut(breaks, breaks, include.lowest = T))
-          labels <- EtiquetasIntervalos(breaks, "%d")
-          paleta <- grDevices::colorRampPalette(
-            colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 15 )
-          paleta <- tail(viridis::turbo(22), 15)
+          breaks <- c(-Inf,-10,-6,-3,0,3,6,9,12,15,18,21,24,27,30,33,Inf)
+          # paleta <- grDevices::colorRampPalette(
+          #   colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 15 )
+          # paleta <- tail(viridis::turbo(22), 15)
+          paleta <- viridis::plasma(16)
         }
+        groups <- levels(cut(breaks, breaks, include.lowest = T))
+        labels <- EtiquetasGrupos(groups, "%d")
         grouped.idw.msk.dfr <- idw.msk.dfr %>%
           dplyr::mutate(grupo = cut(.$var, breaks, include.lowest = F))
       }
@@ -1060,13 +1210,41 @@ for (fp in config$files) {
       main_title_split <- unlist(stringr::str_split(main_title, '\n'))
       sub_title <- paste0(paste(tail(main_title_split, -1), collapse = ''))
       world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+      
+      ###
+      # g1 <- ggplot2::ggplot(width = 20, height = 25, units = "cm") +
+      #   ggplot2::geom_raster(
+      #     mapping = ggplot2::aes(
+      #       x = lon, y = lat,
+      #       fill = pr.menor.media),
+      #     data = data %>% dplyr::filter(pr.menor.media >= 0.35),
+      #     alpha = 1) +
+      #   ggplot2::scale_fill_viridis_c(
+      #     option = "A")
+      # g2 <- ggplot2::ggplot(width = 20, height = 25, units = "cm") +
+      #   ggplot2::geom_raster(
+      #     mapping = ggplot2::aes(
+      #       x = lon, y = lat,
+      #       fill = pr.media),
+      #     data = data %>% dplyr::filter(pr.media >= 0.35),
+      #     alpha = 1) +
+      #   ggplot2::scale_fill_grey()
+      # g3 <- ggplot2::ggplot(width = 20, height = 25, units = "cm") +
+      #   ggplot2::geom_raster(
+      #     mapping = ggplot2::aes(
+      #       x = lon, y = lat,
+      #       fill = pr.mayor.media),
+      #     data = data %>% dplyr::filter(pr.mayor.media >= 0.35),
+      #     alpha = 1) +
+      #   ggplot2::scale_fill_viridis_c(
+      #     option = "D")
 
-      ggplot2::ggplot() +
+      ###
+      g <- ggplot2::ggplot(data = grouped.idw.msk.dfr, width = 20, height = 25, units = "cm") +
         ggplot2::geom_raster(
           mapping = ggplot2::aes(
             x = x, y = y,
             fill = factor(grupo, levels = groups)),
-          data = grouped.idw.msk.dfr,
           alpha = 1) +
         ggplot2::scale_discrete_manual(
           aesthetics = "fill",
@@ -1084,7 +1262,7 @@ for (fp in config$files) {
         #   midpoint = mean(idw.msk.dfr$var)) +
         ggplot2::geom_sf(
           data = world,
-          fill = "black",
+          fill = "white",
           alpha = 0.05) +
         ggplot2::coord_sf(
           xlim = c(bbox$left-2, bbox$right),
@@ -1104,14 +1282,30 @@ for (fp in config$files) {
           panel.grid.major = ggplot2::element_line(
             color = gray(0.8), linetype = "dashed", size = 0.5),
           panel.background = ggplot2::element_rect(
-            colour = "gray", size = 2, fill = "aliceblue"),
-          legend.key.height = ggplot2::unit(1, 'cm'))
-        ggplot2::ggsave(
-          filename = paste0(fig_file_name, ".png"),
-          width = 20, height = 25, units = "cm", dpi = 600)
+            colour = "gray", size = 2, fill = "white"),
+          legend.key.height = ggplot2::unit(1, 'cm')) 
+      ggplot2::ggsave(
+        plot = g, 
+        filename = paste0("grafico_sin_desplazar_los_puntos", ".png"),
+        width = 20, height = 25, units = "cm", dpi = 600)
+      gg <- ggiraph::girafe(
+        ggobj = g + 
+          ggiraph::geom_point_interactive(
+            data = idw.msk.dfr,
+            mapping = ggplot2::aes(
+              x = x, y = y,
+              tooltip = var),
+            alpha = 0.01,
+            show.legend = FALSE),
+          width_svg = 9, 
+          height_svg = 10)
+      htmlwidgets::saveWidget(
+        widget = gg, 
+        file = paste0(fig_file_name, "_ggplot2.html"), 
+        selfcontained = TRUE)
       
       ##########################################################################
-      ## GRAFICOS DE FABRICIO
+      ## GRAFICOS DE FABRICIO ####
       if (data_type == "anom") {
         if (variable == 'prcp') {
           seqq <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
