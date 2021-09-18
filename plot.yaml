@@ -12,6 +12,7 @@ folders:
   forecasts: ./input/raw_data/forecasts/
   predictors: ./input/predictors/
   output: ./output/
+  plots: ./plots/
   images: ./input/raw_data/images/
 
 files:
