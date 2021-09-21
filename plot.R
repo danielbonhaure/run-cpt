@@ -898,9 +898,24 @@ for (fp in config$files) {
     ##########################################################################
     
     ##########################################################################
+    # Definir paleta de colores de la NOAA  #############
+    
+    # Ver: https://www.weather.gov/news/211409-temperature-precipitation-maps
+    noaa_escala_azules <- 
+      c("#bdc9e3", "#98c1df", "#81b5e3", "#2c9dd5", "#075f9d", "#2d2a6e", "#1d2350")
+    noaa_escala_azules <- 
+      tail(RColorBrewer::brewer.pal(9, "PuBu"), 7)
+    noaa_escala_rojos <- 
+      c("#e6b06a", "#e38c4f", "#da5831", "#c52f29", "#c9303e", "#7c2f35", "#662a2e")
+    noaa_escala_rojos <- 
+      tail(RColorBrewer::brewer.pal(9, "YlOrBr"), 7)
+    ##########################################################################
+    
+    ##########################################################################
     # Graficar datos (graficos de probabilidades separadas)  #############
     generar_graficos_prob_sep_discretos_op_1()
     generar_graficos_prob_sep_continuos_op_1()
+    generar_graficos_prob_sep_discretos_op_2()
     generar_graficos_prob_sep_continuos_op_2()
     ##########################################################################
     

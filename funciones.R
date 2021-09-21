@@ -293,6 +293,11 @@ generar_graficos_discretos <- function(data_type, idw.msk.dfr,
     
   ##############################################################################
   ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
+  
+  bbox <- list(
+    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
+    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+  
   if (data_type == "anom") {
     if (variable == 'prcp') {
       breaks <- c(-Inf,-200,-100,-50,-20,-10,-5,5,10,20,50,100,200,Inf)
@@ -483,6 +488,9 @@ generar_graficos_discretos <- function(data_type, idw.msk.dfr,
   library(leaflet)
   library(plainview)
   m <- leaflet::leaflet() %>% 
+    leaflet::fitBounds(
+      lng1 = as.double(bbox$left-2), lng2 = as.double(bbox$right),
+      lat1 = as.double(bbox$bottom), lat2 = as.double(bbox$top+3)) %>%
     leaflet::addTiles(
       urlTemplate = paste0("//server.arcgisonline.com/ArcGIS/rest",
                            "/services/World_Street_Map/MapServer",
@@ -534,8 +542,8 @@ generar_graficos_discretos <- function(data_type, idw.msk.dfr,
     leaflet.extras2::addEasyprint(
       options = leaflet.extras2::easyprintOptions(
         title = "Descargar mapa a PNG",
+        sizeModes = list("A4Portrait", "A4Landscape"),
         exportOnly = TRUE,
-        sizeModes = c('Current'),
         hideControlContainer = FALSE,
         filename = fig_file_name))
   htmlwidgets::saveWidget(
@@ -765,6 +773,11 @@ generar_graficos_continuos <- function(data_type, idw.msk.dfr,
   
   ##############################################################################
   ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
+  
+  bbox <- list(
+    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
+    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+  
   if (data_type == "anom") {
     if (variable == 'prcp') {
       breaks <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
@@ -898,6 +911,9 @@ generar_graficos_continuos <- function(data_type, idw.msk.dfr,
   library(leaflet)
   library(plainview)
   m <- leaflet::leaflet() %>% 
+    leaflet::fitBounds(
+      lng1 = as.double(bbox$left-2), lng2 = as.double(bbox$right),
+      lat1 = as.double(bbox$bottom), lat2 = as.double(bbox$top+3)) %>%
     leaflet::addTiles(
       urlTemplate = paste0("//server.arcgisonline.com/ArcGIS/rest",
                            "/services/World_Street_Map/MapServer",
@@ -952,8 +968,8 @@ generar_graficos_continuos <- function(data_type, idw.msk.dfr,
     leaflet.extras2::addEasyprint(
       options = leaflet.extras2::easyprintOptions(
         title = "Descargar mapa a PNG",
+        sizeModes = list("A4Portrait", "A4Landscape"),
         exportOnly = TRUE,
-        sizeModes = c('Current'),
         hideControlContainer = FALSE,
         filename = fig_file_name))
   htmlwidgets::saveWidget(
@@ -1214,9 +1230,9 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
     ggplot2::scale_discrete_manual(
       aesthetics = "fill",
       values = c(
-        tail(RColorBrewer::brewer.pal(8, if (variable == "prcp") 'YlOrBr' else 'GnBu'), 7),
+        if (variable == "prcp") noaa_escala_rojos else noaa_escala_azules,
         tail(RColorBrewer::brewer.pal(8, 'Greys'), 7),
-        tail(RColorBrewer::brewer.pal(8, if (variable == "prcp") 'BuGn' else 'YlOrBr'), 7)),
+        if (variable == "prcp") noaa_escala_azules else noaa_escala_rojos),
       drop = FALSE) +
     # ggplot2::scale_fill_gradientn(
     #   colours = c(
@@ -1290,7 +1306,7 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
     ggplot2::scale_discrete_manual(
       aesthetics = "fill",
       breaks = c(1:length(groups)),
-      values = tail(RColorBrewer::brewer.pal(8, if (variable == "prcp") 'YlOrBr' else 'GnBu'), 7),
+      values = if (variable == "prcp") noaa_escala_rojos else noaa_escala_azules,
       labels = labels,
       drop = FALSE) +
     ggplot2::geom_sf(
@@ -1382,7 +1398,7 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
     ggplot2::scale_discrete_manual(
       aesthetics = "fill",
       breaks = c(1:length(groups)),
-      values = tail(RColorBrewer::brewer.pal(8, if (variable == "prcp") 'BuGn' else 'YlOrBr'), 7),
+      values = if (variable == "prcp") noaa_escala_azules else noaa_escala_rojos,
       labels = labels,
       drop = FALSE) +
     ggplot2::geom_sf(
@@ -1751,8 +1767,9 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
   ##############################################################################
   ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
   
-  # TODO: para que sea disceto tengo que graficar indice_grupo en lugar de pr
-  
+  bbox <- list(
+    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
+    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
   
   # Se definen y asignan los grupos para las probabilidades menor a la media
   breaks.menor.media <- 
@@ -1867,6 +1884,9 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
   library(leaflet)
   library(plainview)
   m <- leaflet::leaflet() %>%
+    leaflet::fitBounds(
+      lng1 = as.double(bbox$left-2), lng2 = as.double(bbox$right),
+      lat1 = as.double(bbox$bottom), lat2 = as.double(bbox$top+3)) %>%
     leaflet::addTiles(
       urlTemplate = paste0("//server.arcgisonline.com/ArcGIS/rest",
                            "/services/World_Street_Map/MapServer",
@@ -1890,9 +1910,9 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
       method = "ngb",
       colors = leaflet::colorNumeric(
         palette = c(
-          RColorBrewer::brewer.pal(7, if (variable == "prcp") 'YlOrBr' else 'GnBu'),
+          if (variable == "prcp") noaa_escala_rojos else noaa_escala_azules,
           tail(RColorBrewer::brewer.pal(8, 'Greys'), 7),
-          RColorBrewer::brewer.pal(7, if (variable == "prcp") 'BuGn' else 'YlOrBr')),
+          if (variable == "prcp") noaa_escala_azules else noaa_escala_rojos),
         domain = c(1:21),
         na.color = "transparent"),
       opacity = 0.8,
@@ -1927,7 +1947,7 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
     #   color = if (variable == "prcp") 'blue' else 'red') %>%
     leaflet::addLegend(
       title = "Above Normal (%)",
-      colors = RColorBrewer::brewer.pal(7, if (variable == "prcp") 'YlOrBr' else 'GnBu'),
+      colors = if (variable == "prcp") noaa_escala_rojos else noaa_escala_azules,
       labels = labels,
       position = "bottomright") %>%
     leaflet::addLegend(
@@ -1937,7 +1957,7 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
       position = "bottomright") %>%
     leaflet::addLegend(
       title = "Below Normal (%)",
-      colors = RColorBrewer::brewer.pal(7, if (variable == "prcp") 'BuGn' else 'YlOrBr'),
+      colors = if (variable == "prcp") noaa_escala_azules else noaa_escala_rojos,
       labels = labels,
       position = "bottomright") %>%
     leaflet::addControl(
@@ -1948,8 +1968,8 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
     leaflet.extras2::addEasyprint(
       options = leaflet.extras2::easyprintOptions(
         title = "Descargar mapa a PNG",
+        sizeModes = list("A4Portrait", "A4Landscape"),
         exportOnly = TRUE,
-        sizeModes = c('Current'),
         hideControlContainer = FALSE,
         filename = fig_file_name))
   htmlwidgets::saveWidget(
@@ -1972,6 +1992,10 @@ generar_graficos_prob_sep_continuos_op_2 <- function() {
   
   ##############################################################################
   ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
+  
+  bbox <- list(
+    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
+    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
   
   idw.pr.raster <-
     raster::rasterFromXYZ(
@@ -2018,6 +2042,9 @@ generar_graficos_prob_sep_continuos_op_2 <- function() {
   library(leaflet)
   library(plainview)
   m <- leaflet::leaflet() %>%
+    leaflet::fitBounds(
+      lng1 = as.double(bbox$left-2), lng2 = as.double(bbox$right),
+      lat1 = as.double(bbox$bottom), lat2 = as.double(bbox$top+3)) %>%
     leaflet::addTiles(
       urlTemplate = paste0("//server.arcgisonline.com/ArcGIS/rest",
                            "/services/World_Street_Map/MapServer",
@@ -2110,8 +2137,8 @@ generar_graficos_prob_sep_continuos_op_2 <- function() {
     leaflet.extras2::addEasyprint(
       options = leaflet.extras2::easyprintOptions(
         title = "Descargar mapa a PNG",
+        sizeModes = list("A4Portrait", "A4Landscape"),
         exportOnly = TRUE,
-        sizeModes = c('Current'),
         hideControlContainer = FALSE,
         filename = fig_file_name))
   htmlwidgets::saveWidget(
