@@ -163,6 +163,8 @@ generar_graficos_fabricio <- function(data_type, idw.msk.dfr,
                                       fig_file_name, 
                                       config) {
   
+  # Se agrega el PATH al nombre del archivo, pero aún no se define la 
+  # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "fabricio/", fig_file_name)
   
   ##############################################################################
@@ -289,6 +291,8 @@ generar_graficos_discretos <- function(data_type, idw.msk.dfr,
                                        main_title, fig_file_name,
                                        config) {
   
+  # Se agrega el PATH al nombre del archivo, pero aún no se define la 
+  # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "discrete_scales/", fig_file_name)
     
   ##############################################################################
@@ -369,67 +373,6 @@ generar_graficos_discretos <- function(data_type, idw.msk.dfr,
       xyz = grouped.idw.msk.dfr %>% dplyr::select(x, y, indice_grupo)) %>%
       raster::crop(crcsas_sp) %>% raster::mask(crcsas_sp) 
     raster::crs(grouped.idw.msk) <- "EPSG:4326"
-  } else if (data_type == "codigo_de_color") {  # PROB_PREC
-    breaks <- c(-6,-5,-4,-3,-2,0,2,3,4,5,6)
-    domain <- breaks
-    # groups <- c("(-Inf,-6]" == -6,
-    #             "(-6,-5]"   == -5,
-    #             "(-5,-4]"   == -4,
-    #             "(-4,-3]"   == -3,
-    #             "(-3,-2]"   == -2,
-    #             "(-2,+2)"   == 0,
-    #             "[+2,+3)"   == +2,
-    #             "[+3,+4)"   == +3,
-    #             "[+4,+5)"   == +4,
-    #             "[+5,+6)"   == +5,
-    #             "[+6,Inf)"  == +6)
-    labels <- c(">=60",
-                "50 .. 60-",
-                "45 .. 50-",
-                "40 .. 45-",
-                "35 .. 40-",
-                "40+",  # -2 a 2 excluyendo los extremos 
-                "35 .. 40-",
-                "40 .. 45-",
-                "45 .. 50-",
-                "50 .. 60-",
-                ">= 60")
-    legend_labels <- c("<b>Below Normal</b>", head(labels, 5),
-                       "<b>Near Normal</b>", tail(head(labels, 6), 1),
-                       "<b>Above Normal</b>", tail(labels, 5))
-    if (variable == 'prcp') {
-      paleta <- c(rev(RColorBrewer::brewer.pal(5, 'YlOrBr')),
-                  'lightgray',
-                  tail(RColorBrewer::brewer.pal(6, 'BuGn'), 5))
-    } else if (variable == 't2m') {
-      paleta <- c(rev(tail(RColorBrewer::brewer.pal(6, 'GnBu'), 5)),
-                  'lightgray',
-                  RColorBrewer::brewer.pal(5, 'YlOrRd'))
-    }
-    legend_paleta <- c("", head(paleta, 5),
-                       "", tail(head(paleta, 6), 1),
-                       "", tail(paleta, 5))
-    # groups <- c("(-Inf,-6]" == -6,
-    #             "(-6,-5]"   == -5,
-    #             "(-5,-4]"   == -4,
-    #             "(-4,-3]"   == -3,
-    #             "(-3,-2]"   == -2,
-    #             "(-2,+2)"   == 0,
-    #             "[+2,+3)"   == +2,
-    #             "[+3,+4)"   == +3,
-    #             "[+4,+5)"   == +4,
-    #             "[+5,+6)"   == +5,
-    #             "[+6,Inf)"  == +6)
-    grouped.idw.msk.dfr <- idw.msk.dfr %>%
-      dplyr::mutate(
-        grupo = dplyr::case_when(
-          var <= -2 ~ ceiling(var), 
-          var >= 2 ~ floor(var),
-          TRUE ~ 0))
-    grouped.idw.msk <- raster::rasterFromXYZ(
-      xyz = grouped.idw.msk.dfr %>% dplyr::select(x, y, grupo)) %>%
-      raster::crop(crcsas_sp) %>% raster::mask(crcsas_sp) 
-    raster::crs(grouped.idw.msk) <- "EPSG:4326"
   } else if (data_type == "value.fcst") {  
     if (variable == 'prcp') {
       breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
@@ -458,6 +401,8 @@ generar_graficos_discretos <- function(data_type, idw.msk.dfr,
       xyz = grouped.idw.msk.dfr %>% dplyr::select(x, y, indice_grupo)) %>%
       raster::crop(crcsas_sp) %>% raster::mask(crcsas_sp) 
     raster::crs(grouped.idw.msk) <- "EPSG:4326"
+  } else {
+    return (NULL)
   }
   
   # Generacion de HTML con logo
@@ -601,64 +546,6 @@ generar_graficos_discretos <- function(data_type, idw.msk.dfr,
       paleta <- viridis::plasma(15)
     }
     labels <- generar_etiquetas_grupos(groups, "%d")
-  } else if (data_type == "codigo_de_color") {  # PROB_PREC
-    breaks <- c(-Inf,-6,-5,-4,-3,-2,-1,1,2,3,4,5,6,Inf)
-    # groups <- c("(-Inf,-6]","(-6,-5]","(-5,-4]","(-4,-3]","(-3,-2]",
-    #             "(-2,+2)",
-    #             "[+2,+3)","[+3,+4)","[+4,+5)","[+5,+6)","[+6,Inf)")
-    groups <- c(levels(cut(head(breaks, 6),head(breaks, 6),right=T)),
-                "(-2,2)",
-                levels(cut(tail(breaks, 6),tail(breaks, 6),right=F)))
-    groups <- c("Below Normal", head(groups, 5),
-                "Near Normal", tail(head(groups, 6), 1),
-                "Above Normal", tail(groups, 5))
-    labels <- c(">=60",
-                "50 .. 60-",
-                "45 .. 50-",
-                "40 .. 45-",
-                "35 .. 40-",
-                "40+",  # -2 a 2 excluyendo los extremos 
-                "35 .. 40-",
-                "40 .. 45-",
-                "45 .. 50-",
-                "50 .. 60-",
-                ">= 60")
-    labels <- c("Below Normal", head(labels, 5),
-                "Near Normal", tail(head(labels, 6), 1),
-                "Above Normal", tail(labels, 5))
-    if (variable == 'prcp') {
-      paleta <- c(rev(RColorBrewer::brewer.pal(5, 'YlOrBr')),
-                  'lightgray',
-                  tail(RColorBrewer::brewer.pal(6, 'BuGn'), 5))
-    } else if (variable == 't2m') {
-      paleta <- c(rev(tail(RColorBrewer::brewer.pal(6, 'GnBu'), 5)),
-                  'lightgray',
-                  RColorBrewer::brewer.pal(5, 'YlOrRd'))
-    }
-    paleta <- c("white", head(paleta, 5),
-                "white", tail(head(paleta, 6), 1),
-                "white", tail(paleta, 5))
-    # groups <- c("(-Inf,-6]","(-6,-5]","(-5,-4]","(-4,-3]","(-3,-2]",
-    #             "(-2,+2)",
-    #             "[+2,+3)","[+3,+4)","[+4,+5)","[+5,+6)","[+6,Inf)")
-    grouped.idw.msk.dfr <- idw.msk.dfr %>%
-      dplyr::rowwise() %>%
-      dplyr::mutate(
-        grupo = dplyr::if_else(
-          var <= -2, 
-          as.character(cut(var, head(breaks, 6), right=T)), 
-          NA_character_)) %>%
-      dplyr::mutate(
-        grupo = dplyr::if_else(
-          var >= 2, 
-          as.character(cut(var, tail(breaks, 6), right=F)), 
-          grupo)) %>%
-      dplyr::mutate(
-        grupo = dplyr::if_else(
-          is.na(grupo),
-          "(-2,2)",
-          grupo)) %>%
-      dplyr::ungroup()
   } else if (data_type == "value.fcst") {  
     if (variable == 'prcp') {
       breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
@@ -678,6 +565,8 @@ generar_graficos_discretos <- function(data_type, idw.msk.dfr,
       paleta <- viridis::plasma(15)
     }
     labels <- generar_etiquetas_grupos(groups, "%d")
+  } else {
+    return (NULL)
   }
   
   bbox <- list(
@@ -769,6 +658,8 @@ generar_graficos_continuos <- function(data_type, idw.msk.dfr,
                                        main_title, fig_file_name,
                                        config) {
   
+  # Se agrega el PATH al nombre del archivo, pero aún no se define la 
+  # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "continuous_scales/", fig_file_name)
   
   ##############################################################################
@@ -812,66 +703,6 @@ generar_graficos_continuos <- function(data_type, idw.msk.dfr,
       paleta <- viridis::plasma(14)
     }
     grouped.idw.msk <- idw.msk
-  } else if (data_type == "codigo_de_color") {  # PROB_PREC
-    breaks <- c(-6,-5,-4,-3,-2,0,2,3,4,5,6)
-    # groups <- c("(-Inf,-6]" == -6,
-    #             "(-6,-5]"   == -5,
-    #             "(-5,-4]"   == -4,
-    #             "(-4,-3]"   == -3,
-    #             "(-3,-2]"   == -2,
-    #             "(-2,+2)"   == 0,
-    #             "[+2,+3)"   == +2,
-    #             "[+3,+4)"   == +3,
-    #             "[+4,+5)"   == +4,
-    #             "[+5,+6)"   == +5,
-    #             "[+6,Inf)"  == +6)
-    labels <- c(">=60",
-                "50 .. 60-",
-                "45 .. 50-",
-                "40 .. 45-",
-                "35 .. 40-",
-                "40+",  # -2 a 2 excluyendo los extremos 
-                "35 .. 40-",
-                "40 .. 45-",
-                "45 .. 50-",
-                "50 .. 60-",
-                ">= 60")
-    legend_labels <- c("<b>Below Normal</b>", head(labels, 5),
-                       "<b>Near Normal</b>", tail(head(labels, 6), 1),
-                       "<b>Above Normal</b>", tail(labels, 5))
-    if (variable == 'prcp') {
-      paleta <- c(rev(RColorBrewer::brewer.pal(5, 'YlOrBr')),
-                  'lightgray',
-                  tail(RColorBrewer::brewer.pal(6, 'BuGn'), 5))
-    } else if (variable == 't2m') {
-      paleta <- c(rev(tail(RColorBrewer::brewer.pal(6, 'GnBu'), 5)),
-                  'lightgray',
-                  RColorBrewer::brewer.pal(5, 'YlOrRd'))
-    }
-    legend_paleta <- c("white", head(paleta, 5),
-                       "white", tail(head(paleta, 6), 1),
-                       "white", tail(paleta, 5))
-    # groups <- c("(-Inf,-6]" == -6,
-    #             "(-6,-5]"   == -5,
-    #             "(-5,-4]"   == -4,
-    #             "(-4,-3]"   == -3,
-    #             "(-3,-2]"   == -2,
-    #             "(-2,+2)"   == 0,
-    #             "[+2,+3)"   == +2,
-    #             "[+3,+4)"   == +3,
-    #             "[+4,+5)"   == +4,
-    #             "[+5,+6)"   == +5,
-    #             "[+6,Inf)"  == +6)
-    grouped.idw.msk.dfr <- idw.msk.dfr %>%
-      dplyr::mutate(
-        grupo = dplyr::case_when(
-          var <= -2 ~ ceiling(var), 
-          var >= 2 ~ floor(var),
-          TRUE ~ 0))
-    grouped.idw.msk <- raster::rasterFromXYZ(
-      xyz = grouped.idw.msk.dfr %>% dplyr::select(x, y, grupo)) %>%
-      raster::crop(crcsas_sp) %>% raster::mask(crcsas_sp) 
-    raster::crs(idw.msk) <- "EPSG:4326"
   } else if (data_type == "value.fcst") {  
     if (variable == 'prcp') {
       breaks <- c(0,25,50,100,150,200,250,300,400,500,600,700)
@@ -881,6 +712,8 @@ generar_graficos_continuos <- function(data_type, idw.msk.dfr,
       paleta <- viridis::plasma(14)
     }
     grouped.idw.msk <- idw.msk
+  } else {
+    return (NULL)
   }
   
   # Generacion de HTML con logo
@@ -1023,57 +856,6 @@ generar_graficos_continuos <- function(data_type, idw.msk.dfr,
       paleta <- viridis::plasma(14)
     }
     labels <- breaks
-  } else if (data_type == "codigo_de_color") {  # PROB_PREC
-    breaks <- c(-6,-5,-4,-3,-2,0,2,3,4,5,6)
-    # groups <- c("(-Inf,-6]" == -6,
-    #             "(-6,-5]"   == -5,
-    #             "(-5,-4]"   == -4,
-    #             "(-4,-3]"   == -3,
-    #             "(-3,-2]"   == -2,
-    #             "(-2,+2)"   == 0,
-    #             "[+2,+3)"   == +2,
-    #             "[+3,+4)"   == +3,
-    #             "[+4,+5)"   == +4,
-    #             "[+5,+6)"   == +5,
-    #             "[+6,Inf)"  == +6)
-    labels <- c(">=60",
-                "50 .. 60-",
-                "45 .. 50-",
-                "40 .. 45-",
-                "35 .. 40-",
-                "40+",  # -2 a 2 excluyendo los extremos 
-                "35 .. 40-",
-                "40 .. 45-",
-                "45 .. 50-",
-                "50 .. 60-",
-                ">= 60")
-    legend_labels <- c("Below Normal", head(labels, 5),
-                       "Near Normal", tail(head(labels, 6), 1),
-                       "Above Normal", tail(labels, 5))
-    if (variable == 'prcp') {
-      paleta <- c(rev(RColorBrewer::brewer.pal(5, 'YlOrBr')),
-                  'lightgray',
-                  tail(RColorBrewer::brewer.pal(6, 'BuGn'), 5))
-    } else if (variable == 't2m') {
-      paleta <- c(rev(tail(RColorBrewer::brewer.pal(6, 'GnBu'), 5)),
-                  'lightgray',
-                  RColorBrewer::brewer.pal(5, 'YlOrRd'))
-    }
-    legend_paleta <- c("white", head(paleta, 5),
-                       "white", tail(head(paleta, 6), 1),
-                       "white", tail(paleta, 5))
-    # groups <- c("(-Inf,-6]" == -6,
-    #             "(-6,-5]"   == -5,
-    #             "(-5,-4]"   == -4,
-    #             "(-4,-3]"   == -3,
-    #             "(-3,-2]"   == -2,
-    #             "(-2,+2)"   == 0,
-    #             "[+2,+3)"   == +2,
-    #             "[+3,+4)"   == +3,
-    #             "[+4,+5)"   == +4,
-    #             "[+5,+6)"   == +5,
-    #             "[+6,Inf)"  == +6)
-    grouped.idw.msk.dfr <- idw.msk.dfr
   } else if (data_type == "value.fcst") {  
     if (variable == 'prcp') {
       breaks <- c(0,25,50,100,150,200,250,300,400,500,600,700)
@@ -1088,6 +870,8 @@ generar_graficos_continuos <- function(data_type, idw.msk.dfr,
       paleta <- viridis::plasma(14)
     }
     labels <- breaks
+  } else {
+    return (NULL)
   }
   
   bbox <- list(
@@ -1178,6 +962,8 @@ generar_graficos_continuos <- function(data_type, idw.msk.dfr,
 # Graficar datos (probabilidades separadas - escala discreta - op 1)  #####
 generar_graficos_prob_sep_discretos_op_1 <- function() {
   
+  # Se agrega el PATH al nombre del archivo, pero aún no se define la 
+  # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "discrete_scales/", fig_file_name)
   
   ##############################################################################
@@ -1480,6 +1266,8 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
 # Graficar datos (probabilidades separadas - escala continua - op 1)  #####
 generar_graficos_prob_sep_continuos_op_1 <- function() {
   
+  # Se agrega el PATH al nombre del archivo, pero aún no se define la 
+  # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "continuous_scales/", fig_file_name)
   
   ##############################################################################
@@ -1762,6 +1550,8 @@ generar_graficos_prob_sep_continuos_op_1 <- function() {
 # Graficar datos (probabilidades separadas - escala discreta - op 2)  #####
 generar_graficos_prob_sep_discretos_op_2 <- function() {
   
+  # Se agrega el PATH al nombre del archivo, pero aún no se define la 
+  # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "discrete_scales/", fig_file_name)
   
   ##############################################################################
@@ -1988,6 +1778,8 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
 # Graficar datos (probabilidades separadas - escala continua - op 2)  #####
 generar_graficos_prob_sep_continuos_op_2 <- function() {
   
+  # Se agrega el PATH al nombre del archivo, pero aún no se define la 
+  # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "continuous_scales/", fig_file_name)
   
   ##############################################################################
