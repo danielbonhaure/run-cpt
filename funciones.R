@@ -157,11 +157,7 @@ asignar_grupos_simetricos <- function(dfr, breaks, n_head, n_tail, groups,
 
 ################################################################################
 # Graficar datos (graficos de Fabricio) ####
-generar_graficos_fabricio <- function(data_type, idw.msk.dfr, 
-                                      variable,
-                                      paises_sp, 
-                                      fig_file_name, 
-                                      config) {
+generar_graficos_fabricio <- function() {
   
   # Se agrega el PATH al nombre del archivo, pero aún no se define la 
   # extensión, es decir, aún no se define el tipo de archivo.
@@ -285,11 +281,7 @@ generar_graficos_fabricio <- function(data_type, idw.msk.dfr,
 
 ################################################################################
 # Graficar datos (escalas discretas)  #####
-generar_graficos_discretos <- function(data_type, idw.msk.dfr, 
-                                       variable, variable_fcst, variable_str,
-                                       crcsas_sf, crcsas_sp, 
-                                       main_title, fig_file_name,
-                                       config) {
+generar_graficos_discretos <- function() {
   
   # Se agrega el PATH al nombre del archivo, pero aún no se define la 
   # extensión, es decir, aún no se define el tipo de archivo.
@@ -652,11 +644,7 @@ generar_graficos_discretos <- function(data_type, idw.msk.dfr,
 
 ################################################################################
 # Graficar datos (escalas continuas)  #####
-generar_graficos_continuos <- function(data_type, idw.msk.dfr, 
-                                       variable, variable_fcst, variable_str,
-                                       crcsas_sf, crcsas_sp, 
-                                       main_title, fig_file_name,
-                                       config) {
+generar_graficos_continuos <- function() {
   
   # Se agrega el PATH al nombre del archivo, pero aún no se define la 
   # extensión, es decir, aún no se define el tipo de archivo.
@@ -1269,6 +1257,14 @@ generar_graficos_prob_sep_continuos_op_1 <- function() {
   # Se agrega el PATH al nombre del archivo, pero aún no se define la 
   # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "continuous_scales/", fig_file_name)
+  
+  ##############################################################################
+  ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
+  
+  # Con leaflet no se pueden graficar varios raster a la vez. Al intentar
+  # hacerlo se muestra únicamente el último raster agregado!!
+  
+  ##############################################################################
   
   ##############################################################################
   ## GRAFICOS CON GGPLOT GGPLOT ####

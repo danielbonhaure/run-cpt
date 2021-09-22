@@ -695,29 +695,17 @@ for (fp in config$files) {
       
       ##########################################################################
       # Graficar datos (graficos de Fabricio)  #############
-      generar_graficos_fabricio(data_type, idw.msk.dfr, 
-                                variable,
-                                paises_sp, 
-                                fig_file_name, 
-                                config)
+      generar_graficos_fabricio()
       ##########################################################################
       
       ##########################################################################
       # Graficar datos (escalas discretas)  #############
-      generar_graficos_discretos(data_type, idw.msk.dfr, 
-                                 variable, variable_fcst, variable_str,
-                                 crcsas_sf, crcsas_sp, 
-                                 main_title, fig_file_name,
-                                 config)
+      generar_graficos_discretos()
       ##########################################################################
       
       ##########################################################################
       # Graficar datos (escalas continuas)  #############
-      generar_graficos_continuos(data_type, idw.msk.dfr,
-                                 variable, variable_fcst, variable_str,
-                                 crcsas_sf, crcsas_sp,
-                                 main_title, fig_file_name,
-                                 config)
+      generar_graficos_continuos()
       ##########################################################################
       
     }
@@ -899,7 +887,6 @@ for (fp in config$files) {
     
     ##########################################################################
     # Definir paleta de colores de la NOAA  #############
-    
     # Ver: https://www.weather.gov/news/211409-temperature-precipitation-maps
     noaa_escala_azules <- 
       c("#bdc9e3", "#98c1df", "#81b5e3", "#2c9dd5", "#075f9d", "#2d2a6e", "#1d2350")
