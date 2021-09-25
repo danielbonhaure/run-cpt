@@ -154,6 +154,20 @@ asignar_grupos_simetricos <- function(dfr, breaks, n_head, n_tail, groups,
 }
 ################################################################################
 
+################################################################################
+## AGeneracion de HTML con logo ##################
+GenerarHTMLLogo <- function(logo.file) {
+  logo.ascii <- base::readBin(con = logo.file,
+                              what = "raw",
+                              n = base::file.info(logo.file)[1, "size"])
+  logo.b64   <- RCurl::base64Encode(txt = logo.ascii,
+                                    mode = "character")
+  html       <- paste0("<img src='data:image/png;base64,", logo.b64,
+                       "' border=\"0\" alt=\"CRC-SAS\"/>")
+  return (html)
+}
+################################################################################
+
 
 ################################################################################
 # Graficar datos (graficos de Fabricio) ####
@@ -286,13 +300,14 @@ generar_graficos_discretos <- function() {
   # Se agrega el PATH al nombre del archivo, pero aún no se define la 
   # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "discrete_scales/", fig_file_name)
-    
-  ##############################################################################
-  ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
   
+  # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
     left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
     right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+    
+  ##############################################################################
+  ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
   
   if (data_type == "anom") {
     if (variable == 'prcp') {
@@ -395,18 +410,6 @@ generar_graficos_discretos <- function() {
     raster::crs(grouped.idw.msk) <- "EPSG:4326"
   } else {
     return (NULL)
-  }
-  
-  # Generacion de HTML con logo
-  GenerarHTMLLogo <- function(logo.file) {
-    logo.ascii <- base::readBin(con = logo.file,
-                                what = "raw",
-                                n = base::file.info(logo.file)[1, "size"])
-    logo.b64   <- RCurl::base64Encode(txt = logo.ascii,
-                                      mode = "character")
-    html       <- paste0("<img src='data:image/png;base64,", logo.b64, 
-                         "' border=\"0\" alt=\"CRC-SAS\"/>")
-    return (html)
   }
   
   tag.map.title <- htmltools::tags$style(htmltools::HTML("
@@ -561,10 +564,6 @@ generar_graficos_discretos <- function() {
     return (NULL)
   }
   
-  bbox <- list(
-    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
-    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
-  
   main_title_split <- unlist(stringr::str_split(main_title, '\n'))
   sub_title <- paste0(paste(tail(main_title_split, -1), collapse = ''))
   world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
@@ -650,12 +649,13 @@ generar_graficos_continuos <- function() {
   # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "continuous_scales/", fig_file_name)
   
-  ##############################################################################
-  ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
-  
+  # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
     left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
     right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+  
+  ##############################################################################
+  ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
   
   if (data_type == "anom") {
     if (variable == 'prcp') {
@@ -702,18 +702,6 @@ generar_graficos_continuos <- function() {
     grouped.idw.msk <- idw.msk
   } else {
     return (NULL)
-  }
-  
-  # Generacion de HTML con logo
-  GenerarHTMLLogo <- function(logo.file) {
-    logo.ascii <- base::readBin(con = logo.file,
-                                what = "raw",
-                                n = base::file.info(logo.file)[1, "size"])
-    logo.b64   <- RCurl::base64Encode(txt = logo.ascii,
-                                      mode = "character")
-    html       <- paste0("<img src='data:image/png;base64,", logo.b64, 
-                         "' border=\"0\" alt=\"CRC-SAS\"/>")
-    return (html)
   }
   
   tag.map.title <- htmltools::tags$style(htmltools::HTML("
@@ -862,10 +850,6 @@ generar_graficos_continuos <- function() {
     return (NULL)
   }
   
-  bbox <- list(
-    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
-    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
-  
   main_title_split <- unlist(stringr::str_split(main_title, '\n'))
   sub_title <- paste0(paste(tail(main_title_split, -1), collapse = ''))
   world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
@@ -954,12 +938,13 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
   # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "discrete_scales/", fig_file_name)
   
-  ##############################################################################
-  ## GRAFICOS CON GGPLOT GGPLOT ####
-  
+  # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
     left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
     right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+  
+  ##############################################################################
+  ## GRAFICOS CON GGPLOT GGPLOT ####
   
   main_title_split <- unlist(stringr::str_split(main_title, '\n'))
   sub_title <- paste0(paste(tail(main_title_split, -1), collapse = ''))
@@ -1258,6 +1243,11 @@ generar_graficos_prob_sep_continuos_op_1 <- function() {
   # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "continuous_scales/", fig_file_name)
   
+  # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
+  bbox <- list(
+    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
+    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+  
   ##############################################################################
   ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
   
@@ -1268,10 +1258,6 @@ generar_graficos_prob_sep_continuos_op_1 <- function() {
   
   ##############################################################################
   ## GRAFICOS CON GGPLOT GGPLOT ####
-  
-  bbox <- list(
-    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
-    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
   
   main_title_split <- unlist(stringr::str_split(main_title, '\n'))
   sub_title <- paste0(paste(tail(main_title_split, -1), collapse = ''))
@@ -1550,12 +1536,13 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
   # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "discrete_scales/", fig_file_name)
   
-  ##############################################################################
-  ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
-  
+  # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
     left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
     right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+  
+  ##############################################################################
+  ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
   
   # Se definen y asignan los grupos para las probabilidades menor a la media
   breaks.menor.media <- 
@@ -1615,7 +1602,7 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
     dplyr::bind_rows(grouped.mayor.media)
   
   
-  # Se
+  # Se ...
   grouped.idw.msk.dfr <- idw.pr.dfr %>%
     dplyr::left_join(grouped.all, by = c("lon", "lat"))
   
@@ -1641,18 +1628,6 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
     raster::crop(crcsas_sp) %>%
     raster::mask(crcsas_sp)
   raster::crs(idw.pr.raster.obs) <- "EPSG:4326"
-  
-  # Generacion de HTML con logo
-  GenerarHTMLLogo <- function(logo.file) {
-    logo.ascii <- base::readBin(con = logo.file,
-                                what = "raw",
-                                n = base::file.info(logo.file)[1, "size"])
-    logo.b64   <- RCurl::base64Encode(txt = logo.ascii,
-                                      mode = "character")
-    html       <- paste0("<img src='data:image/png;base64,", logo.b64,
-                         "' border=\"0\" alt=\"CRC-SAS\"/>")
-    return (html)
-  }
   
   tag.map.title <- htmltools::tags$style(htmltools::HTML("
       .leaflet-control.map-title {
@@ -1778,12 +1753,13 @@ generar_graficos_prob_sep_continuos_op_2 <- function() {
   # extensión, es decir, aún no se define el tipo de archivo.
   fig_file_name <- paste0(config$folders$plots, "continuous_scales/", fig_file_name)
   
-  ##############################################################################
-  ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
-  
+  # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
     left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
     right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+  
+  ##############################################################################
+  ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
   
   idw.pr.raster <-
     raster::rasterFromXYZ(
@@ -1801,18 +1777,6 @@ generar_graficos_prob_sep_continuos_op_2 <- function() {
     raster::crop(crcsas_sp) %>%
     raster::mask(crcsas_sp)
   raster::crs(idw.pr.raster.obs) <- "EPSG:4326"
-
-  # Generacion de HTML con logo
-  GenerarHTMLLogo <- function(logo.file) {
-    logo.ascii <- base::readBin(con = logo.file,
-                                what = "raw",
-                                n = base::file.info(logo.file)[1, "size"])
-    logo.b64   <- RCurl::base64Encode(txt = logo.ascii,
-                                      mode = "character")
-    html       <- paste0("<img src='data:image/png;base64,", logo.b64,
-                         "' border=\"0\" alt=\"CRC-SAS\"/>")
-    return (html)
-  }
 
   tag.map.title <- htmltools::tags$style(htmltools::HTML("
       .leaflet-control.map-title {
@@ -1943,10 +1907,6 @@ generar_graficos_prob_sep_continuos_op_2 <- function() {
   # LA ÚNICA DIFERENCIA CON LA OPCIÓN 1 ES QUE ESTA OPCIÓN 
   # USA UN SOLO ggplot2::geom_raster
   
-  # bbox <- list(
-  #   left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
-  #   right = config$spatial_domain$elo, top = config$spatial_domain$nla)
-  # 
   # main_title_split <- unlist(stringr::str_split(main_title, '\n'))
   # sub_title <- paste0(paste(tail(main_title_split, -1), collapse = ''))
   # world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
