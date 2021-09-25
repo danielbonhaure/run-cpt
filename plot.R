@@ -901,9 +901,7 @@ for (fp in config$files) {
     ##########################################################################
     # Graficar datos (graficos de probabilidades separadas)  #############
     generar_graficos_prob_sep_discretos_op_1()
-    generar_graficos_prob_sep_continuos_op_1()
     generar_graficos_prob_sep_discretos_op_2()
-    generar_graficos_prob_sep_continuos_op_2()
     ##########################################################################
     
   }
