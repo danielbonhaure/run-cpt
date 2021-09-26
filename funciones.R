@@ -1353,6 +1353,9 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
         font-weight: bold;
         font-size: 14px;
       }
+      .same-width {
+        width: 125px;
+      }
     "))
   title <- htmltools::tags$div(
     tag.map.title,
@@ -1426,17 +1429,20 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
       title = "Above Normal (%)",
       colors = if (variable == "prcp") noaa_escala_rojos else noaa_escala_azules,
       labels = labels,
-      position = "bottomright") %>%
+      position = "bottomright",
+      className = "info legend same-width") %>%
     leaflet::addLegend(
       title = "Near Normal (%)",
       colors = tail(RColorBrewer::brewer.pal(9, 'Greys'), 7),
       labels = labels,
-      position = "bottomright") %>%
+      position = "bottomright",
+      className = "info legend same-width") %>%
     leaflet::addLegend(
       title = "Below Normal (%)",
       colors = if (variable == "prcp") noaa_escala_azules else noaa_escala_rojos,
       labels = labels,
-      position = "bottomright") %>%
+      position = "bottomright",
+      className = "info legend same-width") %>%
     leaflet::addControl(
       html = GenerarHTMLLogo(
         paste0(config$folders$images, "logo-crcsas.png")),
