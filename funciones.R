@@ -46,21 +46,21 @@ generar_etiquetas_grupos <- function(grupos, formato.numero = "%.2f") {
       if (is.finite(desde) && is.finite(hasta)) {
         if (desde < hasta) {
           if (g_i == "(" && g_f == ")")
-            return (sprintf(paste0(formato.numero, "+ .. ", formato.numero, "(-)"), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
           if (g_i == "[" && g_f == ")")
-            return (sprintf(paste0(formato.numero, " .. ", formato.numero, "(-)"), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
           if (g_i == "(" && g_f == "]")
-            return (sprintf(paste0(formato.numero, "+ .. ", formato.numero), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
           if (g_i == "[" && g_f == "]")
             return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
         }
         if (desde > hasta) {
           if (g_i == "(" && g_f == ")")
-            return (sprintf(paste0(formato.numero, "- .. ", formato.numero, "(+)"), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
           if (g_i == "[" && g_f == ")")
-            return (sprintf(paste0(formato.numero, " .. ", formato.numero, "(+)"), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
           if (g_i == "(" && g_f == "]")
-            return (sprintf(paste0(formato.numero, "- .. ", formato.numero), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
           if (g_i == "[" && g_f == "]")
             return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
         }
@@ -318,6 +318,11 @@ generar_graficos_discretos <- function() {
       legend_labels <- labels
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 7, 7, groups) 
+      colores <- grDevices::colorRampPalette(
+        RColorBrewer::brewer.pal(9, 'BrBG'))(13)
+      brown_plt <- head(colores, 6)
+      green_plt <- tail(colores, 6)
+      paleta <- c(brown_plt, "#e5e8e8", green_plt)
     } else if (variable == 't2m') {
       breaks <- c(-Inf,-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4,Inf)
       groups <- definir_grupos_simetricos(breaks, 7, 7)
@@ -326,10 +331,10 @@ generar_graficos_discretos <- function() {
       legend_labels <- labels
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 7, 7, groups) 
+      blue_plt <- head(rev(RColorBrewer::brewer.pal(8, 'Blues')), 6)
+      red_plt <- tail(RColorBrewer::brewer.pal(8, 'Reds'), 6)
+      paleta <- c(blue_plt, "#e5e8e8", red_plt)
     }
-    paleta <- grDevices::colorRampPalette(
-      colors = RColorBrewer::brewer.pal(11, 'RdBu'))( 13 )
-    paleta <- if (variable == 't2m') rev(paleta) else paleta
     legend_paleta <- paleta
     grouped.idw.msk <- raster::rasterFromXYZ(
       xyz = grouped.idw.msk.dfr %>% dplyr::select(x, y, indice_grupo)) %>%
@@ -346,7 +351,7 @@ generar_graficos_discretos <- function() {
     red_plt  <- head(rev(RColorBrewer::brewer.pal(3, 'Reds')), 2)
     blue_plt  <- tail(grDevices::colorRampPalette(
       colors = RColorBrewer::brewer.pal(9, 'Blues'))( 11 ), 9)
-    paleta <- c(red_plt, "#ffffff", blue_plt) 
+    paleta <- c(red_plt, "#f1f1f1", blue_plt) 
     legend_paleta <- paleta
     grouped.idw.msk <- raster::rasterFromXYZ(
       xyz = grouped.idw.msk.dfr %>% dplyr::select(x, y, indice_grupo)) %>%
@@ -368,10 +373,7 @@ generar_graficos_discretos <- function() {
       domain <- c(1:length(groups))
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 4, 12, groups) 
-      # paleta <- grDevices::colorRampPalette(
-      #   colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 16 )
-      # paleta <- tail(viridis::turbo(22), 16)
-      paleta <- viridis::plasma(15)
+      paleta <- viridis::turbo(15)
       legend_paleta <- paleta
     }
     labels <- generar_etiquetas_grupos(groups, "%d")
@@ -396,10 +398,7 @@ generar_graficos_discretos <- function() {
       domain <- c(1:length(groups))
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 4, 12, groups) 
-      # paleta <- grDevices::colorRampPalette(
-      #   colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 16 )
-      # paleta <- tail(viridis::turbo(22), 16)
-      paleta <- viridis::plasma(15)
+      paleta <- viridis::turbo(15)
       legend_paleta <- paleta
     }
     labels <- generar_etiquetas_grupos(groups, "%d")
@@ -503,15 +502,20 @@ generar_graficos_discretos <- function() {
       groups <- definir_grupos_simetricos(breaks, 7, 7)
       labels <- generar_etiquetas_grupos(groups, "%d")
       grouped.idw.msk.dfr <- asignar_grupos_simetricos(idw.msk.dfr, breaks, 7, 7, groups)
+      colores <- grDevices::colorRampPalette(
+        RColorBrewer::brewer.pal(9, 'BrBG'))(13)
+      brown_plt <- head(colores, 6)
+      green_plt <- tail(colores, 6)
+      paleta <- c(brown_plt, "#e5e8e8", green_plt)
     } else if (variable == 't2m') {
       breaks <- c(-Inf,-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4,Inf)
       groups <- definir_grupos_simetricos(breaks, 7, 7)
       labels <- generar_etiquetas_grupos(groups, "%.1f")
       grouped.idw.msk.dfr <- asignar_grupos_simetricos(idw.msk.dfr, breaks, 7, 7, groups)
+      blue_plt <- head(rev(RColorBrewer::brewer.pal(8, 'Blues')), 6)
+      red_plt <- tail(RColorBrewer::brewer.pal(8, 'Reds'), 6)
+      paleta <- c(blue_plt, "#e5e8e8", red_plt)
     }
-    paleta <- grDevices::colorRampPalette(
-      colors = RColorBrewer::brewer.pal(11, 'RdBu'))( 13 )
-    paleta <- if (variable == 't2m') rev(paleta) else paleta
   } else if (data_type == "corr") {
     breaks <- c(-1,-0.5,-0.1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
     groups <- definir_grupos_simetricos(breaks, 3, 10, include.lowest = T)
@@ -521,7 +525,7 @@ generar_graficos_discretos <- function() {
     red_plt  <- head(rev(RColorBrewer::brewer.pal(3, 'Reds')), 2)
     blue_plt  <- tail(grDevices::colorRampPalette(
       colors = RColorBrewer::brewer.pal(9, 'Blues'))( 11 ), 9)
-    paleta <- c(red_plt, "#ffffff", blue_plt) 
+    paleta <- c(red_plt, "#f1f1f1", blue_plt) 
   } else if (data_type == "value.gen") {  # PREV_PREC
     if (variable == 'prcp') {
       breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
@@ -535,10 +539,7 @@ generar_graficos_discretos <- function() {
       groups <- definir_grupos_simetricos(breaks, 4, 12)
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 4, 12, groups) 
-      # paleta <- grDevices::colorRampPalette(
-      #   colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 16 )
-      # paleta <- tail(viridis::turbo(22), 16)
-      paleta <- viridis::plasma(15)
+      paleta <- viridis::turbo(15)
     }
     labels <- generar_etiquetas_grupos(groups, "%d")
   } else if (data_type == "value.fcst") {  
@@ -554,10 +555,7 @@ generar_graficos_discretos <- function() {
       groups <- definir_grupos_simetricos(breaks, 4, 12)
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 4, 12, groups) 
-      # paleta <- grDevices::colorRampPalette(
-      #   colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 16 )
-      # paleta <- tail(viridis::turbo(22), 16)
-      paleta <- viridis::plasma(15)
+      paleta <- viridis::turbo(15)
     }
     labels <- generar_etiquetas_grupos(groups, "%d")
   } else {
@@ -596,8 +594,8 @@ generar_graficos_discretos <- function() {
       fill = "white",
       alpha = 0.05) +
     ggplot2::coord_sf(
-      xlim = c(bbox$left-2, bbox$right),
-      ylim = c(bbox$bottom, bbox$top+3),
+      xlim = c(bbox$left+1, bbox$right-1),
+      ylim = c(bbox$bottom+3, bbox$top+1),
       expand = FALSE) +
     ggplot2::labs(fill = "") +
     ggplot2::xlab("") +
@@ -660,8 +658,16 @@ generar_graficos_continuos <- function() {
   if (data_type == "anom") {
     if (variable == 'prcp') {
       breaks <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
+      colores <- grDevices::colorRampPalette(
+        RColorBrewer::brewer.pal(9, 'BrBG'))(11)
+      brown_plt <- head(colores, 5)
+      green_plt <- tail(colores, 5)
+      paleta <- c(brown_plt, "#e5e8e8", green_plt)
     } else if (variable == 't2m') {
       breaks <- c(-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4)
+      blue_plt <- head(rev(RColorBrewer::brewer.pal(7, 'Blues')), 5)
+      red_plt <- tail(RColorBrewer::brewer.pal(7, 'Reds'), 5)
+      paleta <- c(blue_plt, "#e5e8e8", red_plt)
     }
     grouped.idw.msk <- idw.msk
     # Los gráficos de anomalía salen muy claros!! es porque los valores
@@ -672,23 +678,20 @@ generar_graficos_continuos <- function() {
       abs(min(raster::values(grouped.idw.msk), na.rm = T)), 
       abs(max(raster::values(grouped.idw.msk), na.rm = T))))
     breaks <- breaks[breaks <= max_value & breaks >= -max_value]
-    #
-    paleta <- RColorBrewer::brewer.pal(7, 'RdBu')
-    paleta <- if (variable == 't2m') rev(paleta) else paleta
   } else if (data_type == "corr") {
     breaks <- c(-1,-0.5,-0.1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
     grouped.idw.msk <- idw.msk
     red_plt  <- head(rev(RColorBrewer::brewer.pal(3, 'Reds')), 2)
     blue_plt  <- tail(grDevices::colorRampPalette(
       colors = RColorBrewer::brewer.pal(9, 'Blues'))( 11 ), 9)
-    paleta <- c(red_plt, "#ffffff", blue_plt) 
+    paleta <- c(red_plt, "#f1f1f1", blue_plt) 
   } else if (data_type == "value.gen") {  # PREV_PREC
     if (variable == 'prcp') {
       breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,700)
       paleta <- RColorBrewer::brewer.pal(9, 'Blues')
     } else if (variable == 't2m') {
       breaks <- c(-9,-6,-3,3,6,9,12,15,18,21,24,27,30,33)
-      paleta <- viridis::plasma(14)
+      paleta <- viridis::turbo(14)
     }
     grouped.idw.msk <- idw.msk
   } else if (data_type == "value.fcst") {  
@@ -697,7 +700,7 @@ generar_graficos_continuos <- function() {
       paleta <- RColorBrewer::brewer.pal(9, 'Blues')
     } else if (variable == 't2m') {
       breaks <- c(-9,-6,-3,3,6,9,12,15,18,21,24,27,30,33)
-      paleta <- viridis::plasma(14)
+      paleta <- viridis::turbo(14)
     }
     grouped.idw.msk <- idw.msk
   } else {
@@ -796,9 +799,17 @@ generar_graficos_continuos <- function() {
     if (variable == 'prcp') {
       breaks <- c(-200,-100,-50,-20,-10,-5,5,10,20,50,100,200)
       grouped.idw.msk.dfr <- idw.msk.dfr
+      colores <- grDevices::colorRampPalette(
+        RColorBrewer::brewer.pal(9, 'BrBG'))(11)
+      brown_plt <- head(colores, 5)
+      green_plt <- tail(colores, 5)
+      paleta <- c(brown_plt, "#e5e8e8", green_plt)
     } else if (variable == 't2m') {
       breaks <- c(-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4)
       grouped.idw.msk.dfr <- idw.msk.dfr
+      blue_plt <- head(rev(RColorBrewer::brewer.pal(7, 'Blues')), 5)
+      red_plt <- tail(RColorBrewer::brewer.pal(7, 'Reds'), 5)
+      paleta <- c(blue_plt, "#e5e8e8", red_plt)
     }
     # Los gráficos de anomalía salen muy claros!! es porque los valores
     # graficados son muy pequeños con respecto a los extremos del vector
@@ -809,9 +820,6 @@ generar_graficos_continuos <- function() {
       abs(max(grouped.idw.msk.dfr$var, na.rm = T))
     ))
     breaks <- breaks[breaks <= max_value & breaks >= -max_value]
-    #
-    paleta <- RColorBrewer::brewer.pal(11, 'RdBu')
-    paleta <- if (variable == 't2m') rev(paleta) else paleta
     labels <- breaks
   } else if (data_type == "corr") {
     breaks <- c(-1,-0.5,-0.1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
@@ -819,7 +827,7 @@ generar_graficos_continuos <- function() {
     red_plt  <- head(rev(RColorBrewer::brewer.pal(3, 'Reds')), 2)
     blue_plt  <- tail(grDevices::colorRampPalette(
       colors = RColorBrewer::brewer.pal(9, 'Blues'))( 11 ), 9)
-    paleta <- c(red_plt, "#ffffff", blue_plt) 
+    paleta <- c(red_plt, "#f1f1f1", blue_plt) 
     labels <- breaks
   } else if (data_type == "value.gen") {  # PREV_PREC
     if (variable == 'prcp') {
@@ -829,7 +837,7 @@ generar_graficos_continuos <- function() {
     } else if (variable == 't2m') {
       breaks <- c(-9,-6,-3,0,3,6,9,12,15,18,21,24,27,30,33)
       grouped.idw.msk.dfr <- idw.msk.dfr
-      paleta <- viridis::plasma(14)
+      paleta <- viridis::turbo(14)
     }
     labels <- breaks
   } else if (data_type == "value.fcst") {  
@@ -840,10 +848,7 @@ generar_graficos_continuos <- function() {
     } else if (variable == 't2m') {
       breaks <- c(-9,-6,-3,0,3,6,9,12,15,18,21,24,27,30,33)
       grouped.idw.msk.dfr <- idw.msk.dfr
-      # paleta <- grDevices::colorRampPalette(
-      #   colors = RColorBrewer::brewer.pal(9, 'Oranges'))( 16 )
-      # paleta <- tail(viridis::turbo(22), 16)
-      paleta <- viridis::plasma(14)
+      paleta <- viridis::turbo(14)
     }
     labels <- breaks
   } else {
@@ -885,8 +890,8 @@ generar_graficos_continuos <- function() {
       fill = "white",
       alpha = 0.05) +
     ggplot2::coord_sf(
-      xlim = c(bbox$left-2, bbox$right),
-      ylim = c(bbox$bottom, bbox$top+3),
+      xlim = c(bbox$left+1, bbox$right-1),
+      ylim = c(bbox$bottom+3, bbox$top+1),
       expand = FALSE) +
     ggplot2::labs(fill = "") +
     ggplot2::xlab("") +
@@ -990,22 +995,22 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
       aesthetics = "fill",
       values = c(
         if (variable == "prcp") noaa_escala_rojos else noaa_escala_azules,
-        tail(RColorBrewer::brewer.pal(8, 'Greys'), 7),
+        tail(RColorBrewer::brewer.pal(9, 'Greys'), 7),
         if (variable == "prcp") noaa_escala_azules else noaa_escala_rojos),
       drop = FALSE) +
     # ggplot2::scale_fill_gradientn(
     #   colours = c(
-    #     tail(RColorBrewer::brewer.pal(8, if (variable == "prcp") 'YlOrBr' else 'GnBu'), 7),
-    #     tail(RColorBrewer::brewer.pal(8, 'Greys'), 7),
-    #     tail(RColorBrewer::brewer.pal(8, if (variable == "prcp") 'BuGn' else 'YlOrBr'), 7)),
+    #     if (variable == "prcp") noaa_escala_rojos else noaa_escala_azules,
+    #     tail(RColorBrewer::brewer.pal(9, 'Greys'), 7),
+    #     if (variable == "prcp") noaa_escala_azules else noaa_escala_rojos),
     #   drop = FALSE) + 
     ggplot2::geom_sf(
       data = world,
       fill = "white",
       alpha = 0.05) +
     ggplot2::coord_sf(
-      xlim = c(bbox$left-2, bbox$right),
-      ylim = c(bbox$bottom, bbox$top+3),
+      xlim = c(bbox$left+1, bbox$right-1),
+      ylim = c(bbox$bottom+3, bbox$top+1),
       expand = FALSE) +
     ggplot2::labs(fill = "") +
     ggplot2::xlab("") +
@@ -1073,8 +1078,8 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
       fill = "white",
       alpha = 0.05) +
     ggplot2::coord_sf(
-      xlim = c(bbox$left-2, bbox$right),
-      ylim = c(bbox$bottom, bbox$top+3),
+      xlim = c(bbox$left+1, bbox$right-1),
+      ylim = c(bbox$bottom+3, bbox$top+1),
       expand = FALSE) +
     ggplot2::labs(fill = "Below Normal") +
     ggplot2::xlab("") +
@@ -1111,7 +1116,7 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
     ggplot2::scale_discrete_manual(
       aesthetics = "fill",
       breaks = c(1:length(groups)),
-      values = tail(RColorBrewer::brewer.pal(8, 'Greys'), 7),
+      values = tail(RColorBrewer::brewer.pal(9, 'Greys'), 7),
       labels = labels,
       drop = FALSE) +
     ggplot2::geom_sf(
@@ -1119,8 +1124,8 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
       fill = "white",
       alpha = 0.05) +
     ggplot2::coord_sf(
-      xlim = c(bbox$left-2, bbox$right),
-      ylim = c(bbox$bottom, bbox$top+3),
+      xlim = c(bbox$left+1, bbox$right-1),
+      ylim = c(bbox$bottom+3, bbox$top+1),
       expand = FALSE) +
     ggplot2::labs(fill = "Near Normal") +
     ggplot2::xlab("") +
@@ -1165,8 +1170,8 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
       fill = "white",
       alpha = 0.05) +
     ggplot2::coord_sf(
-      xlim = c(bbox$left-2, bbox$right),
-      ylim = c(bbox$bottom, bbox$top+3),
+      xlim = c(bbox$left+1, bbox$right-1),
+      ylim = c(bbox$bottom+3, bbox$top+1),
       expand = FALSE) +
     ggplot2::labs(fill = "Above Normal") +
     ggplot2::xlab("") +
@@ -1205,24 +1210,24 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
   legend_g3 <- g_legend(g3)
   
   
-  grDevices::png(filename = paste0(fig_file_name, '.png'), width = 27, 
+  grDevices::png(filename = paste0(fig_file_name, '.png'), width = 25, 
                  height = 30, units = "cm", res = 600)
   #
   grid::grid.newpage()
-  vp <- grid::viewport(width = 0.75, height = 1, x = 0.375, y = .5)
+  vp <- grid::viewport(width = 1, height = 1, x = 0.42, y = .5)
   print(g0, vp = vp)
   #Make the new viewport active and draw
-  vp1 <- grid::viewport(width = 0.3, height = 0.3, x = 0.85, y = 0.2)
+  vp1 <- grid::viewport(width = 1, height = 0.3, x = 0.9185, y = 0.2)
   grid::upViewport(0)
   grid::pushViewport(vp1)
   grid::grid.draw(legend_g1)
   #Make the new viewport active and draw
-  vp2 <- grid::viewport(width = 0.3, height = 0.3, x = 0.845, y = 0.5)
+  vp2 <- grid::viewport(width = 1, height = 0.3, x = 0.917, y = 0.5)
   grid::upViewport(0)
   grid::pushViewport(vp2)
   grid::grid.draw(legend_g2)
   #Make the new viewport active and draw
-  vp3 <- grid::viewport(width = 0.3, height = 0.3, x = 0.85, y = 0.8)
+  vp3 <- grid::viewport(width = 1, height = 0.3, x = 0.921, y = 0.8)
   grid::upViewport(0)
   grid::pushViewport(vp3)
   grid::grid.draw(legend_g3)
@@ -1379,7 +1384,7 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
       colors = leaflet::colorNumeric(
         palette = c(
           if (variable == "prcp") noaa_escala_rojos else noaa_escala_azules,
-          tail(RColorBrewer::brewer.pal(8, 'Greys'), 7),
+          tail(RColorBrewer::brewer.pal(9, 'Greys'), 7),
           if (variable == "prcp") noaa_escala_azules else noaa_escala_rojos),
         domain = c(1:21),
         na.color = "transparent"),
@@ -1420,7 +1425,7 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
       position = "bottomright") %>%
     leaflet::addLegend(
       title = "Near Normal (%)",
-      colors = tail(RColorBrewer::brewer.pal(8, 'Greys'), 7),
+      colors = tail(RColorBrewer::brewer.pal(9, 'Greys'), 7),
       labels = labels,
       position = "bottomright") %>%
     leaflet::addLegend(
