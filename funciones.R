@@ -2,7 +2,7 @@
 
 ################################################################################
 ## Generar etiquetas en base a grupos ##################
-generar_etiquetas_grupos <- function(grupos, formato.numero = "%.2f") {
+generar_etiquetas_grupos <- function(grupos, formato.numero = "%.2f", unit = "") {
   
   etiquetas <- purrr::map(
     .x = grupos,
@@ -16,53 +16,53 @@ generar_etiquetas_grupos <- function(grupos, formato.numero = "%.2f") {
       if (is.infinite(desde) && is.finite(hasta)) {
         if (desde < hasta) {
           if (g_f == ")")
-            return (sprintf(paste0("< ", formato.numero), hasta))
+            return (sprintf(paste0("< ", formato.numero, " %s"), hasta, unit))
           if (g_f == "]")
-            return (sprintf(paste0("<= ", formato.numero), hasta))
+            return (sprintf(paste0("<= ", formato.numero, " %s"), hasta, unit))
         }
         if (desde > hasta) {
           if (g_f == ")")
-            return (sprintf(paste0("> ", formato.numero), hasta))
+            return (sprintf(paste0("> ", formato.numero, " %s"), hasta, unit))
           if (g_f == "]")
-            return (sprintf(paste0(">= ", formato.numero), hasta))
+            return (sprintf(paste0(">= ", formato.numero, " %s"), hasta, unit))
         }
       }
       
       if (is.finite(desde) && is.infinite(hasta)) {
         if (desde < hasta) {
           if (g_i == "(")
-            return (sprintf(paste0("> ", formato.numero), desde))
+            return (sprintf(paste0("> ", formato.numero, " %s"), desde, unit))
           if (g_i == "[")
-            return (sprintf(paste0(">= ", formato.numero), desde))
+            return (sprintf(paste0(">= ", formato.numero, " %s"), desde, unit))
         }
         if (desde > hasta) {
           if (g_i == "(")
-            return (sprintf(paste0("< ", formato.numero), desde))
+            return (sprintf(paste0("< ", formato.numero, " %s"), desde, unit))
           if (g_i == "[")
-            return (sprintf(paste0("<= ", formato.numero), desde))
+            return (sprintf(paste0("<= ", formato.numero, " %s"), desde, unit))
         }
       }
       
       if (is.finite(desde) && is.finite(hasta)) {
         if (desde < hasta) {
           if (g_i == "(" && g_f == ")")
-            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero, " %s"), desde, hasta, unit))
           if (g_i == "[" && g_f == ")")
-            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero, " %s"), desde, hasta, unit))
           if (g_i == "(" && g_f == "]")
-            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero, " %s"), desde, hasta, unit))
           if (g_i == "[" && g_f == "]")
-            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero, " %s"), desde, hasta, unit))
         }
         if (desde > hasta) {
           if (g_i == "(" && g_f == ")")
-            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero, " %s"), desde, hasta, unit))
           if (g_i == "[" && g_f == ")")
-            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero, " %s"), desde, hasta, unit))
           if (g_i == "(" && g_f == "]")
-            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero, " %s"), desde, hasta, unit))
           if (g_i == "[" && g_f == "]")
-            return (sprintf(paste0(formato.numero, " .. ", formato.numero), desde, hasta))
+            return (sprintf(paste0(formato.numero, " .. ", formato.numero, " %s"), desde, hasta, unit))
         }
       }
       
@@ -314,7 +314,7 @@ generar_graficos_discretos <- function() {
       breaks <- c(-Inf,-200,-100,-50,-20,-10,-5,5,10,20,50,100,200,Inf)
       groups <- definir_grupos_simetricos(breaks, 7, 7)
       domain <- c(1:length(groups))
-      labels <- generar_etiquetas_grupos(groups, "%d")
+      labels <- generar_etiquetas_grupos(groups, "%d", "mm")
       legend_labels <- labels
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 7, 7, groups) 
@@ -327,7 +327,7 @@ generar_graficos_discretos <- function() {
       breaks <- c(-Inf,-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4,Inf)
       groups <- definir_grupos_simetricos(breaks, 7, 7)
       domain <- c(1:length(groups))
-      labels <- generar_etiquetas_grupos(groups, "%.1f")
+      labels <- generar_etiquetas_grupos(groups, "%.1f", "°C")
       legend_labels <- labels
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 7, 7, groups) 
@@ -362,6 +362,7 @@ generar_graficos_discretos <- function() {
       breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
       groups <- definir_grupos(breaks, include.lowest = TRUE, right = FALSE)
       domain <- c(1:length(groups))
+      labels <- generar_etiquetas_grupos(groups, "%d", "mm")
       grouped.idw.msk.dfr <- 
         asignar_grupos(idw.msk.dfr, breaks, groups, include.lowest = TRUE, right = FALSE) 
       paleta <- grDevices::colorRampPalette(
@@ -371,12 +372,12 @@ generar_graficos_discretos <- function() {
       breaks <- c(-Inf,-9,-6,-3,3,6,9,12,15,18,21,24,27,30,33,Inf)
       groups <- definir_grupos_simetricos(breaks, 4, 12)
       domain <- c(1:length(groups))
+      labels <- generar_etiquetas_grupos(groups, "%d", "°C")
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 4, 12, groups) 
       paleta <- viridis::turbo(15)
       legend_paleta <- paleta
     }
-    labels <- generar_etiquetas_grupos(groups, "%d")
     legend_labels <- labels
     grouped.idw.msk <- raster::rasterFromXYZ(
       xyz = grouped.idw.msk.dfr %>% dplyr::select(x, y, indice_grupo)) %>%
@@ -387,6 +388,7 @@ generar_graficos_discretos <- function() {
       breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
       groups <- definir_grupos(breaks, include.lowest = TRUE, right = FALSE)
       domain <- c(1:length(groups))
+      labels <- generar_etiquetas_grupos(groups, "%d", "mm")
       grouped.idw.msk.dfr <- 
         asignar_grupos(idw.msk.dfr, breaks, groups, include.lowest = TRUE, right = FALSE) 
       paleta <- grDevices::colorRampPalette(
@@ -396,12 +398,12 @@ generar_graficos_discretos <- function() {
       breaks <- c(-Inf,-9,-6,-3,3,6,9,12,15,18,21,24,27,30,33,Inf)
       groups <- definir_grupos_simetricos(breaks, 4, 12)
       domain <- c(1:length(groups))
+      labels <- generar_etiquetas_grupos(groups, "%d", "°C")
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 4, 12, groups) 
       paleta <- viridis::turbo(15)
       legend_paleta <- paleta
     }
-    labels <- generar_etiquetas_grupos(groups, "%d")
     legend_labels <- labels
     grouped.idw.msk <- raster::rasterFromXYZ(
       xyz = grouped.idw.msk.dfr %>% dplyr::select(x, y, indice_grupo)) %>%
@@ -500,7 +502,7 @@ generar_graficos_discretos <- function() {
     if (variable == 'prcp') {
       breaks <- c(-Inf,-200,-100,-50,-20,-10,-5,5,10,20,50,100,200,Inf)
       groups <- definir_grupos_simetricos(breaks, 7, 7)
-      labels <- generar_etiquetas_grupos(groups, "%d")
+      labels <- generar_etiquetas_grupos(groups, "%d", "mm")
       grouped.idw.msk.dfr <- asignar_grupos_simetricos(idw.msk.dfr, breaks, 7, 7, groups)
       colores <- grDevices::colorRampPalette(
         RColorBrewer::brewer.pal(9, 'BrBG'))(13)
@@ -510,7 +512,7 @@ generar_graficos_discretos <- function() {
     } else if (variable == 't2m') {
       breaks <- c(-Inf,-4,-2,-1,-0.5,-0.3,-0.1,0.1,0.3,0.5,1,2,4,Inf)
       groups <- definir_grupos_simetricos(breaks, 7, 7)
-      labels <- generar_etiquetas_grupos(groups, "%.1f")
+      labels <- generar_etiquetas_grupos(groups, "%.1f", "°C")
       grouped.idw.msk.dfr <- asignar_grupos_simetricos(idw.msk.dfr, breaks, 7, 7, groups)
       blue_plt <- head(rev(RColorBrewer::brewer.pal(8, 'Blues')), 6)
       red_plt <- tail(RColorBrewer::brewer.pal(8, 'Reds'), 6)
@@ -530,6 +532,7 @@ generar_graficos_discretos <- function() {
     if (variable == 'prcp') {
       breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
       groups <- definir_grupos(breaks, include.lowest = TRUE, right = FALSE)
+      labels <- generar_etiquetas_grupos(groups, "%d", "mm")
       grouped.idw.msk.dfr <- 
         asignar_grupos(idw.msk.dfr, breaks, groups, include.lowest = TRUE, right = FALSE) 
       paleta <- grDevices::colorRampPalette(
@@ -537,15 +540,16 @@ generar_graficos_discretos <- function() {
     } else if (variable == 't2m') {
       breaks <- c(-Inf,-9,-6,-3,0,3,6,9,12,15,18,21,24,27,30,33,Inf)
       groups <- definir_grupos_simetricos(breaks, 4, 12)
+      labels <- generar_etiquetas_grupos(groups, "%d", "°C")
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 4, 12, groups) 
       paleta <- viridis::turbo(15)
     }
-    labels <- generar_etiquetas_grupos(groups, "%d")
   } else if (data_type == "value.fcst") {  
     if (variable == 'prcp') {
       breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,Inf)
       groups <- definir_grupos(breaks, include.lowest = TRUE, right = FALSE)
+      labels <- generar_etiquetas_grupos(groups, "%d", "mm")
       grouped.idw.msk.dfr <- 
         asignar_grupos(idw.msk.dfr, breaks, groups, include.lowest = TRUE, right = FALSE) 
       paleta <- grDevices::colorRampPalette(
@@ -553,11 +557,11 @@ generar_graficos_discretos <- function() {
     } else if (variable == 't2m') {
       breaks <- c(-Inf,-9,-6,-3,0,3,6,9,12,15,18,21,24,27,30,33,Inf)
       groups <- definir_grupos_simetricos(breaks, 4, 12)
+      labels <- generar_etiquetas_grupos(groups, "%d", "°C")
       grouped.idw.msk.dfr <- 
         asignar_grupos_simetricos(idw.msk.dfr, breaks, 4, 12, groups) 
       paleta <- viridis::turbo(15)
     }
-    labels <- generar_etiquetas_grupos(groups, "%d")
   } else {
     return (NULL)
   }
@@ -963,7 +967,7 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
   groups <- definir_grupos(breaks, include.lowest = T, right = T)
   labels <- c(breaks*100) %>%
     definir_grupos(include.lowest = T, right = T) %>%
-    generar_etiquetas_grupos("%d")
+    generar_etiquetas_grupos("%d", "%")
   
   g0 <- ggplot2::ggplot(width = 27, height = 30, units = "cm") +
     ggplot2::geom_raster(
@@ -1325,7 +1329,7 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
   
   labels_breaks <- c(33, 40, 50, 60, 70, 80, 90, 100)
   labels_groups <- definir_grupos(labels_breaks, include.lowest = T)
-  labels <- generar_etiquetas_grupos(labels_groups, "%d")
+  labels <- generar_etiquetas_grupos(labels_groups, "%d", " %")
   
   
   idw.pr.raster <-
@@ -1354,7 +1358,7 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
         font-size: 14px;
       }
       .same-width {
-        width: 125px;
+        width: 100px;
       }
     "))
   title <- htmltools::tags$div(
@@ -1426,19 +1430,19 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
     #     sf::st_geometry(),
     #   color = if (variable == "prcp") 'blue' else 'red') %>%
     leaflet::addLegend(
-      title = "Above Normal (%)",
+      title = "Above Normal",
       colors = if (variable == "prcp") noaa_escala_rojos else noaa_escala_azules,
       labels = labels,
       position = "bottomright",
       className = "info legend same-width") %>%
     leaflet::addLegend(
-      title = "Near Normal (%)",
+      title = "Near Normal",
       colors = tail(RColorBrewer::brewer.pal(9, 'Greys'), 7),
       labels = labels,
       position = "bottomright",
       className = "info legend same-width") %>%
     leaflet::addLegend(
-      title = "Below Normal (%)",
+      title = "Below Normal",
       colors = if (variable == "prcp") noaa_escala_azules else noaa_escala_rojos,
       labels = labels,
       position = "bottomright",
