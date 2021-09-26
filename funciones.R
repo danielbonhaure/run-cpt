@@ -677,17 +677,18 @@ generar_graficos_continuos <- function() {
     max_value <- ceiling(max(
       abs(min(raster::values(grouped.idw.msk), na.rm = T)), 
       abs(max(raster::values(grouped.idw.msk), na.rm = T))))
-    breaks <- breaks[breaks <= max_value & breaks >= -max_value]
+    breaks <- pretty(c(-max_value:max_value), 11)
   } else if (data_type == "corr") {
     breaks <- c(-1,-0.5,-0.1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+    breaks <- pretty(breaks, 11)
     grouped.idw.msk <- idw.msk
-    red_plt  <- head(rev(RColorBrewer::brewer.pal(3, 'Reds')), 2)
-    blue_plt  <- tail(grDevices::colorRampPalette(
-      colors = RColorBrewer::brewer.pal(9, 'Blues'))( 11 ), 9)
+    red_plt  <- head(rev(RColorBrewer::brewer.pal(6, 'Reds')), 5)
+    blue_plt  <- tail(RColorBrewer::brewer.pal(6, 'Blues'), 5)
     paleta <- c(red_plt, "#f1f1f1", blue_plt) 
   } else if (data_type == "value.gen") {  # PREV_PREC
     if (variable == 'prcp') {
-      breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,700)
+      breaks <- pretty(values(idw.msk), 9)
+      # breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,700)
       paleta <- RColorBrewer::brewer.pal(9, 'Blues')
     } else if (variable == 't2m') {
       breaks <- c(-9,-6,-3,3,6,9,12,15,18,21,24,27,30,33)
@@ -696,7 +697,8 @@ generar_graficos_continuos <- function() {
     grouped.idw.msk <- idw.msk
   } else if (data_type == "value.fcst") {  
     if (variable == 'prcp') {
-      breaks <- c(0,25,50,100,150,200,250,300,400,500,600,700)
+      breaks <- pretty(values(idw.msk), 9)
+      # breaks <- c(0,25,50,100,150,200,250,300,400,500,600,700)
       paleta <- RColorBrewer::brewer.pal(9, 'Blues')
     } else if (variable == 't2m') {
       breaks <- c(-9,-6,-3,3,6,9,12,15,18,21,24,27,30,33)
@@ -819,19 +821,20 @@ generar_graficos_continuos <- function() {
       abs(min(grouped.idw.msk.dfr$var, na.rm = T)), 
       abs(max(grouped.idw.msk.dfr$var, na.rm = T))
     ))
-    breaks <- breaks[breaks <= max_value & breaks >= -max_value]
+    breaks <- pretty(c(-max_value:max_value), 11)
     labels <- breaks
   } else if (data_type == "corr") {
     breaks <- c(-1,-0.5,-0.1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+    breaks <- pretty(breaks, 11)
     grouped.idw.msk.dfr <- idw.msk.dfr
-    red_plt  <- head(rev(RColorBrewer::brewer.pal(3, 'Reds')), 2)
-    blue_plt  <- tail(grDevices::colorRampPalette(
-      colors = RColorBrewer::brewer.pal(9, 'Blues'))( 11 ), 9)
+    red_plt  <- head(rev(RColorBrewer::brewer.pal(6, 'Reds')), 5)
+    blue_plt  <- tail(RColorBrewer::brewer.pal(6, 'Blues'), 5)
     paleta <- c(red_plt, "#f1f1f1", blue_plt) 
     labels <- breaks
   } else if (data_type == "value.gen") {  # PREV_PREC
     if (variable == 'prcp') {
-      breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,700)
+      breaks <- pretty(values(idw.msk), 9)
+      # breaks <- c(0,1,25,50,100,150,200,250,300,400,500,600,700)
       grouped.idw.msk.dfr <- idw.msk.dfr
       paleta <- RColorBrewer::brewer.pal(9, 'Blues')
     } else if (variable == 't2m') {
@@ -842,7 +845,8 @@ generar_graficos_continuos <- function() {
     labels <- breaks
   } else if (data_type == "value.fcst") {  
     if (variable == 'prcp') {
-      breaks <- c(0,25,50,100,150,200,250,300,400,500,600,700)
+      breaks <- pretty(values(idw.msk), 9)
+      # breaks <- c(0,25,50,100,150,200,250,300,400,500,600,700)
       grouped.idw.msk.dfr <- idw.msk.dfr
       paleta <- RColorBrewer::brewer.pal(9, 'Blues')
     } else if (variable == 't2m') {
