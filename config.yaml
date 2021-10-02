@@ -138,6 +138,8 @@ url:
       type: "daily"
       monthly: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_monthly/netcdf/chirps-v2.0.monthly.nc"
       daily: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/netcdf/p25/chirps-v2.0.${year}.days_p25.nc"
+    crcsas:
+      api: 'https://api.crc-sas.org/ws-api'
 
 folders:
   raw_data:
@@ -145,11 +147,14 @@ folders:
     forecasts: "./input/raw_data/forecasts/"
     chirps: "./input/raw_data/chirps/"
     era5_land: "./input/raw_data/era5_land/"
+    crcsas: "./input/raw_data/crcsas/"
     shapefiles: "./input/raw_data/shapefiles/"
+    images: "./input/raw_data/images/"
   predictors: "./input/predictors/"
   predictands: "./input/predictands/"
   crc_sas_grid: "./input/crc_sas_grid/"
   output: "./output/"
+  plots: "./plots/"
 
 files:
   plot_yaml: 'plot.yaml'  # This file is used to report the output files to the script that make plots!

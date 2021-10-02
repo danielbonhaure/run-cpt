@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import matplotlib.ticker as ticker
 import cdsapi
+import requests
+import requests.auth
 
 from cartopy import feature
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
@@ -193,12 +195,18 @@ class MonthsProcessor:
         return cls.gen_trgts_data(month)
 
     @classmethod
+    def add_months(cls, month: int, months_to_add: int):
+        result = (month + months_to_add) % 12
+        return result if result != 0 else 12
+
+    @classmethod
     def gen_trgts_data(cls, month: int):
-        return [dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month+1)),
-                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month+2)),
-                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month+3)),
+        month_1, month_2, month_3 = cls.add_months(month, 1), cls.add_months(month, 2), cls.add_months(month, 3)
+        return [dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_1)),
+                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_2)),
+                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_3)),
                 dict(mons=cls.month_int_to_abbr(month),
-                     tgts=f'{cls.month_int_to_abbr(month+1)}-{cls.month_int_to_abbr(month+3)}')]
+                     tgts=f'{cls.month_int_to_abbr(month_1)}-{cls.month_int_to_abbr(month_3)}')]
 
     @classmethod
     def current_month_fcsts_data(cls):
@@ -238,6 +246,96 @@ class YearsProcessor:
         for month in trgt_season.trgt_months_range:
             years.append(year+1 if trgt_season.start_month_int > month else year)
         return years
+
+
+class CrcSasAPI:
+
+    def __init__(self):
+        self.credential = CredentialFile.Instance().get('crcsas')
+        self.base_url = ConfigFile.Instance().get('url').get('predictand').get('crcsas').get('api')
+
+    def __get(self, service_url):
+        resp = requests.get(
+            url=f"{self.base_url}/{service_url}",
+            auth=requests.auth.HTTPBasicAuth(
+                self.credential.get('username'), self.credential.get('password')) )
+        return resp
+
+    def __get_json(self, service_url):
+        resp = self.__get(service_url)
+        return pd.json_normalize(resp.json())
+
+    def __download_variable(self, variable: str, anho_desde: int, anho_hasta: int) -> pd.DataFrame:
+        # Obtener las estaciones con datos completos para la variable y periodo indicados
+        url_estaciones_c = f"registros_mensuales/estaciones_completas/{variable}/{anho_desde}/{anho_hasta}"
+        estaciones_completas = self.__get_json(url_estaciones_c)
+
+        # Descargar los datos para cada una de las estaciones
+        data: pd.DataFrame = pd.DataFrame()
+        for omm_id in estaciones_completas.omm_id.values:
+            estadistico = 'sum' if variable == 'prcp' else 'prom'
+            url_data = f"registros_mensuales/{omm_id}/{variable}/{estadistico}/{anho_desde}/{anho_hasta}"
+            data = pd.concat([data, self.__get_json(url_data)])
+
+        # Retorna los datos descargados
+        return data
+
+    def download_data(self, variable: str, anho_desde: int, anho_hasta: int) -> pd.DataFrame:
+
+        # Create progress bar to track interpolation
+        run_status = f'Downloading {variable} from CRC-SAS API (PID: {os.getpid()})'
+        pb = SecondaryProgressBar(6, run_status)
+
+        # Open progress bar
+        pb.open()
+
+        # Obtener metadatos de todas las estaciones del CRCSAS
+        datos_estaciones = self.__get_json('estaciones')
+        datos_estaciones = datos_estaciones[['omm_id', 'latitud', 'longitud']]
+
+        pb.update_count(1)
+
+        if variable == 'prcp':
+            # Descargar datos de precipitación
+            datos_variable = self.__download_variable('prcp', anho_desde, anho_hasta)
+            datos_variable = datos_variable[['omm_id', 'anho', 'mes', 'valor']]
+            datos_variable = datos_variable.rename(columns={'valor': 'prcp'})
+            pb.update_count(4)
+        else:
+            # Descargar datos de temperatura mínima
+            datos_tmin = self.__download_variable('tmin', anho_desde, anho_hasta)
+            datos_tmin = datos_tmin[['omm_id', 'anho', 'mes', 'valor']]
+            datos_tmin = datos_tmin.rename(columns={'valor': 'tmin'})
+            pb.update_count(2)
+            # Descargar datos de temperatura máxima
+            datos_tmax = self.__download_variable('tmax', anho_desde, anho_hasta)
+            datos_tmax = datos_tmax[['omm_id', 'anho', 'mes', 'valor']]
+            datos_tmax = datos_tmax.rename(columns={'valor': 'tmax'})
+            pb.update_count(3)
+            # Calcular la temperatura media (lurgo de usa esta como t2m)
+            datos_variable = pd.merge(datos_tmin, datos_tmax, on=['omm_id', 'anho', 'mes'])
+            datos_variable['tmed'] = (datos_variable['tmin'] + datos_variable['tmax']) / 2
+            datos_variable = datos_variable[['omm_id', 'anho', 'mes', 'tmed']]
+            datos_variable = datos_variable.rename(columns={'tmed': 't2m'})
+            pb.update_count(4)
+
+        # Agregar datos de las estaciones (necesario para poder armar luego un netcdf)
+        datos_completos = pd.merge(datos_variable, datos_estaciones, on=['omm_id'])
+        pb.update_count(5)
+
+        # Modificar dataframe para mejorar compatibilidad
+        datos_completos = datos_completos.rename(columns={'latitud': 'latitude', 'longitud': 'longitude'})
+        datos_completos = datos_completos.rename(columns={'anho': 'year', 'mes': 'month'})
+        datos_completos['time'] = pd.to_datetime(dict(year=datos_completos.year, month=datos_completos.month, day=1))
+        datos_completos = datos_completos[['time', 'latitude', 'longitude', variable]]
+        datos_completos = datos_completos.set_index(['time', 'latitude', 'longitude'])
+        pb.update_count(6)
+
+        # close progress bar
+        sleep(0.5)
+        pb.close()
+
+        return datos_completos
 
 
 class FilesProcessor:
@@ -310,6 +408,46 @@ class FilesProcessor:
         sleep(0.5)
         pb.close()
 
+    @classmethod
+    def download_data_from_crcsas(cls, file_path: str, variable: str, anho_desde: int, anho_hasta: int,
+                                  min_valid_size: int):
+
+        # Create progress bar to track interpolation
+        run_status = f'Creating file {file_path.split("/").pop(-1)} (PID: {os.getpid()})'
+        pb = SecondaryProgressBar(10, run_status)
+
+        # Open progress bar
+        pb.open()
+
+        # Create crcsas api Client
+        c = CrcSasAPI()
+
+        # Report status
+        pb.update_count(1)
+
+        # Download data
+        crcsas_data_df = c.download_data(variable, anho_desde, anho_hasta)
+
+        # Report status
+        pb.update_count(8)
+
+        # Save xarray as netcdf
+        crcsas_data_df.to_csv(file_path, sep=';')
+
+        # report status
+        pb.update_count(9)
+
+        # check file size
+        assert os.stat(file_path).st_size != 0
+        assert os.stat(file_path).st_size >= min_valid_size
+
+        # report status
+        pb.update_count(10)
+
+        # close progress bar
+        sleep(0.5)
+        pb.close()
+
 
 class ConfigProcessor:
 
@@ -332,20 +470,22 @@ class CPTFileProcessor:
         self.longitudes = longitudes
         self.latitudes = latitudes
 
-    def rename_dataframe_columns_to_cpt_format(self, df_to_rename: pd.DataFrame) -> pd.DataFrame:
+    def dataframe_to_cpt_format_file(self, data_source: str, filename: str, df_to_save: pd.DataFrame):
+        if data_source == 'crcsas':
+            self.crcsas_dataframe_to_cpt_format_file(filename, df_to_save)
+        else:
+            self.noaa_er5land_dataframe_to_cpt_format_file(filename, df_to_save)
+
+    def noaa_er5land_dataframe_to_cpt_format_file(self, filename: str, df_to_save: pd.DataFrame):
+        # Rename and reorder columns to CPT file column format
         df_output = pd.DataFrame()
         for lat, lon in zip(self.latitudes, self.longitudes):
-            df_est = df_to_rename.loc[lat, lon]
+            df_est = df_to_save.loc[lat, lon]
             df_est.rename(lambda x: f"E({lon}_{lat})", axis='columns', inplace=True)
             # se concatena en orden inverso, para que la última columna sea la primera
             df_output = pd.concat([df_est, df_output], axis=1)
-        return df_output
 
-    def dataframe_to_cpt_format_file(self, filename: str, df_to_save: pd.DataFrame):
-        # Rename columns to CPT file column format
-        df_to_save = self.rename_dataframe_columns_to_cpt_format(df_to_save)
-
-        # Como en rename_dataframe_columns_to_cpt_format se concatenaron las columnas en orden inverso,
+        # Como en el paso anterior se concatenaron las columnas en orden inverso,
         # las latitudes y longitudes también deben usarse en orden inverso
         reversed_lat = self.latitudes.copy()
         reversed_lat.reverse()
@@ -354,10 +494,34 @@ class CPTFileProcessor:
 
         # Save dataframe
         with open(filename, 'w') as f:
-            f.write("Stn\t" + "\t".join(df_to_save.columns.values.tolist()) + "\n")
+            f.write("Stn\t" + "\t".join(df_output.columns.values.tolist()) + "\n")
             f.write("Lat\t" + "\t".join(map(str, reversed_lat)) + "\n")
             f.write("Lon\t" + "\t".join(map(str, reversed_lon)) + "\n")
-        df_to_save.to_csv(filename, sep='\t', mode='a', header=False, na_rep='-999')
+        df_output.to_csv(filename, sep='\t', mode='a', header=False, na_rep='-999')
+
+    def crcsas_dataframe_to_cpt_format_file(self, filename: str, df_to_save: pd.DataFrame):
+        # Rename and reorder columns to CPT file column format
+        df_output = pd.DataFrame()
+        for lat, lon in zip(df_to_save.index.get_level_values('latitude'),
+                            df_to_save.index.get_level_values('longitude')):
+            df_est = df_to_save.loc[lat, lon]
+            df_est.rename(lambda x: f"E({lon}_{lat})", axis='columns', inplace=True)
+            # se concatena en orden inverso, para que la última columna sea la primera
+            df_output = pd.concat([df_est, df_output], axis=1)
+
+        # Como en el paso anterior se concatenaron las columnas en orden inverso,
+        # las latitudes y longitudes también deben usarse en orden inverso
+        reversed_lat = df_to_save.index.get_level_values('latitude').to_list()
+        reversed_lat.reverse()
+        reversed_lon = df_to_save.index.get_level_values('longitude').to_list()
+        reversed_lon.reverse()
+
+        # Save dataframe
+        with open(filename, 'w') as f:
+            f.write("Stn\t" + "\t".join(df_output.columns.values.tolist()) + "\n")
+            f.write("Lat\t" + "\t".join(map(str, reversed_lat)) + "\n")
+            f.write("Lon\t" + "\t".join(map(str, reversed_lon)) + "\n")
+        df_output.to_csv(filename, sep='\t', mode='a', header=False, na_rep='-999')
 
     @classmethod
     def cpt_noaa_monthly_file_to_dataframe(cls, file_name: str):
@@ -520,7 +684,11 @@ class ConfigFile:
             fp_plot_yaml.write(f'  observed_data: {self.cpt_config.get("folders").get("predictands")}\n')
             fp_plot_yaml.write(f'  generated_data: {self.cpt_config.get("folders").get("output")}\n')
             fp_plot_yaml.write(f'  shapefiles: {self.cpt_config.get("folders").get("raw_data").get("shapefiles")}\n')
+            fp_plot_yaml.write(f'  forecasts: {self.cpt_config.get("folders").get("raw_data").get("forecasts")}\n')
+            fp_plot_yaml.write(f'  predictors: {self.cpt_config.get("folders").get("predictors")}\n')
             fp_plot_yaml.write(f'  output: {self.cpt_config.get("folders").get("output")}\n')
+            fp_plot_yaml.write(f'  plots: {self.cpt_config.get("folders").get("plots")}\n')
+            fp_plot_yaml.write(f'  images: {self.cpt_config.get("folders").get("raw_data").get("images")}\n')
             fp_plot_yaml.write('\nfiles:\n')
 
     @property
@@ -534,6 +702,32 @@ class ConfigFile:
 
     def get(self, key, default=None) -> Any:
         return self.cpt_config.get(key, default)
+
+
+@Singleton
+class CredentialFile:
+
+    def __init__(self):
+        self._file_name: str = 'credentials.yaml'
+        self.credentials: dict = self.__load_credentials()
+
+    def __load_credentials(self) -> dict:
+        if not os.path.exists(self._file_name):
+            raise ConfigError(f"Credential file (i.e. {self._file_name}) not found!")
+        with open(self._file_name, 'r') as f:
+            return yaml.safe_load(f)
+
+    @property
+    def file_name(self):
+        return self._file_name
+
+    @file_name.setter
+    def file_name(self, value):
+        self._file_name = value
+        self.credentials = self.__load_credentials()
+
+    def get(self, key, default=None) -> Any:
+        return self.credentials.get(key, default)
 
 
 @Singleton

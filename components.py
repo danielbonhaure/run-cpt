@@ -797,13 +797,13 @@ class Era5LandFile:
 
     def __post_init__(self):
         # Define file name
-        self.name = self.__define_chirps_filename()
+        self.name = self.__define_era5land_filename()
         # Define folder
         self.folder = self.config_file.get('folders').get('raw_data').get('era5_land')
         # Define coords to cut rea5-land file
         self.coords = self.config_file.get('spatial_domain').get('predictand')
 
-    def __define_chirps_filename(self) -> str:
+    def __define_era5land_filename(self) -> str:
         return f'{self.variable}_era5-land.nc'
 
     def __get_api_variable(self):
@@ -845,11 +845,54 @@ class Era5LandFile:
 
 
 @dataclass
+class CrcSasFile:
+    variable: str
+    trng_period: TrainingPeriod
+
+    name: str = field(init=False)
+    folder: str = field(init=False)
+    coords: dict = field(init=False)
+
+    # Upload cpt config file (It's a singleton!!)
+    config_file: ConfigFile = field(init=False, default=ConfigFile.Instance())
+    # Define update control (It's a singleton!!)
+    update_ctrl: UpdateControl = field(init=False, default=UpdateControl.Instance())
+
+    @property
+    def abs_path(self):
+        return os.path.join(self.folder, self.name) if self.name else ""
+
+    def __post_init__(self):
+        # Define file name
+        self.name = self.__define_crcsas_filename()
+        # Define folder
+        self.folder = self.config_file.get('folders').get('raw_data').get('crcsas')
+        # Define coords to cut rea5-land file
+        self.coords = self.config_file.get('spatial_domain').get('predictand')
+
+    def __define_crcsas_filename(self) -> str:
+        return f'{self.variable}_crcsas.csv'
+
+    def download_raw_data(self):
+        if not os.path.exists(self.abs_path) or \
+                self.update_ctrl.must_be_updated('predictands', 'raw_data', self.abs_path):
+
+            try:
+                # Download file from cdsapi
+                FilesProcessor.download_data_from_crcsas(self.abs_path, self.variable,
+                                                         self.trng_period.tini, self.trng_period.tend,
+                                                         100000)
+            except (HTTPError, AssertionError):
+                os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
+                raise
+
+
+@dataclass
 class PredictandFile:
     predictand: str
-    data_source: str  # It can be "chirps" or "era5-land"
+    data_source: str  # It can be "chirps" or "era5-land" or "crcsas
 
-    raw_data_file: Union[ChirpsFile, Era5LandFile] = field(init=False)
+    raw_data_file: Union[ChirpsFile, Era5LandFile, CrcSasFile] = field(init=False)
 
     name: str = field(init=False)
     folder: str = field(init=False)
@@ -870,7 +913,7 @@ class PredictandFile:
 
     def __post_init__(self, fcst_data, trgt_season, trng_period):
         # Check data_source attribute
-        if self.data_source not in ['chirps', 'era5-land']:
+        if self.data_source not in ['chirps', 'era5-land', 'crcsas']:
             error_msg = f'The data_source attribute must be "chirps" or "era5-land", not "{self.data_source}"'
             raise AttributeError(error_msg)
         # Create predictand file (it can be a chirps file or an era5-land file)
@@ -878,6 +921,8 @@ class PredictandFile:
             self.raw_data_file = ChirpsFile(self.predictand)
         if self.data_source == 'era5-land':
             self.raw_data_file = Era5LandFile(self.predictand)
+        if self.data_source == 'crcsas':
+            self.raw_data_file = CrcSasFile(self.predictand, trng_period)
         # Define file name
         self.name = self.__define_predictand_filename(trgt_season, trng_period, fcst_data)
         # Define folder
@@ -910,24 +955,30 @@ class PredictandFile:
         # open progress bar
         pb.open()
 
-        # define interpolated file filename
-        interp_file = self.raw_data_file.abs_path.replace('.nc', '_interpolated.nc')
-
-        if not os.path.exists(interp_file) or \
-                self.update_ctrl.must_be_updated('predictands', 'interpolated_data', interp_file):
-            # interpolate recently downloaded data
-            df = self.grid.interpolate_raw_data(
-                input_file=self.raw_data_file.abs_path,
-                variable=self.predictand,
-                convert_kelvin_to_celsius=True if self.predictand == 't2m' else False,
-                return_df=True,
-                output_file=interp_file
-            )
-            # report interpolation
-            self.update_ctrl.report_updated_file(interp_file)
+        if self.data_source == 'crcsas':
+            # read csv file with pandas
+            df = pd.read_csv(self.raw_data_file.abs_path, sep=';')
+            df['time'] = pd.to_datetime(df['time'])
+            df = df.set_index(['time', 'latitude', 'longitude'])
         else:
-            # read/load previously interpolated data
-            df = xr.open_dataset(interp_file).to_dataframe()
+            # define interpolated file filename
+            interp_file = self.raw_data_file.abs_path.replace('.nc', '_interpolated.nc')
+
+            if not os.path.exists(interp_file) or \
+                    self.update_ctrl.must_be_updated('predictands', 'interpolated_data', interp_file):
+                # interpolate recently downloaded data
+                df = self.grid.interpolate_raw_data(
+                    input_file=self.raw_data_file.abs_path,
+                    variable=self.predictand,
+                    convert_kelvin_to_celsius=True if self.predictand == 't2m' else False,
+                    return_df=True,
+                    output_file=interp_file
+                )
+                # report interpolation
+                self.update_ctrl.report_updated_file(interp_file)
+            else:
+                # read/load previously interpolated data
+                df = xr.open_dataset(interp_file).to_dataframe()
 
         # report status
         pb.update_count(5)
@@ -981,7 +1032,7 @@ class PredictandFile:
 
         # Save file in cpt format
         cpt_procesor = CPTFileProcessor(self.grid.longitudes, self.grid.latitudes)
-        cpt_procesor.dataframe_to_cpt_format_file(self.abs_path, df)
+        cpt_procesor.dataframe_to_cpt_format_file(self.data_source, self.abs_path, df)
 
         # report status
         pb.update_count(10)
