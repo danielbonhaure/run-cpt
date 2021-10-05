@@ -481,7 +481,7 @@ class CPTFileProcessor:
         df_output = pd.DataFrame()
         for lat, lon in zip(self.latitudes, self.longitudes):
             df_est = df_to_save.loc[lat, lon]
-            df_est.rename(lambda x: f"E({lon}_{lat})", axis='columns', inplace=True)
+            df_est.rename(lambda x: f"E({round(lon, 2)}_{round(lat, 2)})", axis='columns', inplace=True)
             # se concatena en orden inverso, para que la última columna sea la primera
             df_output = pd.concat([df_est, df_output], axis=1)
 
@@ -499,13 +499,14 @@ class CPTFileProcessor:
             f.write("Lon\t" + "\t".join(map(str, reversed_lon)) + "\n")
         df_output.to_csv(filename, sep='\t', mode='a', header=False, na_rep='-999')
 
-    def crcsas_dataframe_to_cpt_format_file(self, filename: str, df_to_save: pd.DataFrame):
+    @staticmethod
+    def crcsas_dataframe_to_cpt_format_file(filename: str, df_to_save: pd.DataFrame):
         # Rename and reorder columns to CPT file column format
         df_output = pd.DataFrame()
         for lat, lon in zip(df_to_save.index.get_level_values('latitude'),
                             df_to_save.index.get_level_values('longitude')):
             df_est = df_to_save.loc[lat, lon]
-            df_est.rename(lambda x: f"E({lon}_{lat})", axis='columns', inplace=True)
+            df_est.rename(lambda x: f"E({round(lon, 2)}_{round(lat, 2)})", axis='columns', inplace=True)
             # se concatena en orden inverso, para que la última columna sea la primera
             df_output = pd.concat([df_est, df_output], axis=1)
 
