@@ -17,7 +17,7 @@ ConsumirServicioJSON <- function(url, usuario, clave) {
 }
 
 
-base.url        <- '192.168.100.224:8080'
+base.url        <- '192.168.100.100:8080'
 usuario.default <- '***REMOVED***' 
 clave.default   <- '***REMOVED***'
 
@@ -42,7 +42,8 @@ datos_prcp <- purrr::map_dfr(
 ) %>% dplyr::select(omm_id, anho, mes, prcp = valor)
 #
 datos_estaciones_prcp <- datos_estaciones %>% 
-  dplyr::filter(omm_id %in% estaciones_prcp$omm_id)
+  dplyr::filter(omm_id %in% estaciones_prcp$omm_id) %>%
+  dplyr::filter(latitud >= -60)
 #
 g_prcp <- ggplot2::ggplot(data = datos_estaciones_prcp) +
   ggplot2::geom_point(

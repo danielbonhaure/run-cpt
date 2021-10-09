@@ -275,7 +275,8 @@ class CrcSasAPI:
         for omm_id in estaciones_completas.omm_id.values:
             estadistico = 'sum' if variable == 'prcp' else 'prom'
             url_data = f"registros_mensuales/{omm_id}/{variable}/{estadistico}/{anho_desde}/{anho_hasta}"
-            data = pd.concat([data, self.__get_json(url_data)])
+            stn_data = self.__get_json(url_data)
+            data = pd.concat([data, stn_data])
 
         # Retorna los datos descargados
         return data
@@ -503,8 +504,7 @@ class CPTFileProcessor:
     def crcsas_dataframe_to_cpt_format_file(filename: str, df_to_save: pd.DataFrame):
         # Rename and reorder columns to CPT file column format
         df_output = pd.DataFrame()
-        for lat, lon in zip(df_to_save.index.get_level_values('latitude'),
-                            df_to_save.index.get_level_values('longitude')):
+        for lat, lon in df_to_save.index.droplevel('year').unique().to_list():
             df_est = df_to_save.loc[lat, lon]
             df_est.rename(lambda x: f"E({round(lon, 2)}_{round(lat, 2)})", axis='columns', inplace=True)
             # se concatena en orden inverso, para que la última columna sea la primera
@@ -512,9 +512,9 @@ class CPTFileProcessor:
 
         # Como en el paso anterior se concatenaron las columnas en orden inverso,
         # las latitudes y longitudes también deben usarse en orden inverso
-        reversed_lat = df_to_save.index.get_level_values('latitude').to_list()
+        reversed_lat = df_to_save.index.droplevel('year').unique().get_level_values('latitude').to_list()
         reversed_lat.reverse()
-        reversed_lon = df_to_save.index.get_level_values('longitude').to_list()
+        reversed_lon = df_to_save.index.droplevel('year').unique().get_level_values('longitude').to_list()
         reversed_lon.reverse()
 
         # Save dataframe
