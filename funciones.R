@@ -1300,7 +1300,7 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
   
   # Se definen y asignan los grupos para las probabilidades mayores a la media
   breaks.mayor.media <- 
-    c(333,340,350,360,370,380,390,300)
+    c(333,340,350,360,370,380,390,400)
   groups.mayor.media <- 
     definir_grupos(breaks.mayor.media, include.lowest = T)
   grouped.mayor.media <- 

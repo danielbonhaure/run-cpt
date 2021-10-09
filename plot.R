@@ -13,7 +13,7 @@ rm(list = ls()); gc()
 Sys.setenv(TZ = "UTC")
 
 # iii. Cargar paquetes a utilizar
-list.of.packages <- c("dplyr")
+list.of.packages <- c("dplyr", "raster")
 for (pack in list.of.packages) {
   if (! require(pack, character.only = TRUE)) {
     stop(paste0("Paquete no encontrado: ", pack))
