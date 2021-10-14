@@ -890,7 +890,7 @@ class CrcSasFile:
 @dataclass
 class PredictandFile:
     predictand: str
-    data_source: str  # It can be "chirps" or "era5-land" or "crcsas
+    data_source: str  # It can be "chirps" or "era5-land" or "crcsas"
 
     raw_data_file: Union[ChirpsFile, Era5LandFile, CrcSasFile] = field(init=False)
 
@@ -938,7 +938,7 @@ class PredictandFile:
         months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
         # return f"{self.predictand}_{months_indexes}_{trng_period.tini}-{trng_period.tend}_" \
         #        f"{fcst_data.fyr}-{fcst_data.fyr + fcst_data.nfcsts - 1}.txt"
-        return f"{self.predictand}_{months_indexes}.txt"
+        return f"{self.predictand}_{self.data_source}_{months_indexes}.txt"
 
     def __download_raw_file(self):
         self.raw_data_file.download_raw_data()

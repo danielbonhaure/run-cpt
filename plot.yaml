@@ -16,19 +16,19 @@ folders:
   images: ./input/raw_data/images/
 
 files:
- - { file: "ecmwf_precip-prcp_Augic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_Augic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_Augic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_Augic_9-11_1991-2020_2021-2021.txt", type: "seasonal", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_Augic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_Augic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_Augic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_Augic_9-11_1991-2020_2021-2021.txt", type: "seasonal", swap_years: false }
- - { file: "nmme_precip-prcp_Augic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_Augic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_Augic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_Augic_9-11_1991-2020_2021-2021.txt", type: "seasonal", swap_years: true }
- - { file: "nmme_tmp2m-t2m_Augic_9_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_tmp2m-t2m_Augic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_tmp2m-t2m_Augic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
- - { file: "nmme_tmp2m-t2m_Augic_9-11_1991-2020_2021-2021.txt", type: "seasonal", swap_years: true }
+ - { file: "ecmwf_precip-prcp_Sepic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_Sepic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_Sepic_12_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_Sepic_10-12_1991-2020_2021-2021.txt", type: "seasonal", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_Sepic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_Sepic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_Sepic_12_1991-2020_2021-2021.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_Sepic_10-12_1991-2020_2021-2021.txt", type: "seasonal", swap_years: false }
+ - { file: "nmme_precip-prcp_Sepic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_Sepic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_Sepic_12_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_Sepic_10-12_1991-2020_2021-2021.txt", type: "seasonal", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_Sepic_10_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_Sepic_11_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_Sepic_12_1991-2020_2021-2021.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_Sepic_10-12_1991-2020_2021-2021.txt", type: "seasonal", swap_years: true }

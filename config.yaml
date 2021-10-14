@@ -33,7 +33,7 @@ training_period:
 # When this information is provided, the target season and forecast
 # are created using this month and year instead of the current month
 # Comment the following two lines to run the current month
-# initial_month: 7
+# initial_month: 9
 # initial_year: 2021
 
 # OBS:
@@ -139,7 +139,7 @@ url:
       monthly: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_monthly/netcdf/chirps-v2.0.monthly.nc"
       daily: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/netcdf/p25/chirps-v2.0.${year}.days_p25.nc"
     crcsas:
-      api: 'https://api.crc-sas.org/ws-api'
+      api: "https://api.crc-sas.org/ws-api"
 
 folders:
   raw_data:
