@@ -1,9 +1,11 @@
 .idea/
 *venv/
 __pycache__/
+plots_*/
 *.py[cod]
 .Rproj.user
 .RData
 .Rhistory
+*.rds
 PyCPT.Rproj
 credentials.yaml
