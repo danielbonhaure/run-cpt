@@ -248,6 +248,52 @@ class YearsProcessor:
         return years
 
 
+@Singleton
+class CredentialFile:
+
+    def __init__(self):
+        self._file_name: str = 'credentials.yaml'
+        self.credentials: dict = self.__load_credentials()
+
+    def __load_credentials(self) -> dict:
+        if not os.path.exists(self._file_name):
+            raise ConfigError(f"Credential file (i.e. {self._file_name}) not found!")
+        with open(self._file_name, 'r') as f:
+            return yaml.safe_load(f)
+
+    @property
+    def file_name(self):
+        return self._file_name
+
+    @file_name.setter
+    def file_name(self, value):
+        self._file_name = value
+        self.credentials = self.__load_credentials()
+
+    def get(self, key, default=None) -> Any:
+        return self.credentials.get(key, default)
+
+
+class CdsApiClient(cdsapi.Client):
+
+    def __init__(self, *args, **kwargs):
+        # Access cdsapi credentials
+        self.credential = CredentialFile.Instance().get('cdsapi')
+
+        # Add credentials to kwargs
+        if 'url' not in kwargs.keys() and self.credential is not None:
+            kwargs.update(url=self.credential.get('url'))
+        if 'key' not in kwargs.keys() and self.credential is not None:
+            kwargs.update(key=self.credential.get('key'))
+
+        # Add verify to avoid InsecureRequestWarning
+        if 'verify' not in kwargs.keys():
+            kwargs.update(verify=True)
+
+        # Call cdsapi.Client __init__ method
+        super().__init__(*args, **kwargs)
+
+
 class CrcSasAPI:
 
     def __init__(self):
@@ -368,7 +414,7 @@ class FilesProcessor:
         pb.open()
 
         # Create cds api Client
-        c = cdsapi.Client(quiet=False)
+        c = CdsApiClient(quiet=False)
 
         # Report status
         pb.update_count(1)
@@ -703,32 +749,6 @@ class ConfigFile:
 
     def get(self, key, default=None) -> Any:
         return self.cpt_config.get(key, default)
-
-
-@Singleton
-class CredentialFile:
-
-    def __init__(self):
-        self._file_name: str = 'credentials.yaml'
-        self.credentials: dict = self.__load_credentials()
-
-    def __load_credentials(self) -> dict:
-        if not os.path.exists(self._file_name):
-            raise ConfigError(f"Credential file (i.e. {self._file_name}) not found!")
-        with open(self._file_name, 'r') as f:
-            return yaml.safe_load(f)
-
-    @property
-    def file_name(self):
-        return self._file_name
-
-    @file_name.setter
-    def file_name(self, value):
-        self._file_name = value
-        self.credentials = self.__load_credentials()
-
-    def get(self, key, default=None) -> Any:
-        return self.credentials.get(key, default)
 
 
 @Singleton
