@@ -1,10 +1,10 @@
 
-# ---
-# --- Creación de gráficos para las salidas del CPT
-# ---
+# -----------------------------------------------------------------------------#
+# ---- Creación de gráficos para las salidas del CPT
+# -----------------------------------------------------------------------------#
 
 # -----------------------------------------------------------------------------#
-# --- PASO 1. Inicializar entorno ----
+# ---- PASO 1. Inicializar entorno ----
 
 # i. Borrar objetos existentes en el ambiente
 rm(list = ls()); gc()
@@ -32,7 +32,7 @@ rm(pack, list.of.packages); gc()
 # ------------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------#
-# --- PASO 2. Leer archivos YML de configuracion y parametros----
+# ---- PASO 2. Leer archivos YML de configuracion y parametros----
 
 # i. Leer YML de configuracion
 args <- base::commandArgs(trailingOnly = TRUE)
@@ -55,7 +55,7 @@ rm(archivo.config, args); gc()
 # ------------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------#
-# --- PASO 3. Cargar librerias propias e iniciar script ----
+# ---- PASO 3. Cargar librerias propias e iniciar script ----
 
 # a) Configurar reticulate para poder utilizar código python
 # py_venv <- paste0(getwd(), "/venv")
@@ -64,13 +64,12 @@ rm(archivo.config, args); gc()
 # b) Carga de clases de uso general 
 # reticulate::source_python("components.py")
 
-# c) Carga de codigo para controles de calidad
+# c) Carga de codigo 
 source("funciones.R", echo = FALSE)
-# source(paste0(config$dir$base, "lib/", "funciones_control_calidad.R"), echo = FALSE)
 # ------------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------#
-# --- PASO 4. Leer archivos de salida del CPT y generar gráficos----
+# ---- PASO 4. Leer archivos de salida del CPT y generar gráficos ----
 
 # Leer shapes a ser utlizados en los gráficos
 crcsas_sf <- sf::st_read(paste0(config$folders$shapefiles, "/CRC_SAS.shp"))
@@ -83,8 +82,8 @@ for (fp in config$files) {
   cat("\n\n\n") 
   print(glue::glue("Processing file: {fp$file}"))
 
-  #
-  # PARSEAR NOMBRE DEL ARCHIVO
+  # ---------------------------------------------------------------------------#
+  # ---- PASO 4.1 PARSEAR NOMBRE DEL ARCHIVO ----
   #
   
   # fp <- config$files[[1]]
@@ -117,8 +116,11 @@ for (fp in config$files) {
   
   # fp$file <- "nmme_precip-prcp_Mayic_6_1982-2010_2020-2021_fabricio.txt"
   
-  #
-  # EXTRAER DATOS DEL ARCHIVO FORECAST SIN CALIBRAR
+  # ----------------------------------------------------------------------------
+  
+  
+  # ---------------------------------------------------------------------------#
+  # ---- PASO 4.2 EXTRAER DATOS DEL ARCHIVO FORECAST SIN CALIBRAR ----
   #
   
   # Definir path absoluto al archivo
@@ -207,10 +209,11 @@ for (fp in config$files) {
     
   }
   
+  # ----------------------------------------------------------------------------
   
   
-  #
-  # EXTRAER DATOS GENERADOS POR EL SOFTWARE CPT
+  # ---------------------------------------------------------------------------#
+  # ---- PASO 4.3 EXTRAER DATOS GENERADOS POR EL SOFTWARE CPT ----
   #
   
   # Definir path absoluto al archivo
@@ -237,10 +240,11 @@ for (fp in config$files) {
   # Remover objetos que ya no se van a utilizar
   rm(file_abs_path, y, yy, x, xx, c, cc); gc()
   
+  # ----------------------------------------------------------------------------
   
   
-  #
-  # EXTRAER DATOS OBSERVADOS
+  # ---------------------------------------------------------------------------#
+  # ---- PASO 4.4 EXTRAER DATOS OBSERVADOS ----
   #
   
   # obs_file <- 'prcp_6_fabricio.txt'
@@ -270,11 +274,15 @@ for (fp in config$files) {
   # Remover objetos que ya no se van a utilizar
   rm(obs_file, file_abs_path, y, yy, x, xx, c, cc); gc()
   
+  # ----------------------------------------------------------------------------
   
   
+  # ---------------------------------------------------------------------------#
+  # ---- PASO 4.5 CORREGIR RESULTADOS CON VALORES MAYORES A 7 DESV ESTÁNDAR, 
+  # ----          LA CORRECCIÓN SE REALIZA SOLO PRECIPITACION ----
   #
-  # CORREGIR RESULTADOS CON VALORES MAYORES A 7 DESV ESTÁNDAR (SOLO PRCP)
-  #
+  
+  # Esta corrección fue indicada por Fabricio Santos, el la realiza manualmente!
   
   if (variable == "prcp") {
     
@@ -325,9 +333,11 @@ for (fp in config$files) {
   
   }
   
+  # ----------------------------------------------------------------------------
   
-  #
-  # AGREGAR COLUMNAS NECESARIAS PARA REALIZAR LOS GRÁFICOS
+  
+  # ---------------------------------------------------------------------------#
+  # ---- PASO 4.6 AGREGAR COLUMNAS NECESARIAS PARA REALIZAR LOS GRÁFICOS ----
   #
   
   # R redondea .5 para abajo, excel para arriba entonces, 
@@ -439,10 +449,11 @@ for (fp in config$files) {
   # Remover objetos que ya no se van a utilizar
   rm(data_obs_statistics); gc()
   
+  # ----------------------------------------------------------------------------
   
   
-  #
-  # SELECCIONAR AÑOS PRONOSTICADOS Y RENOMBRARLOS
+  # ---------------------------------------------------------------------------#
+  # ---- PASO 4.7 SELECCIONAR AÑOS PRONOSTICADOS Y RENOMBRARLOS ----
   #
   
   # Ocurre que cuando se corre el CPT, algunas veces el año siguiente al último
@@ -503,10 +514,11 @@ for (fp in config$files) {
     
   }
   
+  # ----------------------------------------------------------------------------
   
   
-  #
-  # COMPARAR CON LOS DATOS EN LAS PLANILLAS DE FABRICIO
+  # ---------------------------------------------------------------------------#
+  # ---- PASO 4.8 COMPARAR CON LOS DATOS EN LAS PLANILLAS DE FABRICIO ----
   #
   
   # data_comp <- purrr::map_dfr(
@@ -540,10 +552,11 @@ for (fp in config$files) {
   #   dplyr::filter(corr != corr.fab | codigo_de_color != codigo_de_color.fab) %>%
   #   dplyr::filter(codigo_de_color != codigo_de_color.fab)
   
+  # ----------------------------------------------------------------------------
   
   
-  #
-  # GENERAR GRÁFICOS/MAPAS
+  # ---------------------------------------------------------------------------#
+  # ---- PASO 4.9 GENERAR GRÁFICOS/MAPAS ----
   #
   
   for (data_year in unique(data$year)) {
@@ -905,6 +918,8 @@ for (fp in config$files) {
     ##########################################################################
     
   }
+  
+  # ----------------------------------------------------------------------------
 
 }
 # ------------------------------------------------------------------------------
