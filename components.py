@@ -886,6 +886,9 @@ class CrcSasFile:
                 os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
                 raise
 
+            # Reportar que el archivo ya fue actualizado
+            self.update_ctrl.report_updated_file(self.abs_path)
+
 
 @dataclass
 class PredictandFile:
@@ -914,7 +917,8 @@ class PredictandFile:
     def __post_init__(self, fcst_data, trgt_season, trng_period):
         # Check data_source attribute
         if self.data_source not in ['chirps', 'era5-land', 'crcsas']:
-            error_msg = f'The data_source attribute must be "chirps" or "era5-land", not "{self.data_source}"'
+            error_msg = f'The data_source attribute must be "chirps" or ' \
+                        f'"era5-land" or "crcsas", not "{self.data_source}"'
             raise AttributeError(error_msg)
         # Create predictand file (it can be a chirps file or an era5-land file)
         if self.data_source == 'chirps':

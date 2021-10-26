@@ -312,25 +312,45 @@ class CrcSasAPI:
         return pd.json_normalize(resp.json())
 
     def __download_variable(self, variable: str, anho_desde: int, anho_hasta: int) -> pd.DataFrame:
+
+        # Create progress bar to track downloading
+        run_status = f'Downloading {variable} from CRC-SAS API (PID: {os.getpid()})'
+        pb = SecondaryProgressBar(100, run_status)
+
+        # Open progress bar
+        pb.open()
+
+        # Definir el estadístico objetivo
+        estadistico = 'Suma' if variable == 'prcp' else 'Media'
+
+        pb.update_count(1)
+
         # Obtener las estaciones con datos completos para la variable y periodo indicados
-        url_estaciones_c = f"registros_mensuales/estaciones_completas/{variable}/{anho_desde}/{anho_hasta}"
-        estaciones_completas = self.__get_json(url_estaciones_c)
+        url_estaciones_completas = f"estadisticas_mensuales/estaciones_completas"\
+                                   f"/{variable}/{estadistico}/{anho_desde}/{anho_hasta}"
+        estaciones_completas = self.__get_json(url_estaciones_completas)
+
+        pb.update_count(15)
 
         # Descargar los datos para cada una de las estaciones
         data: pd.DataFrame = pd.DataFrame()
         for omm_id in estaciones_completas.omm_id.values:
-            estadistico = 'sum' if variable == 'prcp' else 'prom'
-            url_data = f"registros_mensuales/{omm_id}/{variable}/{estadistico}/{anho_desde}/{anho_hasta}"
+            url_data = f"estadisticas_mensuales/{omm_id}/{variable}/{estadistico}/{anho_desde}/{anho_hasta}"
             stn_data = self.__get_json(url_data)
             data = pd.concat([data, stn_data])
+            pb.report_advance(85/len(estaciones_completas))
+
+        # close progress bar
+        sleep(0.5)
+        pb.close()
 
         # Retorna los datos descargados
         return data
 
     def download_data(self, variable: str, anho_desde: int, anho_hasta: int) -> pd.DataFrame:
 
-        # Create progress bar to track interpolation
-        run_status = f'Downloading {variable} from CRC-SAS API (PID: {os.getpid()})'
+        # Create progress bar to track downloading
+        run_status = f'Downloading data from CRC-SAS API (PID: {os.getpid()})'
         pb = SecondaryProgressBar(6, run_status)
 
         # Open progress bar

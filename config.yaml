@@ -38,6 +38,10 @@ training_period:
 
 # OBS:
 # Predictors can have two more attributes (fcst_name and hcst_name)
+# Valid predictors variables are: "precip" and "tmp2m"
+# Valid predictors data sources are: "iridl" for ecmwf models and "noaa" for cpc/noaa models
+# Valid predictands variables are: "prcp" and "t2m"
+# Valid predictands data sources are: "chirps", "er5-land" and "crcsas"
 models:
   ecmwf:
     predictors:
