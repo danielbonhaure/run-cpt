@@ -8,7 +8,7 @@ update:
     cpt_input_data: False
   predictands:
     raw_data: False
-    last_year_raw_data: False
+    only_last_year_chirps_daily_raw_data: False
     cutted_chirps_data: False
     interpolated_data: False
     cpt_input_data: False

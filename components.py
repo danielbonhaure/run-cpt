@@ -693,7 +693,8 @@ class ChirpsFile:
             # Download chirps for the whole world (if needed)
             if not os.path.exists(year_chirps_file_world) or \
                     self.update_ctrl.must_be_updated('predictands', 'raw_data', year_chirps_file_world) or \
-                    (self.update_ctrl.must_be_updated('predictands', 'last_year_raw_data', year_chirps_file_world) and
+                    (self.update_ctrl.must_be_updated(
+                        'predictands', 'only_last_year_chirps_daily_raw_data', year_chirps_file_world) and
                      ((year == date.today().year - 1 and date.today().month <= 2) or year == date.today().year)):
                 try:
                     # Download netcdf
@@ -715,7 +716,8 @@ class ChirpsFile:
             # Update intermediate file (obtained by cutting the downloaded file)
             if not os.path.exists(year_chirps_file) or \
                     self.update_ctrl.must_be_updated('predictands', 'cutted_chirps_data', year_chirps_file) or \
-                    (self.update_ctrl.must_be_updated('predictands', 'last_year_raw_data', year_chirps_file_world) and
+                    (self.update_ctrl.must_be_updated(
+                        'predictands', 'only_last_year_chirps_daily_raw_data', year_chirps_file_world) and
                      ((year == date.today().year - 1 and date.today().month <= 2) or year == date.today().year)):
                 self.__cut_chirps_file(year_chirps_file_world, year_chirps_file)
 
