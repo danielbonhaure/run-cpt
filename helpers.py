@@ -753,7 +753,6 @@ class ConfigFile:
             fp_plot_yaml.write(f'  shapefiles: {self.cpt_config.get("folders").get("raw_data").get("shapefiles")}\n')
             fp_plot_yaml.write(f'  forecasts: {self.cpt_config.get("folders").get("raw_data").get("forecasts")}\n')
             fp_plot_yaml.write(f'  predictors: {self.cpt_config.get("folders").get("predictors")}\n')
-            fp_plot_yaml.write(f'  output: {self.cpt_config.get("folders").get("output")}\n')
             fp_plot_yaml.write(f'  plots: {self.cpt_config.get("folders").get("plots")}\n')
             fp_plot_yaml.write(f'  images: {self.cpt_config.get("folders").get("raw_data").get("images")}\n')
             fp_plot_yaml.write('\nfiles:\n')

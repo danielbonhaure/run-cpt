@@ -86,19 +86,19 @@ for (fp in config$files) {
   # ---- PASO 4.1 PARSEAR NOMBRE DEL ARCHIVO ----
   #
   
-  # fp <- config$files[[1]]
-  # fp$file <- "nmme_precip-prcp_Mayic_6_1982-2010_2020-2021.txt"
+  # fp <- config$files[[12]]
 
-  fp_split <- stringr::str_split_fixed(stringr::str_replace(fp$file, '.txt', ''), '_', 6)
+  fp_split <- stringr::str_split_fixed(stringr::str_replace(fp$file, '.txt', ''), '_', 8)
   
   modelo <- fp_split[1]
   variable <- stringr::str_split_fixed(fp_split[2], '-', 2)[2]
   variable_str <- ifelse(variable == 'prcp', 'Precipitation', 'Average Air Temperature - 2m')
   variable_unit <- ifelse(variable == 'prcp', 'mm', '°C')
   variable_fcst <- ifelse(variable == 'prcp', 'precip', 'tmp2m')
-  initial_month <- stringr::str_replace(fp_split[3], 'ic', '')
+  data_source <- fp_split[3]
+  initial_month <- stringr::str_replace(fp_split[4], 'ic', '')
   initial_month_int <- which(initial_month == month.abb)[[1]]
-  forecast_months <- fp_split[4]
+  forecast_months <- fp_split[5]
   first_fcst_month <- as.numeric(stringr::str_split_fixed(forecast_months, '-', 2)[1])
   last_fcst_month <- as.numeric(stringr::str_split_fixed(forecast_months, '-', 2)[2])
   forecast_months_str <- ifelse(
@@ -107,14 +107,26 @@ for (fp in config$files) {
   forecast_months_abb <- ifelse(
     fp$type == "monthly", month.abb[first_fcst_month], 
     paste0(month.abb[first_fcst_month], '-', month.abb[last_fcst_month]))
-  training_period <- fp_split[5]
+  training_period <- fp_split[6]
   first_training_year <- as.numeric(stringr::str_split_fixed(training_period, '-', 2)[1])
   last_training_year <- as.numeric(stringr::str_split_fixed(training_period, '-', 2)[2])
-  forecast_years <- fp_split[6]
-  first_fcst_year <- as.numeric(stringr::str_split_fixed(forecast_years, '-', 2)[1])
-  last_fcst_year <- as.numeric(stringr::str_split_fixed(forecast_years, '-', 2)[2])
-  
-  # fp$file <- "nmme_precip-prcp_Mayic_6_1982-2010_2020-2021_fabricio.txt"
+  # Para pronosticos seasonale el primer año de entrenamiento es el primer año 
+  # para el primer mes y el segundo año de entrenamiento es el último año del
+  # segundo mes. Los año son iguales cuando el trimestre está en el mismo año, 
+  # pero cuando el primer mes está en un año (ej: octubre 1991) y el segundo 
+  # mes está en el siguiente año (ej: enero 2021), entonces en realidad el 
+  # último año de entrenamiento para los datos extraídos es: el último año del 
+  # segundo mes menos uno (ej: 2021 - 1 = 2020). Esto es así porque en los 
+  # datos extraídos se usa solo un año y es el año asociado al 1er mes!!
+  if (fp$type == "seasonal")
+    if (first_fcst_month > last_fcst_month)
+      last_training_year <- last_training_year - 1
+  first_forecast_years <- fp_split[7]
+  first_fcst_year_first_month <- as.numeric(stringr::str_split_fixed(first_forecast_years, '-', 2)[1])
+  first_fcst_year_last_month <- as.numeric(stringr::str_split_fixed(first_forecast_years, '-', 2)[2])
+  n_forecasts <- as.numeric(fp_split[8])
+  last_fcst_year_first_month <- first_fcst_year_first_month + n_forecasts - 1
+  last_fcst_year_last_month <- first_fcst_year_last_month + n_forecasts - 1
   
   # ----------------------------------------------------------------------------
   
@@ -128,7 +140,7 @@ for (fp in config$files) {
     
     forecast_file <- glue::glue("{modelo}_{variable_fcst}_{initial_month}ic_",
                                 "{forecast_months}_{training_period}_",
-                                "{forecast_years}.txt")
+                                "{first_forecast_years}_{n_forecasts}.txt")
     file_abs_path <- paste0(getwd(), '/', config$folders$predictors, forecast_file)
     # Extraer latitudes (usar nombre de columna como ID)
     x <- read.table(file =file_abs_path, sep = '\t', header = FALSE, skip = 5, nrows = 1)
@@ -136,9 +148,9 @@ for (fp in config$files) {
       dplyr::select(-V1)
     # Extraer valores (usar año y columna como ID)
     cc <- purrr::map2_dfr(
-      .x = c(first_training_year:last_training_year, first_fcst_year:last_fcst_year),
+      .x = c(first_training_year:last_training_year, first_fcst_year_first_month:last_fcst_year_first_month),
       .y = seq(from = 6, 
-               length.out = length(c(first_training_year:last_training_year, first_fcst_year:last_fcst_year)), 
+               length.out = length(c(first_training_year:last_training_year, first_fcst_year_first_month:last_fcst_year_first_month)), 
                by = length(c(config$spatial_domain$nla:config$spatial_domain$sla))+2),
       .f = function(year, skip) {
         c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = skip, 
@@ -160,12 +172,12 @@ for (fp in config$files) {
       dplyr::rowwise() %>%
       dplyr::mutate(value = ifelse(variable == 'prcp', value * n_days, value)) %>%
       dplyr::ungroup() %>%
-      dplyr::filter(year >= first_fcst_year)
+      dplyr::filter(year >= first_fcst_year_first_month)
     
     # Si los datos descargados están en grados Kelvin, pasarlos a grados Celsius
     # Algunos archivos fueron descargados en grados Kelvin! Se agrega este control
     # por si se llega a leer alguno de ellos en algún momento!
-    if (mean(fcst_data$value) > 200 && variable == 't2m')
+    if (mean(fcst_data$value, na.rm = T) > 200 && variable == 't2m')
       fcst_data <- fcst_data %>% 
         dplyr::mutate(value = value - 273.15) 
     
@@ -175,13 +187,12 @@ for (fp in config$files) {
   } else {
     
     fcst_data <- purrr::map_dfr(
-      .x = c(first_fcst_year:last_fcst_year),
+      .x = c(first_fcst_year_first_month:last_fcst_year_first_month),
       .f = function(year) {
         
-        year_str <- ifelse(fp$type == "monthly", year, paste0(year, '-', 
-                           ifelse(first_fcst_month < last_fcst_month, year, year+1)))
-        forecast_file <- glue::glue("{modelo}_{variable_fcst}_fcst_{initial_month}ic_",
-                                    "{forecast_months}_{year_str}.txt")
+        forecast_file <- glue::glue("{modelo}_{variable_fcst}_fcst_",
+                                    "{initial_month}ic_{forecast_months}_",
+                                    "{first_forecast_years}.txt")
         file_abs_path <- paste0(getwd(), '/', config$folders$forecasts, forecast_file)
         # Extraer latitudes (usar nombre de columna como ID)
         x <- read.table(file =file_abs_path, sep = '\t', header = FALSE, skip = 3, nrows = 1)
@@ -250,7 +261,7 @@ for (fp in config$files) {
   # obs_file <- 'prcp_6_fabricio.txt'
   
   # Definir path absoluto al archivo
-  obs_file <- paste0(variable, '_', forecast_months, '.txt') 
+  obs_file <- paste0(variable, '_', data_source, '_', forecast_months, '.txt') 
   file_abs_path <- paste0(getwd(), '/', config$folders$observed_data, obs_file)
   # Extraer latitudes (usar nombre de columna como ID)
   y <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 1, nrows = 1)
@@ -484,7 +495,7 @@ for (fp in config$files) {
       dplyr::pull(year) %>% min()
     # Calcular desfasaje entre el año inmediatamente posterior al periodo 
     # de entrenamiento y el primer año de pronóstico
-    desfasaje <- first_fcst_year - min_date_in_data
+    desfasaje <- first_fcst_year_first_month - min_date_in_data
     
     # Definir un mapeo que permita renombrar los años
     mapeo <- purrr::map_dfr(
@@ -510,7 +521,8 @@ for (fp in config$files) {
     # En caso que los años NO deban se renombrados, se hace lo siguiente:
     
     data <- data %>%
-      dplyr::filter(year >= first_fcst_year, year <= last_fcst_year) 
+      dplyr::filter(year >= first_fcst_year_first_month, 
+                    year <= last_fcst_year_first_month) 
     
   }
   
@@ -560,6 +572,15 @@ for (fp in config$files) {
   #
   
   for (data_year in unique(data$year)) {
+    
+    # Se determina el año correspondiente al mes de inicio,
+    # si el mes de inicio es posterior al primer mes de 
+    # pronóstico (first_fcst_month), entonces el año del mes 
+    # inicial es un año previo al año del primer mes de pronóstico
+    initial_year <- ifelse(
+      initial_month_int > first_fcst_month,
+      first_fcst_year_first_month - 1,
+      first_fcst_year_first_month)
     
     # Graficos simples (requieren una sola interpolación)
     # En general son gráficos similares a los realizados por Fabricio Santos,
@@ -653,22 +674,18 @@ for (fp in config$files) {
       
       ##########################################################################
       ## Generar atributos globales de los gráficos ##################
-      if (first_fcst_month > initial_month_int) {
-        month_year <- glue::glue("{month.abb[first_fcst_month]} {data_year}")
-      } else {
-        month_year <- glue::glue("{month.abb[first_fcst_month]} {data_year+1}")
-      }
+      month_year <- glue::glue("{month.abb[first_fcst_month]} {data_year}")
       if (fp$type == "seasonal") {
-        if (last_fcst_month > initial_month_int) {
-          month_year <- glue::glue("{month_year} - {month.abb[last_fcst_month]} {data_year}")
-        } else {
+        if (first_fcst_month > last_fcst_month) {
           month_year <- glue::glue("{month_year} - {month.abb[last_fcst_month]} {data_year+1}")
+        } else {
+          month_year <- glue::glue("{month_year} - {month.abb[last_fcst_month]} {data_year}")
         }
       } 
       if (data_type == "anom") {
         main_title <- glue::glue("{variable_str} Anomaly Forecast ({variable_unit})",
                                  "\n{toupper(modelo)} valid for {month_year} ",
-                                 "\nIssued: {initial_month} {data_year}")
+                                 "\nIssued: {initial_month} {initial_year}")
         fig_file_name <- paste0(
           stringr::str_replace(fp$file, '.txt', ''),
           '_', data_year, '_anom')
@@ -683,7 +700,7 @@ for (fp in config$files) {
       } else if (data_type == "value.gen") {  # PREV_PREC
         main_title <- glue::glue("{variable_str} ({variable_unit})",
                                  "\n{toupper(modelo)} valid for {month_year} ",
-                                 "\nIssued: {initial_month} {data_year} ",
+                                 "\nIssued: {initial_month} {initial_year} ",
                                  "\n(calibrated forecast)")
         fig_file_name <- paste0(
           stringr::str_replace(fp$file, '.txt', ''),
@@ -691,14 +708,14 @@ for (fp in config$files) {
       } else if (data_type == "codigo_de_color") {  # PROB_PREC
         main_title <- glue::glue("{variable_str} - Probability Forecast ",
                                  "\n{toupper(modelo)} valid for {month_year} ",
-                                 "\nIssued: {initial_month} {data_year}")
+                                 "\nIssued: {initial_month} {initial_year}")
         fig_file_name <- paste0(
           stringr::str_replace(fp$file, '.txt', ''),
           '_', data_year, '_prob')
       } else if (data_type == "value.fcst") {
         main_title <- glue::glue("{variable_str} ({variable_unit})",
                                  "\n{toupper(modelo)} valid for {month_year} ",
-                                 "\nIssued: {initial_month} {data_year} ",
+                                 "\nIssued: {initial_month} {initial_year} ",
                                  "\n(uncalibrated forecast)")
         fig_file_name <- paste0(
           stringr::str_replace(fp$file, '.txt', ''),

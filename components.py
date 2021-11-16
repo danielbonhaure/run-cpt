@@ -104,17 +104,6 @@ class TrainingPeriod:
     original_tini: int = field(init=False)
     original_tend: int = field(init=False)
 
-    # Years for each target month
-    def trng_years_by_month(self, trgt_season: TargetSeason) -> Dict[int, List[int]]:
-        trng_years_by_month = dict()
-        for year in range(self.original_tini, self.original_tend + 1):
-            trng_years_by_month[year] = YearsProcessor.years_for_month_range(year, trgt_season)
-        return trng_years_by_month
-
-    @property
-    def ntrain(self) -> int:  # Length of training period
-        return self.original_tend - self.original_tini + 1
-
     trgt_season: InitVar[TargetSeason] = None
 
     def __post_init__(self, trgt_season):
@@ -126,6 +115,17 @@ class TrainingPeriod:
                 self.tini += 1
             if trgt_season.last_trgt_month_in_next_year:
                 self.tend += 1
+
+    # Years for each target month
+    def trng_years_by_month(self, trgt_season: TargetSeason) -> Dict[int, List[int]]:
+        trng_years_by_month = dict()
+        for year in range(self.original_tini, self.original_tend + 1):
+            trng_years_by_month[year] = YearsProcessor.years_for_month_range(year, trgt_season)
+        return trng_years_by_month
+
+    @property
+    def ntrain(self) -> int:  # Length of training period
+        return self.original_tend - self.original_tini + 1
 
 
 @dataclass
@@ -427,8 +427,9 @@ class NoaaPredictorFile:
 
     def __define_predictor_filename(self, model, fcst_data, trgt_season, trng_period) -> str:
         months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
+        years_to_str = YearsProcessor.fcst_data_to_years_str(fcst_data, trgt_season, fcst_data.fyr)
         return f"{model}_{self.predictor}_{fcst_data.monf}ic_{months_indexes}_" \
-               f"{trng_period.tini}-{trng_period.tend}_{fcst_data.fyr}-{fcst_data.lyr}.txt"
+               f"{trng_period.tini}-{trng_period.tend}_{years_to_str}_{fcst_data.nfcsts}.txt"
 
     def __define_raw_files(self, model, fcst_data, trgt_season, trng_period):
         # Create hindcast file
@@ -541,8 +542,9 @@ class IriDLPredictorFile:
 
     def __define_predictor_filename(self, model, fcst_data, trgt_season, trng_period) -> str:
         months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
+        years_to_str = YearsProcessor.fcst_data_to_years_str(fcst_data, trgt_season, fcst_data.fyr)
         return f"{model}_{self.predictor}_{fcst_data.monf}ic_{months_indexes}_" \
-               f"{trng_period.tini}-{trng_period.tend}_{fcst_data.fyr}-{fcst_data.lyr}.txt"
+               f"{trng_period.tini}-{trng_period.tend}_{years_to_str}_{fcst_data.nfcsts}.txt"
 
     def __define_url_to_file(self, fcst_data, trgt_season):
         spd_predictor = SpatialDomain(**self.config_file.get('spatial_domain').get('predictor'))
@@ -1124,10 +1126,11 @@ class OutputFile:
 
     @staticmethod
     def __define_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data) -> str:
-        months_abbr = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
+        months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
+        years_to_str = YearsProcessor.fcst_data_to_years_str(fcst_data, trgt_season, fcst_data.fyr)
         return f"{model}_{predictor_data.predictor}-{predictand_data.predictand}_" \
-               f"{fcst_data.monf}ic_{months_abbr}_{trng_period.tini}-{trng_period.tend}_" \
-               f"{fcst_data.fyr}-{fcst_data.fyr + fcst_data.nfcsts - 1}.txt"
+               f"{predictand_data.data_source}_{fcst_data.monf}ic_{months_indexes}_" \
+               f"{trng_period.tini}-{trng_period.tend}_{years_to_str}_{fcst_data.nfcsts}.txt"
 
     def __add_filename_to_plot_yaml(self, trgt_season, predictor_data):
         with open(self.config_file.get('files').get('plot_yaml'), 'a') as fp_plot_yaml:

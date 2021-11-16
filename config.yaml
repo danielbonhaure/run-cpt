@@ -33,7 +33,7 @@ training_period:
 # When this information is provided, the target season and forecast
 # are created using this month and year instead of the current month
 # Comment the following two lines to run the current month
-# initial_month: 9
+# initial_month: 10
 # initial_year: 2021
 
 # OBS:
