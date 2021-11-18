@@ -4,7 +4,7 @@
 #################
 
 # Create image
-FROM debian:latest as cpt_builder
+FROM debian:bullseye as cpt_builder
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -80,6 +80,8 @@ RUN mv /tmp/CPT/17.3.1/* /opt/CPT/17.3.1/src/
 # Instalar versión 15.6.3
 # Acceder al código fuente
 WORKDIR /opt/CPT/15.6.3/src
+# Para poder usar gfortran 10
+RUN sed -i "s/-frecursive/-frecursive -fallow-argument-mismatch/g" ./lapack/lapack/make.inc
 # Compilar e instalar CPT
 RUN make distclean
 RUN make
@@ -88,6 +90,8 @@ RUN make INSTALL_DIR=/opt/CPT/15.6.3/ install
 # Instalar versión 15.7.11
 # Acceder al código fuente
 WORKDIR /opt/CPT/15.7.11/src
+# Para poder usar gfortran 10
+RUN sed -i "s/-frecursive/-frecursive -fallow-argument-mismatch/g" ./lapack/lapack/make.inc
 # Compilar e instalar CPT
 RUN make distclean
 RUN make
@@ -120,7 +124,7 @@ RUN echo "export PATH=/opt/CPT/$CPT_VERSION/bin:$PATH" >> /root/.bashrc
 #############################
 
 # Create image
-FROM python:3.8.5-buster AS py_builder
+FROM python:3.8-bullseye AS py_builder
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -158,7 +162,7 @@ RUN python3 -m pip install --upgrade pip && \
 ########################
 
 # Create image
-FROM python:3.8.5-buster AS r_builder
+FROM python:3.8-bullseye AS r_builder
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -170,14 +174,45 @@ RUN apt-get -y -qq update && \
         # install R
         r-base \
         # to install ncdf4
-        libnetcdf-dev && \
+        libnetcdf-dev \
+        # to install terra, a dependency of raster
+        libgdal-dev \
+        # to install classInt, a dependency of sf
+        gfortran \
+        # to install units, a dependency of sf
+        libudunits2-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # install R packages
-RUN R -e "install.packages('ncdf4', repos='https://cran.r-project.org/')"
-RUN R -e "install.packages('raster', repos='https://cran.r-project.org/')"
-RUN R -e "install.packages('dplyr', repos='https://cran.r-project.org/')"
-RUN R -e "install.packages('tibble', repos='https://cran.r-project.org/')"
+RUN R -e "install.packages('sp', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('ncdf4', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('raster', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('dplyr', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('tibble', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('sf', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('stringr', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('tidyr', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('purrr', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('yaml', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('glue', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('lubridate', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('gstat', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('rasterVis', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('htmltools', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('leaflet', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('plainview', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('leafem', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('ggplot2', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('rnaturalearth', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('RColorBrewer', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('httr', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('jsonlite', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('lattice', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('leaflet.extras2', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('RCurl', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('grDevices', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('rnaturalearthdata', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "install.packages('ggiraph', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
 
 
 
@@ -186,7 +221,7 @@ RUN R -e "install.packages('tibble', repos='https://cran.r-project.org/')"
 ########################
 
 # Create image
-FROM python:3.8.5-buster AS pycpt
+FROM python:3.8-bullseye AS pycpt
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -199,12 +234,18 @@ RUN apt-get -y -qq update &&\
     apt-get -y -qq --no-install-recommends install \
         # install R
         r-base \
-        # to be able to use cartopy
+        # to be able to use cartopy (Python)
         libproj-dev libgeos-dev \
-        # to be able to use rpy2
+        # to be able to use rpy2 (R-Python)
         libblas-dev \
-        # to be able to use ncdf4
+        # to be able to use ncdf4 (R)
         libnetcdf-dev \
+        # to install terra, a dependency of raster (R)
+        libgdal-dev \
+        # to be able to import and use units (R)
+        libudunits2-dev \
+        # to be able to use htmlwidgets (R)
+        pandoc \
         # install Tini (https://github.com/krallin/tini#using-tini)
         tini \
         # to see process with pid 1
@@ -241,6 +282,7 @@ COPY --from=r_builder /usr/bin/R /usr/bin/R
 COPY --from=r_builder /usr/bin/Rscript /usr/bin/Rscript
 COPY --from=r_builder /usr/lib/R /usr/lib/R
 COPY --from=r_builder /usr/local/lib/R/site-library /usr/local/lib/R/site-library
+COPY --from=r_builder /tmp /tmp
 
 # Create work directory
 RUN mkdir -p /opt/pyCPT
@@ -299,6 +341,7 @@ RUN chown -R $USER_UID:$USER_UID /opt/pyCPT
 
 # Setup cron for run once a month
 RUN (echo "0 0 15 * * /usr/local/bin/python /opt/pyCPT/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $CPT_USER -
+RUN (crontab -u $CPT_USER -l; echo "0 0 16 * * /usr/bin/Rscript /opt/pyCPT/plot.R >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $CPT_USER -
 
 # Add Tini (https://github.com/krallin/tini#using-tini)
 ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
@@ -313,23 +356,37 @@ WORKDIR /home/$CPT_USER
 # Switch back to cpt_user to avoid accidental container runs as root
 USER $CPT_USER
 
-# docker build -f dockerfile \
-#        -t cpt .
+# CONSTRUIR CONTENEDOR
 # docker build -f dockerfile \
 #        --build-arg ROOT_PWD=cpt \
 #        --build-arg USER_PWD=cpt \
 #        --build-arg USER_UID=$(stat -c "%u" input) \
 #        --build-arg USER_GID=$(stat -c "%g" output) \
 #        -t cpt .
+
+# CORRER OPERACIONALMENTE CON CRON
 # docker run --name pycpt --rm \
 #        --volume $(pwd)/input:/opt/pyCPT/input \
 #        --volume $(pwd)/output:/opt/pyCPT/output \
+#        --volume $(pwd)/plots:/opt/pyCPT/plots \
 #        --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
 #        --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \
 #        --detach cpt:latest
+
+# CORRER MANUALMENTE PyCPT
 # docker run --name pycpt --rm \
 #        --volume $(pwd)/input:/opt/pyCPT/input \
 #        --volume $(pwd)/output:/opt/pyCPT/output \
+#        --volume $(pwd)/plots:/opt/pyCPT/plots \
 #        --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
 #        --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \
 #        cpt:latest /usr/local/bin/python /opt/pyCPT/main.py
+
+# CORRER MANUALMENTE plot.R
+# docker run --name pycpt --rm \
+#        --volume $(pwd)/input:/opt/pyCPT/input \
+#        --volume $(pwd)/output:/opt/pyCPT/output \
+#        --volume $(pwd)/plots:/opt/pyCPT/plots \
+#        --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
+#        --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \
+#        cpt:latest /usr/bin/Rscript /opt/pyCPT/plot.R

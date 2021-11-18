@@ -4,3 +4,4 @@
 !*.yaml
 !*.py
 !requirements.txt
+!*.R

@@ -6,13 +6,27 @@
 # -----------------------------------------------------------------------------#
 # ---- PASO 1. Inicializar entorno ----
 
-# i. Borrar objetos existentes en el ambiente
+# i. Cambiar carpeta de trabajo actual a la de este script
+getScriptPath <- function(){
+    cmd.args <- commandArgs()
+    m <- regexpr("(?<=^--file=).+", cmd.args, perl=TRUE)
+    script.dir <- dirname(regmatches(cmd.args, m))
+    if(length(script.dir) == 0) 
+      stop("Can't determine script dir: please call the script with Rscript")
+    if(length(script.dir) > 1) 
+      stop("Can't determine script dir: more than one '--file' argument detected")
+    return(script.dir)
+}
+setwd(getScriptPath())
+
+
+# ii. Borrar objetos existentes en el ambiente
 rm(list = ls()); gc()
 
-# ii. Configurar huso horario en UTC
+# iii. Configurar huso horario en UTC
 Sys.setenv(TZ = "UTC")
 
-# iii. Cargar paquetes a utilizar
+# iv. Cargar paquetes a utilizar
 list.of.packages <- c("dplyr", "raster")
 for (pack in list.of.packages) {
   if (! require(pack, character.only = TRUE)) {
@@ -20,8 +34,11 @@ for (pack in list.of.packages) {
   }
 }
 
-# iv. Verificar si están instalados los paquetes necesarios
-list.of.packages <- c("stringr", "tidyr", "yaml", "glue")
+# v. Verificar si están instalados los paquetes necesarios
+list.of.packages <- c("sp", "ncdf4", "tibble", "sf", "stringr", "tidyr", "purrr", "yaml", "glue", "lubridate",
+                      "gstat", "rasterVis", "htmltools", "leaflet", "plainview", "leafem", "ggplot2",
+                      "rnaturalearth", "RColorBrewer", "httr", "jsonlite", "lattice", "leaflet.extras2", "RCurl",
+                      "grDevices", "rnaturalearthdata", "ggiraph")
 for (pack in list.of.packages) {
   if(pack %in% rownames(installed.packages()) == FALSE) {
     stop(paste0("Paquete no encontrado: ", pack))
