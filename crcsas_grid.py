@@ -117,7 +117,7 @@ class CrcSasGrid:
             # install packages
             utils.install_packages(StrVector(names_to_install))
 
-    def interpolate_raw_data(self, input_file: str, variable: str, convert_kelvin_to_celsius: bool = False,
+    def interpolate_raw_data(self, input_file: str, variable: str,
                              return_df: bool = False, output_file: str = None, show_progress_bar: bool = True
                              ) -> Union[str, pd.DataFrame]:
 
@@ -182,16 +182,8 @@ class CrcSasGrid:
         # convert pandas dataframe to xarray object
         xx = df.to_xarray().fillna(np.nan)
 
-        # If needed, convert measure unit
-        if convert_kelvin_to_celsius:
-            # set variable unit to kelvin
-            xx[variable].attrs['units'] = 'kelvin'
-            # convert data from kelvin to celsius
-            xx = xx - 273.15
-            # set variable unit to celsius
-            xx[variable].attrs['units'] = 'celsius'
-            # round converted data
-            xx = xx[variable].round(1)
+        # round interpolated data
+        xx = xx[variable].round(1)
 
         # save netcdf with interpolated data
         xx.to_netcdf(output_file)

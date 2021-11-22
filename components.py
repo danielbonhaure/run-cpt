@@ -17,6 +17,7 @@ from string import Template
 from urllib.error import HTTPError
 from time import sleep
 from datetime import date
+from calendar import monthrange
 
 
 @dataclass
@@ -840,6 +841,30 @@ class Era5LandFile:
                 with xr.open_dataset(self.abs_path) as ds:
                     # Rename variable
                     ds = ds.rename(tp=self.variable)
+                    # Change units (from m to mm)
+                    ds[self.variable] = ds[self.variable].assign_attrs(units='mm')
+                    ds[self.variable].values = ds[self.variable].values * 1000
+                    # Get the total prcp of month from the monthly daily average
+                    for i in range(len(ds.time)):
+                        i_date = pd.to_datetime(ds.time[i].values)
+                        n_days = monthrange(i_date.year, i_date.month)[1]
+                        ds[self.variable][i, :, :] = ds[self.variable][i, :, :] * n_days
+                    # Round final value
+                    ds[self.variable].values = ds[self.variable].values.round(1)
+                    # Load dataset from disk to memory
+                    in_mem_ds = ds.load()
+                # Save netcdf
+                in_mem_ds.to_netcdf(self.abs_path)
+                # Free memory
+                del in_mem_ds
+            if self.variable == 't2m':
+                # Open downloaded netcdf
+                with xr.open_dataset(self.abs_path) as ds:
+                    # Change units (from K to °C)
+                    ds[self.variable] = ds[self.variable].assign_attrs(units='°C')
+                    ds[self.variable].values = ds[self.variable].values - 273.15
+                    # Round final value
+                    ds[self.variable].values = ds[self.variable].values.round(1)
                     # Load dataset from disk to memory
                     in_mem_ds = ds.load()
                 # Save netcdf
@@ -978,7 +1003,6 @@ class PredictandFile:
                 df = self.grid.interpolate_raw_data(
                     input_file=self.raw_data_file.abs_path,
                     variable=self.predictand,
-                    convert_kelvin_to_celsius=True if self.predictand == 't2m' else False,
                     return_df=True,
                     output_file=interp_file
                 )
