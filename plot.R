@@ -181,8 +181,8 @@ for (fp in config$files) {
     
     # Unir los datos extraídos en único dataframe largo (es más facil hacer calculos estadísticos así, con groupby)
     n_days <- ifelse(
-      fp$type == "monthly", lubridate::days_in_month(first_fcst_month), 
-      sum(lubridate::days_in_month(first_fcst_month:last_fcst_month)))
+      fp$type == "monthly", n_days_in_month(year, first_fcst_month), 
+      n_days_in_season(year, first_fcst_month, last_fcst_month))
     
     fcst_data <- dplyr::left_join(xx, cc, by = 'columna') %>% 
       dplyr::select(-columna) %>% 
@@ -224,8 +224,8 @@ for (fp in config$files) {
         
         # Unir los datos extraídos en único dataframe largo (es más facil hacer calculos estadísticos así, con groupby)
         n_days <- ifelse(
-          fp$type == "monthly", lubridate::days_in_month(first_fcst_month), 
-          sum(lubridate::days_in_month(first_fcst_month:last_fcst_month)))
+          fp$type == "monthly", n_days_in_month(year, first_fcst_month), 
+          n_days_in_season(year, first_fcst_month, last_fcst_month))
         
         fcst_data <- dplyr::left_join(xx, cc, by = 'columna') %>% 
           dplyr::select(-columna) %>% 

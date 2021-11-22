@@ -1,5 +1,35 @@
 
 
+
+################################################################################
+## Funciones generales ##################
+
+# Función para calcular la cantidad de dias en un mes
+n_days_in_month <- function(year, month) {
+  f <- as.Date(glue::glue('{year}-{month}-01'))
+  n_days <- lubridate::days_in_month(f)
+  return(n_days)
+}
+
+# Función para calcular la cantidad de dias en varios meses
+n_days_in_season <- function(first_year, first_month, last_month) {
+  n_months <- ifelse(first_month > last_month,
+                     12 + last_month - first_month + 1, 
+                     last_month - first_month + 1)
+  n_days <- sum(purrr::map_dbl(
+    .x = seq(from = 0, to = n_months - 1),
+    .f = function(x) {
+      xx <- first_month + x
+      m <- ifelse(xx <= 12, xx, (xx %% 13) + 1)
+      y <- ifelse(xx <= 12, first_year, first_year + 1)
+      f <- as.Date(glue::glue('{y}-{m}-01'))
+      return (lubridate::days_in_month(f))
+    }))
+  return(n_days)
+}
+
+################################################################################
+
 ################################################################################
 ## Generar etiquetas en base a grupos ##################
 generar_etiquetas_grupos <- function(grupos, formato.numero = "%.2f", unit = "") {
