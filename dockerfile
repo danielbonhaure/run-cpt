@@ -360,8 +360,8 @@ USER $CPT_USER
 # docker build -f dockerfile \
 #        --build-arg ROOT_PWD=cpt \
 #        --build-arg USER_PWD=cpt \
-#        --build-arg USER_UID=$(stat -c "%u" input) \
-#        --build-arg USER_GID=$(stat -c "%g" output) \
+#        --build-arg USER_UID=$(stat -c "%u" .) \
+#        --build-arg USER_GID=$(stat -c "%g" .) \
 #        -t cpt .
 
 # CORRER OPERACIONALMENTE CON CRON
