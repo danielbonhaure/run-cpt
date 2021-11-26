@@ -159,10 +159,12 @@ for (fp in config$files) {
                                 "{forecast_months}_{training_period}_",
                                 "{first_forecast_years}_{n_forecasts}.txt")
     file_abs_path <- paste0(getwd(), '/', config$folders$predictors, forecast_file)
+    
     # Extraer latitudes (usar nombre de columna como ID)
     x <- read.table(file =file_abs_path, sep = '\t', header = FALSE, skip = 5, nrows = 1)
     xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
       dplyr::select(-V1)
+    
     # Extraer valores (usar año y columna como ID)
     cc <- purrr::map2_dfr(
       .x = c(first_training_year:last_training_year, first_fcst_year_first_month:last_fcst_year_first_month),
@@ -176,19 +178,26 @@ for (fp in config$files) {
           dplyr::rename(lat = V1) %>% dplyr::mutate(year = year) %>%
           dplyr::mutate(value = ifelse(value == -999, NA, value)) %>%
           dplyr::select(columna, lat, year, dplyr::everything())
+        
+        # Calcular la cantidad de días del o los meses a los que corresponden 
+        # los datos. Importa el año para identificar años bisiestos.
+        n_days <- ifelse(
+          fp$type == "monthly", n_days_in_month(year, first_fcst_month), 
+          n_days_in_season(year, first_fcst_month, last_fcst_month))
+        
+        # En caso que los datos pronósticados sean de precipitación, se los 
+        # multiplican por la cantidad de días en el mes, no recuerdo bien 
+        # porque, debo preguntar esto a Fabricio.
+        cc <- cc %>% dplyr::rowwise() %>%
+          dplyr::mutate(value = ifelse(variable == 'prcp', value * n_days, value)) %>%
+          dplyr::ungroup()
       }
     )
     
-    # Unir los datos extraídos en único dataframe largo (es más facil hacer calculos estadísticos así, con groupby)
-    n_days <- ifelse(
-      fp$type == "monthly", n_days_in_month(year, first_fcst_month), 
-      n_days_in_season(year, first_fcst_month, last_fcst_month))
-    
+    # Unir los datos extraídos en único dataframe largo (es más facil 
+    # hacer calculos estadísticos así, con groupby)
     fcst_data <- dplyr::left_join(xx, cc, by = 'columna') %>% 
       dplyr::select(-columna) %>% 
-      dplyr::rowwise() %>%
-      dplyr::mutate(value = ifelse(variable == 'prcp', value * n_days, value)) %>%
-      dplyr::ungroup() %>%
       dplyr::filter(year >= first_fcst_year_first_month)
     
     # Si los datos descargados están en grados Kelvin, pasarlos a grados Celsius
@@ -199,20 +208,20 @@ for (fp in config$files) {
         dplyr::mutate(value = value - 273.15) 
     
     # Remover objetos que ya no se van a utilizar
-    rm(forecast_file, file_abs_path, x, xx, cc, n_days); gc()
+    rm(forecast_file, file_abs_path, x, xx, cc); gc()
     
   } else {
+    
+    forecast_file <- glue::glue("{modelo}_{variable_fcst}_fcst_",
+                                "{initial_month}ic_{forecast_months}_",
+                                "{first_forecast_years}.txt")
+    file_abs_path <- paste0(getwd(), '/', config$folders$forecasts, forecast_file)
     
     fcst_data <- purrr::map_dfr(
       .x = c(first_fcst_year_first_month:last_fcst_year_first_month),
       .f = function(year) {
-        
-        forecast_file <- glue::glue("{modelo}_{variable_fcst}_fcst_",
-                                    "{initial_month}ic_{forecast_months}_",
-                                    "{first_forecast_years}.txt")
-        file_abs_path <- paste0(getwd(), '/', config$folders$forecasts, forecast_file)
         # Extraer latitudes (usar nombre de columna como ID)
-        x <- read.table(file =file_abs_path, sep = '\t', header = FALSE, skip = 3, nrows = 1)
+        x <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 3, nrows = 1)
         xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
           dplyr::select(-V1)
         # Extraer valores (usar año y columna como ID)
@@ -222,18 +231,32 @@ for (fp in config$files) {
           dplyr::mutate(value = ifelse(value == -999, NA, value)) %>%
           dplyr::select(columna, lat, year, dplyr::everything())
         
-        # Unir los datos extraídos en único dataframe largo (es más facil hacer calculos estadísticos así, con groupby)
+        # Calcular la cantidad de días del o los meses a los que corresponden 
+        # los datos. Importa el año para identificar años bisiestos.
         n_days <- ifelse(
           fp$type == "monthly", n_days_in_month(year, first_fcst_month), 
           n_days_in_season(year, first_fcst_month, last_fcst_month))
         
-        fcst_data <- dplyr::left_join(xx, cc, by = 'columna') %>% 
-          dplyr::select(-columna) %>% 
-          dplyr::rowwise() %>%
+        # En caso que los datos pronósticados sean de precipitación, se los 
+        # multiplican por la cantidad de días en el mes, no recuerdo bien 
+        # porque, debo preguntar esto a Fabricio.
+        cc <- cc %>% dplyr::rowwise() %>%
           dplyr::mutate(value = ifelse(variable == 'prcp', value * n_days, value)) %>%
-          dplyr::ungroup() 
+          dplyr::ungroup()
+        
+        # Unir los datos extraídos en único dataframe largo (es más facil 
+        # hacer calculos estadísticos así, con groupby)
+        fcst_data <- dplyr::left_join(xx, cc, by = 'columna') %>% 
+          dplyr::select(-columna)
       }
     )
+    
+    # Si los datos descargados están en grados Kelvin, pasarlos a grados Celsius
+    # Algunos archivos fueron descargados en grados Kelvin! Se agrega este control
+    # por si se llega a leer alguno de ellos en algún momento!
+    if (mean(fcst_data$value, na.rm = T) > 200 && variable == 't2m')
+      fcst_data <- fcst_data %>% 
+      dplyr::mutate(value = value - 273.15) 
     
   }
   
