@@ -4,7 +4,7 @@
 #################
 
 # Create image
-FROM debian:bullseye as cpt_builder
+FROM debian:bullseye-slim AS cpt_builder
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -124,7 +124,7 @@ RUN echo "export PATH=/opt/CPT/$CPT_VERSION/bin:$PATH" >> /root/.bashrc
 #############################
 
 # Create image
-FROM python:3.8-bullseye AS py_builder
+FROM python:3.9-slim-bullseye AS py_builder
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -138,7 +138,7 @@ RUN apt-get -y -qq update && \
     apt-get -y -qq --no-install-recommends install \
         build-essential \
         # to install cartopy
-        libproj-dev libgeos-dev \
+        proj-bin libproj-dev libgeos-dev \
         # to install rpy2
         r-base && \
     rm -rf /var/lib/apt/lists/*
@@ -162,7 +162,7 @@ RUN python3 -m pip install --upgrade pip && \
 ########################
 
 # Create image
-FROM python:3.8-bullseye AS r_builder
+FROM python:3.9-slim-bullseye AS r_builder
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -180,7 +180,9 @@ RUN apt-get -y -qq update && \
         # to install classInt, a dependency of sf
         gfortran \
         # to install units, a dependency of sf
-        libudunits2-dev && \
+        libudunits2-dev \
+        # to install systemfonts, a dependency of ggiraph
+        libfontconfig1-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # install R packages
@@ -210,7 +212,6 @@ RUN R -e "options(warn=2); install.packages('jsonlite', repos='https://cran.r-pr
 RUN R -e "options(warn=2); install.packages('lattice', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('leaflet.extras2', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('RCurl', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('grDevices', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('rnaturalearthdata', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('ggiraph', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
 
@@ -221,7 +222,7 @@ RUN R -e "options(warn=2); install.packages('ggiraph', repos='https://cran.r-pro
 ########################
 
 # Create image
-FROM python:3.8-bullseye AS pycpt
+FROM python:3.9-slim-bullseye AS pycpt
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -235,7 +236,7 @@ RUN apt-get -y -qq update &&\
         # install R
         r-base \
         # to be able to use cartopy (Python)
-        libproj-dev libgeos-dev \
+        proj-bin libproj-dev libgeos-dev \
         # to be able to use rpy2 (R-Python)
         libblas-dev \
         # to be able to use ncdf4 (R)
@@ -296,6 +297,7 @@ COPY . .
 # Create input and output folder (these folders are too big so they must be used them as volumes)
 RUN mkdir -p /opt/pyCPT/input
 RUN mkdir -p /opt/pyCPT/output
+RUN mkdir -p /opt/pyCPT/plots
 
 
 

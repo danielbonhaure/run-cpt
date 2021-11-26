@@ -17,6 +17,7 @@ from rpy2.robjects.vectors import FloatVector, StrVector
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
+from rpy2.robjects import r
 
 # remove warnings messages
 rpy2_logger.setLevel(logging.ERROR)  # will display errors, but not warnings
@@ -153,7 +154,8 @@ class CrcSasGrid:
         pb.update_count(3) if show_progress_bar else None
 
         # interpolate
-        e = raster.extract(s, p, method="bilinear", df=True)
+        r.assign('s', s), r.assign('p', p)
+        e = r("raster::extract(s, p, method='bilinear', df=TRUE)")
 
         # report status
         pb.update_count(6) if show_progress_bar else None
