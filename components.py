@@ -841,18 +841,22 @@ class Era5LandFile:
                 with xr.open_dataset(self.abs_path) as ds:
                     # Rename variable
                     ds = ds.rename(tp=self.variable)
+                    ds = ds.persist()
                     # Change units (from m to mm)
                     ds[self.variable] = ds[self.variable].assign_attrs(units='mm')
-                    ds[self.variable].values = ds[self.variable].values * 1000
+                    ds[self.variable] = ds[self.variable] * 1000
+                    ds = ds.persist()
                     # Get the total prcp of month from the monthly daily average
                     for i in range(len(ds.time)):
                         i_date = pd.to_datetime(ds.time[i].values)
                         n_days = monthrange(i_date.year, i_date.month)[1]
                         ds[self.variable][i, :, :] = ds[self.variable][i, :, :] * n_days
+                    ds = ds.persist()
                     # Round final value
-                    ds[self.variable].values = ds[self.variable].values.round(1)
+                    ds[self.variable] = ds[self.variable].round(1)
+                    ds = ds.persist()
                     # Load dataset from disk to memory
-                    in_mem_ds = ds.load()
+                    in_mem_ds = ds.compute().load()
                 # Save netcdf
                 in_mem_ds.to_netcdf(self.abs_path)
                 # Free memory
@@ -862,11 +866,13 @@ class Era5LandFile:
                 with xr.open_dataset(self.abs_path) as ds:
                     # Change units (from K to °C)
                     ds[self.variable] = ds[self.variable].assign_attrs(units='°C')
-                    ds[self.variable].values = ds[self.variable].values - 273.15
+                    ds[self.variable] = ds[self.variable] - 273.15
+                    ds = ds.persist()
                     # Round final value
-                    ds[self.variable].values = ds[self.variable].values.round(1)
+                    ds[self.variable] = ds[self.variable].round(1)
+                    ds = ds.persist()
                     # Load dataset from disk to memory
-                    in_mem_ds = ds.load()
+                    in_mem_ds = ds.compute().load()
                 # Save netcdf
                 in_mem_ds.to_netcdf(self.abs_path)
                 # Free memory
