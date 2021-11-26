@@ -48,7 +48,7 @@ models:
       variables: [ 'precip', 'tmp2m' ]
       data_sources: [ 'iridl', 'iridl' ]
     predictands:
-      variables: [ 'prcp', 't2m'  ]
+      variables: [ 'prcp', 't2m' ]
       data_sources: [ 'chirps', 'era5-land' ]
   nmme:
     predictors:
