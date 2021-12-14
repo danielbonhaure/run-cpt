@@ -124,7 +124,7 @@ asignar_grupos <- function(dfr, breaks, groups, include.lowest = FALSE, right = 
                                include.lowest = include.lowest, 
                                right = right))) %>%
     dplyr::mutate(
-      indice_grupo = which(groups == grupo)
+      indice_grupo = ifelse(grupo %in% groups, which(groups == grupo), NA)
     ) %>%
     dplyr::ungroup()
   
@@ -176,7 +176,7 @@ asignar_grupos_simetricos <- function(dfr, breaks, n_head, n_tail, groups,
                ")"),
         grupo)) %>%
     dplyr::mutate(
-      indice_grupo = which(groups == grupo)
+      indice_grupo = ifelse(grupo %in% groups, which(groups == grupo), NA)
     ) %>%
     dplyr::ungroup()
   
