@@ -1,14 +1,8 @@
 
 smoothing_by_interpolating: true
-exclude_coords_with_no_chirps_data: true
-southest_latitude_for_chirps_data: -50
+exclude_coords_with_no_gen_data: true
 
 spatial_domain:
-  data:
-    nla: -10.25  # Northernmost latitude
-    sla: -56.25  # Southernmost latitude
-    wlo: -78.75  # Westernmost longitude
-    elo: -35.75  # Easternmost longitude
   plot:
     nla: -10  # Northernmost latitude
     sla: -60  # Southernmost latitude
@@ -25,19 +19,15 @@ folders:
   images: ./input/raw_data/images/
 
 files:
- - { file: "ecmwf_precip-prcp_chirps_Octic_11_1991-2020_2021_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_chirps_Octic_12_1991-2020_2021_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_chirps_Octic_1_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_chirps_Octic_11-1_1991-2021_2021-2022_1.txt", type: "seasonal", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_era5-land_Octic_11_1991-2020_2021_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_era5-land_Octic_12_1991-2020_2021_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_era5-land_Octic_1_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_era5-land_Octic_11-1_1991-2021_2021-2022_1.txt", type: "seasonal", swap_years: false }
- - { file: "nmme_precip-prcp_chirps_Octic_11_1991-2020_2021_1.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_chirps_Octic_12_1991-2020_2021_1.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_chirps_Octic_1_1992-2021_2022_1.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_chirps_Octic_11-1_1991-2021_2021-2022_1.txt", type: "seasonal", swap_years: true }
- - { file: "nmme_tmp2m-t2m_era5-land_Octic_11_1991-2020_2021_1.txt", type: "monthly", swap_years: true }
- - { file: "nmme_tmp2m-t2m_era5-land_Octic_12_1991-2020_2021_1.txt", type: "monthly", swap_years: true }
- - { file: "nmme_tmp2m-t2m_era5-land_Octic_1_1992-2021_2022_1.txt", type: "monthly", swap_years: true }
- - { file: "nmme_tmp2m-t2m_era5-land_Octic_11-1_1991-2021_2021-2022_1.txt", type: "seasonal", swap_years: true }
+ - { file: "ecmwf_precip-prcp_chirps_Decic_1_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_chirps_Decic_2_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_chirps_Decic_3_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_chirps_Decic_1-3_1992-2021_2022-2022_1.txt", type: "seasonal", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_era5-land_Decic_1_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_era5-land_Decic_2_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_era5-land_Decic_3_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_era5-land_Decic_1-3_1992-2021_2022-2022_1.txt", type: "seasonal", swap_years: false }
+ - { file: "nmme_precip-prcp_chirps_Decic_1_1992-2021_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_chirps_Decic_2_1992-2021_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_chirps_Decic_3_1992-2021_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_chirps_Decic_1-3_1992-2021_2022-2022_1.txt", type: "seasonal", swap_years: true }

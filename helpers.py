@@ -742,21 +742,18 @@ class ConfigFile:
 
     def __create_plot_yaml_file(self):
         with open(self.cpt_config.get('files').get('plot_yaml'), 'w') as fp_plot_yaml:
-            fp_plot_yaml.write('\nsmoothing_by_interpolating: true\n')
-            fp_plot_yaml.write('exclude_coords_with_no_chirps_data: true\n')
-            fp_plot_yaml.write('southest_latitude_for_chirps_data: -50\n')
-            fp_plot_yaml.write('\nspatial_domain:\n')
-            fp_plot_yaml.write(f'  data:\n')
-            fp_plot_yaml.write(f'    nla: {self.cpt_config.get("spatial_domain").get("crc_sas_grid").get("nla")}  # Northernmost latitude\n')
-            fp_plot_yaml.write(f'    sla: {self.cpt_config.get("spatial_domain").get("crc_sas_grid").get("sla")}  # Southernmost latitude\n')
-            fp_plot_yaml.write(f'    wlo: {self.cpt_config.get("spatial_domain").get("crc_sas_grid").get("wlo")}  # Westernmost longitude\n')
-            fp_plot_yaml.write(f'    elo: {self.cpt_config.get("spatial_domain").get("crc_sas_grid").get("elo")}  # Easternmost longitude\n')
+            fp_plot_yaml.write(f'\n')
+            fp_plot_yaml.write(f'smoothing_by_interpolating: true\n')
+            fp_plot_yaml.write(f'exclude_coords_with_no_gen_data: true\n')
+            fp_plot_yaml.write(f'\n')
+            fp_plot_yaml.write(f'spatial_domain:\n')
             fp_plot_yaml.write(f'  plot:\n')
             fp_plot_yaml.write(f'    nla: {self.cpt_config.get("spatial_domain").get("plot").get("nla")}  # Northernmost latitude\n')
             fp_plot_yaml.write(f'    sla: {self.cpt_config.get("spatial_domain").get("plot").get("sla")}  # Southernmost latitude\n')
             fp_plot_yaml.write(f'    wlo: {self.cpt_config.get("spatial_domain").get("plot").get("wlo")}  # Westernmost longitude\n')
             fp_plot_yaml.write(f'    elo: {self.cpt_config.get("spatial_domain").get("plot").get("elo")}  # Easternmost longitude\n')
-            fp_plot_yaml.write('\nfolders:\n')
+            fp_plot_yaml.write(f'\n')
+            fp_plot_yaml.write(f'folders:\n')
             fp_plot_yaml.write(f'  observed_data: {self.cpt_config.get("folders").get("predictands")}\n')
             fp_plot_yaml.write(f'  generated_data: {self.cpt_config.get("folders").get("output")}\n')
             fp_plot_yaml.write(f'  shapefiles: {self.cpt_config.get("folders").get("raw_data").get("shapefiles")}\n')
@@ -764,7 +761,8 @@ class ConfigFile:
             fp_plot_yaml.write(f'  predictors: {self.cpt_config.get("folders").get("predictors")}\n')
             fp_plot_yaml.write(f'  plots: {self.cpt_config.get("folders").get("plots")}\n')
             fp_plot_yaml.write(f'  images: {self.cpt_config.get("folders").get("raw_data").get("images")}\n')
-            fp_plot_yaml.write('\nfiles:\n')
+            fp_plot_yaml.write(f'\n')
+            fp_plot_yaml.write(f'files:\n')
 
     @property
     def file_name(self):

@@ -144,7 +144,7 @@ for (fp in config$files) {
   n_forecasts <- as.numeric(fp_split[8])
   last_fcst_year_first_month <- first_fcst_year_first_month + n_forecasts - 1
   last_fcst_year_last_month <- first_fcst_year_last_month + n_forecasts - 1
-  
+
   # ----------------------------------------------------------------------------
   
   
@@ -616,7 +616,36 @@ for (fp in config$files) {
   
   
   # ---------------------------------------------------------------------------#
-  # ---- PASO 4.9 GENERAR GRÁFICOS/MAPAS ----
+  # ---- PASO 4.9 DEFINIR DOMINIO ESPACIAL PARA EL SUAVIZADO/INTERPOLADO ----
+  #
+  
+  # Definir el el dominio espacial del area a ser considerada en la 
+  # interpolación que se realiza para suavizar los mapas generados
+  # La 1era opción es utlizar las coordenadas de los datos generados por CPT
+  interp_spatial_domain <- list(
+    nla = max(gen_data$lat) + 0.25,
+    sla = min(gen_data$lat) - 0.25,
+    wlo = min(gen_data$lon) - 0.25,
+    elo = max(gen_data$lon) + 0.25
+  )
+  # Pero, si no se necesita cubrir el área de cobertura completa del CRC-SAS, 
+  # entonces el dominio espacial definido es correcto. Sin embargo, si lo que 
+  # se busca con la interpolación, es forzar los resultados para que cubran
+  # toda el área de cobertura del CRC-SAS, entonces se debe utilizar el dominio
+  # espacial difinido en el archivo config.yaml.  
+  if (!config$exclude_coords_with_no_gen_data)
+    interp_spatial_domain <- list(
+      nla = config$spatial_domain$plot$nla,
+      sla = config$spatial_domain$plot$sla,
+      wlo = config$spatial_domain$plot$wlo,
+      elo = config$spatial_domain$plot$elo
+    )
+  
+  # ----------------------------------------------------------------------------
+  
+  
+  # ---------------------------------------------------------------------------#
+  # ---- PASO 4.10 GENERAR GRÁFICOS/MAPAS ----
   #
   
   for (data_year in unique(data$year)) {
@@ -688,13 +717,8 @@ for (fp in config$files) {
           data_source == 'crcsas' || config$smoothing_by_interpolating)) {
         
         resolucao <- 0.5
-        x.range <- as.numeric(c(config$spatial_domain$plot$wlo, config$spatial_domain$plot$elo))  # min/max longitude of the interpolation area
-        y.range <- as.numeric(c(config$spatial_domain$plot$sla, config$spatial_domain$plot$nla))
-        # Si la fuente de datos es chirps, entonces no se deben considerar 
-        # coordenadas por debajo de la latitude -50 (configurable en plot.yaml)
-        if (data_source == 'chirps' && config$exclude_coords_with_no_chirps_data)
-          y.range <- as.numeric(c(config$southest_latitude_for_chirps_data, config$spatial_domain$plot$nla))
-        #
+        x.range <- as.numeric(c(interp_spatial_domain$wlo, interp_spatial_domain$elo))  # min/max longitude of the interpolation area
+        y.range <- as.numeric(c(interp_spatial_domain$sla, interp_spatial_domain$nla))
         grd <- expand.grid(x = seq(from = x.range[1], to = x.range[2], by = resolucao), 
                            y = seq(from = y.range[1], to = y.range[2], by = resolucao))  # expand points to grid
         sp::coordinates(grd) <- ~x + y
@@ -830,13 +854,8 @@ for (fp in config$files) {
     if (data_source == 'crcsas' || config$smoothing_by_interpolating) {
       
       resolucao <- 0.5
-      x.range <- as.numeric(c(config$spatial_domain$plot$wlo, config$spatial_domain$plot$elo))  # min/max longitude of the interpolation area
-      y.range <- as.numeric(c(config$spatial_domain$plot$sla, config$spatial_domain$plot$nla))
-      # Si la fuente de datos es chirps, entonces no se deben considerar 
-      # coordenadas por debajo de la latitude -50 (configurable en plot.yaml)
-      if (data_source == 'chirps' && config$exclude_coords_with_no_chirps_data)
-        y.range <- as.numeric(c(config$southest_latitude_for_chirps_data, config$spatial_domain$plot$nla))
-      #
+      x.range <- as.numeric(c(interp_spatial_domain$wlo, interp_spatial_domain$elo))  # min/max longitude of the interpolation area
+      y.range <- as.numeric(c(interp_spatial_domain$sla, interp_spatial_domain$nla))
       grd <- expand.grid(x = seq(from = x.range[1], to = x.range[2], by = resolucao), 
                          y = seq(from = y.range[1], to = y.range[2], by = resolucao))  # expand points to grid
       sp::coordinates(grd) <- ~x + y
