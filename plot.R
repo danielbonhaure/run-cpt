@@ -159,21 +159,27 @@ for (fp in config$files) {
                                 "{forecast_months}_{training_period}_",
                                 "{first_forecast_years}_{n_forecasts}.txt")
     file_abs_path <- paste0(getwd(), '/', config$folders$predictors, forecast_file)
+    n_rows_to_read <- count_coord_rows_in_cpt_file(file_abs_path)
     
     # Extraer latitudes (usar nombre de columna como ID)
-    x <- read.table(file =file_abs_path, sep = '\t', header = FALSE, skip = 5, nrows = 1)
+    x <- read.table(file = file_abs_path, sep = '\t', header = FALSE, 
+                    skip = 5, nrows = 1)
     xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
       dplyr::select(-V1)
     
+    # Extraer anhos
+    anhos <- read.table(file = file_abs_path, sep = '\t', header = FALSE, 
+                        skip = 3, nrows = 1)
+    anhos <- unlist(anhos[2:length(anhos)], use.names = FALSE)
+    anhos <- as.numeric(sapply(stringr::str_split(anhos,'-'), `[`, 1))
+    
     # Extraer valores (usar año y columna como ID)
     cc <- purrr::map2_dfr(
-      .x = c(first_training_year:last_training_year, first_fcst_year_first_month:last_fcst_year_first_month),
-      .y = seq(from = 6, 
-               length.out = length(c(first_training_year:last_training_year, first_fcst_year_first_month:last_fcst_year_first_month)), 
-               by = length(c(config$spatial_domain$nla:config$spatial_domain$sla))+2),
+      .x = anhos,
+      .y = seq(from = 6, length.out = length(anhos), by = n_rows_to_read+2),
       .f = function(year, skip) {
-        c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = skip, 
-                        nrows = length(c(config$spatial_domain$nla:config$spatial_domain$sla)))
+        c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, 
+                        skip = skip, nrows = n_rows_to_read)
         cc <- c %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = 'value') %>% 
           dplyr::rename(lat = V1) %>% dplyr::mutate(year = year) %>%
           dplyr::mutate(value = ifelse(value == -999, NA, value)) %>%
@@ -208,7 +214,7 @@ for (fp in config$files) {
         dplyr::mutate(value = value - 273.15) 
     
     # Remover objetos que ya no se van a utilizar
-    rm(forecast_file, file_abs_path, x, xx, cc); gc()
+    rm(forecast_file, file_abs_path, x, xx, anhos, cc); gc()
     
   } else {
     
@@ -216,6 +222,7 @@ for (fp in config$files) {
                                 "{initial_month}ic_{forecast_months}_",
                                 "{first_forecast_years}.txt")
     file_abs_path <- paste0(getwd(), '/', config$folders$forecasts, forecast_file)
+    n_rows_to_read <- count_coord_rows_in_cpt_file(file_abs_path)
     
     fcst_data <- purrr::map_dfr(
       .x = c(first_fcst_year_first_month:last_fcst_year_first_month),
@@ -225,7 +232,8 @@ for (fp in config$files) {
         xx <- x %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = "lon") %>% 
           dplyr::select(-V1)
         # Extraer valores (usar año y columna como ID)
-        c <- read.table(file = file_abs_path, sep = '\t', header = FALSE, skip = 4, nrows = 181)
+        c <- read.table(file = file_abs_path, sep = '\t', header = FALSE,
+                        skip = 4, nrows = n_rows_to_read)
         cc <- c %>% tidyr::pivot_longer(!V1, names_to = "columna", values_to = 'value') %>% 
           dplyr::rename(lat = V1) %>% dplyr::mutate(year = year) %>%
           dplyr::mutate(value = ifelse(value == -999, NA, value)) %>%
@@ -675,35 +683,51 @@ for (fp in config$files) {
       
       ##########################################################################
       ## Generar una grilla regular ##################
-      resolucao <- ifelse(data_type == "value.fcst", 1, 0.5)
-      # x.range <- as.numeric(c(-78.75, -35.75))
-      # y.range <- as.numeric(c(-59.75, -9.75))
-      x.range <- as.numeric(c(config$spatial_domain$wlo, config$spatial_domain$elo))  # min/max longitude of the interpolation area
-      y.range <- as.numeric(c(config$spatial_domain$sla, config$spatial_domain$nla))
-      grd <- expand.grid(x = seq(from = x.range[1], to = x.range[2], by = resolucao), 
-                         y = seq(from = y.range[1], to = y.range[2], by = resolucao))  # expand points to grid
-      sp::coordinates(grd) <- ~x + y
-      sp::gridded(grd) <- TRUE
-      #
-      datos.sp <- datos
-      sp::coordinates(datos.sp) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
-      idw <- gstat::idw(formula = var ~ 1, locations = datos.sp, newdata = grd)
-      idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
-      names(idw.output) <- c("lon", "lat", "var") 
+      
+      if (data_type != "value.fcst" && (
+          data_source == 'crcsas' || config$smoothing_by_interpolating)) {
+        
+        resolucao <- 0.5
+        x.range <- as.numeric(c(config$spatial_domain$plot$wlo, config$spatial_domain$plot$elo))  # min/max longitude of the interpolation area
+        y.range <- as.numeric(c(config$spatial_domain$plot$sla, config$spatial_domain$plot$nla))
+        # Si la fuente de datos es chirps, entonces no se deben considerar 
+        # coordenadas por debajo de la latitude -50 (configurable en plot.yaml)
+        if (data_source == 'chirps' && config$exclude_coords_with_no_chirps_data)
+          y.range <- as.numeric(c(config$southest_latitude_for_chirps_data, config$spatial_domain$plot$nla))
+        #
+        grd <- expand.grid(x = seq(from = x.range[1], to = x.range[2], by = resolucao), 
+                           y = seq(from = y.range[1], to = y.range[2], by = resolucao))  # expand points to grid
+        sp::coordinates(grd) <- ~x + y
+        sp::gridded(grd) <- TRUE
+        #
+        datos.sp <- datos
+        sp::coordinates(datos.sp) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
+        idw <- gstat::idw(formula = var ~ 1, locations = datos.sp, newdata = grd)
+        idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
+        names(idw.output) <- c("lon", "lat", "var") 
+        
+      } else {
+        
+        idw.output <- datos %>% 
+          dplyr::arrange(lon, lat) %>%
+          dplyr::select(lon, lat, var) 
+      }
+      
       idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
       idw.crp <- raster::crop(idw.r, crcsas_sp)
       idw.msk <- raster::mask(idw.crp, crcsas_sp)
       raster::crs(idw.msk) <- "EPSG:4326"
       idw.msk.dfr <- raster::as.data.frame(raster::rasterToPoints(idw.msk))
       idw.msk.sf <- sf::st_as_sf(idw.msk.dfr, coords = c("x", "y")) %>%
-        sf::st_set_crs(sf::st_crs(4326))
+        sf::st_set_crs(sf::st_crs(4326)) 
       
       # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
       # plot(sf::st_geometry(idw.msk.sf), col = "red", cex = .7)
       # plot(sf::st_geometry(datos.sf), col = "blue", cex = .5, add = T)
+
       # CONCLUSIÓN: 
-      # 1. La interpolacion se hace para completar puntos faltantes, por
-      # ejemplo, puntos muy al sur, que no se generan al usar chirps!
+      # 1. La interpolacion se hace para completar puntos diferentes a los de
+      # las estaciones del CRC-SAS contempladas!
       # 2. Luego de tranformar los puntos originales a raster, interpolalos
       # y volver a obtener trasnformar el raster a puntos, se obtienen los 
       # mismos puntos (no pude identificar cómo se crea el raster a partir 
@@ -784,8 +808,9 @@ for (fp in config$files) {
     # Por ahora solo están invlucradas la probabilidades de precipitación
     # y temperatura menor a la media (1), igual a la media (2) y superior
     # a la media (3). Cada una de estas probabilidades se interpolan por 
-    # separado. Luego se hacen gráficos usando estas tres interpolaciones.      
-    print(glue::glue("data_type == 'prob_sep'"))
+    # separado. Luego se hacen gráficos usando estas tres interpolaciones.  
+    data_type = "prob_sep"    
+    print(glue::glue("data_type == '{data_type}'"))
     
     ##########################################################################
     ## Procesar datos a graficar  ##################
@@ -802,102 +827,177 @@ for (fp in config$files) {
     ##########################################################################
     ## Generar una grilla regular ##################
     
-    resolucao <- 0.5
-    # x.range <- as.numeric(c(-78.75, -35.75))
-    # y.range <- as.numeric(c(-59.75, -9.75))
-    x.range <- as.numeric(c(config$spatial_domain$wlo, config$spatial_domain$elo))  # min/max longitude of the interpolation area
-    y.range <- as.numeric(c(config$spatial_domain$sla, config$spatial_domain$nla))
-    grd <- expand.grid(x = seq(from = x.range[1], to = x.range[2], by = resolucao), 
-                       y = seq(from = y.range[1], to = y.range[2], by = resolucao))  # expand points to grid
-    sp::coordinates(grd) <- ~x + y
-    sp::gridded(grd) <- TRUE
+    if (data_source == 'crcsas' || config$smoothing_by_interpolating) {
+      
+      resolucao <- 0.5
+      x.range <- as.numeric(c(config$spatial_domain$plot$wlo, config$spatial_domain$plot$elo))  # min/max longitude of the interpolation area
+      y.range <- as.numeric(c(config$spatial_domain$plot$sla, config$spatial_domain$plot$nla))
+      # Si la fuente de datos es chirps, entonces no se deben considerar 
+      # coordenadas por debajo de la latitude -50 (configurable en plot.yaml)
+      if (data_source == 'chirps' && config$exclude_coords_with_no_chirps_data)
+        y.range <- as.numeric(c(config$southest_latitude_for_chirps_data, config$spatial_domain$plot$nla))
+      #
+      grd <- expand.grid(x = seq(from = x.range[1], to = x.range[2], by = resolucao), 
+                         y = seq(from = y.range[1], to = y.range[2], by = resolucao))  # expand points to grid
+      sp::coordinates(grd) <- ~x + y
+      sp::gridded(grd) <- TRUE
+      
+      # Interpolar pr.menor.media
+      datos.sp <- datos %>% 
+        dplyr::arrange(lon, lat) %>%
+        dplyr::select(lon, lat, var = pr.menor.media) %>% 
+        dplyr::filter(!is.na(var))
+      sp::coordinates(datos.sp) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
+      idw <- gstat::idw(formula = var ~ 1, locations = datos.sp, newdata = grd)
+      idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
+      names(idw.output) <- c("lon", "lat", "var") 
+      idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
+      idw.crp <- raster::crop(idw.r, crcsas_sp)
+      idw.msk <- raster::mask(idw.crp, crcsas_sp)
+      raster::crs(idw.msk) <- "EPSG:4326"
+      #
+      idw.pr.menor.media.msk <- idw.msk
+      idw.pr.menor.media.dfr <- idw.msk %>% 
+        raster::rasterToPoints() %>% 
+        raster::as.data.frame()
+      idw.pr.menor.media.sf <- idw.pr.menor.media.dfr %>% 
+        sf::st_as_sf(coords = c("x", "y")) %>%
+        sf::st_set_crs(sf::st_crs(4326))
+      
+      # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
+      # plot(
+      #   sf::st_geometry(idw.pr.menor.media.sf),
+      #   col = "red", cex = .7)
+      # plot(
+      #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.menor.media)), 
+      #   col = "blue", cex = .5, add = T)
+      
+      # Interpolar pr.media
+      datos.sp <- datos %>% 
+        dplyr::arrange(lon, lat) %>%
+        dplyr::select(lon, lat, var = pr.media) %>% 
+        dplyr::filter(!is.na(var))
+      sp::coordinates(datos.sp) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
+      idw <- gstat::idw(formula = var ~ 1, locations = datos.sp, newdata = grd)
+      idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
+      names(idw.output) <- c("lon", "lat", "var") 
+      idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
+      idw.crp <- raster::crop(idw.r, crcsas_sp)
+      idw.msk <- raster::mask(idw.crp, crcsas_sp)
+      raster::crs(idw.msk) <- "EPSG:4326"
+      #
+      idw.pr.media.msk <- idw.msk
+      idw.pr.media.dfr <- idw.msk %>%
+        raster::rasterToPoints() %>%
+        raster::as.data.frame()
+      idw.pr.media.sf <- idw.pr.media.dfr %>%
+        sf::st_as_sf(coords = c("x", "y")) %>%
+        sf::st_set_crs(sf::st_crs(4326))
+      
+      # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
+      # plot(
+      #   sf::st_geometry(idw.pr.media.sf),
+      #   col = "red", cex = .7)
+      # plot(
+      #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.media)), 
+      #   col = "blue", cex = .5, add = T)
+      
+      # Interpolar pr.menor.media
+      datos.sp <- datos %>% 
+        dplyr::arrange(lon, lat) %>%
+        dplyr::select(lon, lat, var = pr.mayor.media) %>% 
+        dplyr::filter(!is.na(var))
+      sp::coordinates(datos.sp) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
+      idw <- gstat::idw(formula = var ~ 1, locations = datos.sp, newdata = grd)
+      idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
+      names(idw.output) <- c("lon", "lat", "var") 
+      idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
+      idw.crp <- raster::crop(idw.r, crcsas_sp)
+      idw.msk <- raster::mask(idw.crp, crcsas_sp)
+      raster::crs(idw.msk) <- "EPSG:4326"
+      #
+      idw.pr.mayor.media.msk <- idw.msk
+      idw.pr.mayor.media.dfr <- idw.msk %>% 
+        raster::rasterToPoints() %>% 
+        raster::as.data.frame()
+      idw.pr.mayor.media.sf <- idw.pr.mayor.media.dfr %>% 
+        sf::st_as_sf(coords = c("x", "y")) %>%
+        sf::st_set_crs(sf::st_crs(4326))
+      
+      # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
+      # plot(
+      #   sf::st_geometry(idw.pr.mayor.media.sf),
+      #   col = "red", cex = .7)
+      # plot(
+      #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.mayor.media)), 
+      #   col = "blue", cex = .5, add = T)
+      
+      # CONCLUSIÓN: 
+      # 1. La interpolacion se hace para completar puntos diferentes a los de
+      # las estaciones del CRC-SAS contempladas!
+      # 2. Luego de tranformar los puntos originales a raster, interpolalos
+      # y volver a obtener trasnformar el raster a puntos, se obtienen los 
+      # mismos puntos (no pude identificar cómo se crea el raster a partir 
+      # del punto original, es decir si se lo usa como centro, extremo 
+      # izquierdo superior, etc.)
     
-    # Interpolar pr.menor.media
-    datos.sp <- datos %>% 
-      dplyr::select(lon, lat, var = pr.menor.media) %>% 
-      dplyr::filter(!is.na(var))
-    sp::coordinates(datos.sp) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
-    idw <- gstat::idw(formula = var ~ 1, locations = datos.sp, newdata = grd)
-    idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
-    names(idw.output) <- c("lon", "lat", "var") 
-    idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
-    idw.crp <- raster::crop(idw.r, crcsas_sp)
-    idw.msk <- raster::mask(idw.crp, crcsas_sp)
-    raster::crs(idw.msk) <- "EPSG:4326"
-    #
-    idw.pr.menor.media.msk <- idw.msk
-    idw.pr.menor.media.dfr <- idw.msk %>% 
-      raster::rasterToPoints() %>% 
-      raster::as.data.frame()
-    idw.pr.menor.media.sf <- idw.pr.menor.media.dfr %>% 
-      sf::st_as_sf(coords = c("x", "y")) %>%
-      sf::st_set_crs(sf::st_crs(4326))
-    
-    # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
-    # plot(
-    #   sf::st_geometry(idw.pr.menor.media.sf),
-    #   col = "red", cex = .7)
-    # plot(
-    #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.menor.media)), 
-    #   col = "blue", cex = .5, add = T)
-    
-    # Interpolar pr.media
-    datos.sp <- datos %>% 
-      dplyr::select(lon, lat, var = pr.media) %>% 
-      dplyr::filter(!is.na(var))
-    sp::coordinates(datos.sp) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
-    idw <- gstat::idw(formula = var ~ 1, locations = datos.sp, newdata = grd)
-    idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
-    names(idw.output) <- c("lon", "lat", "var") 
-    idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
-    idw.crp <- raster::crop(idw.r, crcsas_sp)
-    idw.msk <- raster::mask(idw.crp, crcsas_sp)
-    raster::crs(idw.msk) <- "EPSG:4326"
-    #
-    idw.pr.media.msk <- idw.msk
-    idw.pr.media.dfr <- idw.msk %>%
-      raster::rasterToPoints() %>%
-      raster::as.data.frame()
-    idw.pr.media.sf <- idw.pr.media.dfr %>%
-      sf::st_as_sf(coords = c("x", "y")) %>%
-      sf::st_set_crs(sf::st_crs(4326))
-    
-    # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
-    # plot(
-    #   sf::st_geometry(idw.pr.media.sf),
-    #   col = "red", cex = .7)
-    # plot(
-    #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.media)), 
-    #   col = "blue", cex = .5, add = T)
-    
-    # Interpolar pr.menor.media
-    datos.sp <- datos %>% 
-      dplyr::select(lon, lat, var = pr.mayor.media) %>% 
-      dplyr::filter(!is.na(var))
-    sp::coordinates(datos.sp) <- ~lon + lat  ## Convertendo data.frame para SpatialPointsData.frame
-    idw <- gstat::idw(formula = var ~ 1, locations = datos.sp, newdata = grd)
-    idw.output <- raster::as.data.frame(idw)  # Convertendo para um data.frame
-    names(idw.output) <- c("lon", "lat", "var") 
-    idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
-    idw.crp <- raster::crop(idw.r, crcsas_sp)
-    idw.msk <- raster::mask(idw.crp, crcsas_sp)
-    raster::crs(idw.msk) <- "EPSG:4326"
-    #
-    idw.pr.mayor.media.msk <- idw.msk
-    idw.pr.mayor.media.dfr <- idw.msk %>% 
-      raster::rasterToPoints() %>% 
-      raster::as.data.frame()
-    idw.pr.mayor.media.sf <- idw.pr.mayor.media.dfr %>% 
-      sf::st_as_sf(coords = c("x", "y")) %>%
-      sf::st_set_crs(sf::st_crs(4326))
-    
-    # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
-    # plot(
-    #   sf::st_geometry(idw.pr.mayor.media.sf),
-    #   col = "red", cex = .7)
-    # plot(
-    #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.mayor.media)), 
-    #   col = "blue", cex = .5, add = T)
+    } else {
+      
+      # Procesar pr.menor.media
+      idw.output <- datos %>% 
+        dplyr::arrange(lon, lat) %>%
+        dplyr::select(lon, lat, var = pr.menor.media) %>% 
+        dplyr::filter(!is.na(var))
+      idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
+      idw.crp <- raster::crop(idw.r, crcsas_sp)
+      idw.msk <- raster::mask(idw.crp, crcsas_sp)
+      raster::crs(idw.msk) <- "EPSG:4326"
+      #
+      idw.pr.menor.media.msk <- idw.msk
+      idw.pr.menor.media.dfr <- idw.msk %>% 
+        raster::rasterToPoints() %>% 
+        raster::as.data.frame()
+      idw.pr.menor.media.sf <- idw.pr.menor.media.dfr %>% 
+        sf::st_as_sf(coords = c("x", "y")) %>%
+        sf::st_set_crs(sf::st_crs(4326))
+      
+      # Interpolar pr.media
+      idw.output <- datos %>% 
+        dplyr::arrange(lon, lat) %>%
+        dplyr::select(lon, lat, var = pr.media) %>% 
+        dplyr::filter(!is.na(var))
+      idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
+      idw.crp <- raster::crop(idw.r, crcsas_sp)
+      idw.msk <- raster::mask(idw.crp, crcsas_sp)
+      raster::crs(idw.msk) <- "EPSG:4326"
+      #
+      idw.pr.media.msk <- idw.msk
+      idw.pr.media.dfr <- idw.msk %>%
+        raster::rasterToPoints() %>%
+        raster::as.data.frame()
+      idw.pr.media.sf <- idw.pr.media.dfr %>%
+        sf::st_as_sf(coords = c("x", "y")) %>%
+        sf::st_set_crs(sf::st_crs(4326))
+      
+      # Interpolar pr.menor.media
+      idw.output <- datos %>% 
+        dplyr::arrange(lon, lat) %>%
+        dplyr::select(lon, lat, var = pr.mayor.media) %>% 
+        dplyr::filter(!is.na(var))
+      idw.r <- raster::rasterFromXYZ(idw.output[,1:3])
+      idw.crp <- raster::crop(idw.r, crcsas_sp)
+      idw.msk <- raster::mask(idw.crp, crcsas_sp)
+      raster::crs(idw.msk) <- "EPSG:4326"
+      #
+      idw.pr.mayor.media.msk <- idw.msk
+      idw.pr.mayor.media.dfr <- idw.msk %>% 
+        raster::rasterToPoints() %>% 
+        raster::as.data.frame()
+      idw.pr.mayor.media.sf <- idw.pr.mayor.media.dfr %>% 
+        sf::st_as_sf(coords = c("x", "y")) %>%
+        sf::st_set_crs(sf::st_crs(4326))
+      
+    }
     
     idw.pr.dfr <- idw.pr.menor.media.dfr %>% 
       dplyr::rename(pr.menor.media = var) %>%
@@ -921,15 +1021,6 @@ for (fp in config$files) {
         pr.max.col == "pr.mayor.media" ~pr.mayor.media*100 + 300,
         TRUE ~ NA_real_)) %>%
       dplyr::ungroup()
-    
-    # CONCLUSIÓN: 
-    # 1. La interpolacion se hace para completar puntos faltantes, por
-    # ejemplo, puntos muy al sur, que no se generan al usar chirps!
-    # 2. Luego de tranformar los puntos originales a raster, interpolalos
-    # y volver a obtener trasnformar el raster a puntos, se obtienen los 
-    # mismos puntos (no pude identificar cómo se crea el raster a partir 
-    # del punto original, es decir si se lo usa como centro, extremo 
-    # izquierdo superior, etc.)
     
     ##########################################################################
     

@@ -1,9 +1,19 @@
 
+smoothing_by_interpolating: true
+exclude_coords_with_no_chirps_data: true
+southest_latitude_for_chirps_data: -50
+
 spatial_domain:
-  nla: -10  # Northernmost latitude
-  sla: -60  # Southernmost latitude
-  wlo: -78  # Westernmost longitude
-  elo: -34.1  # Easternmost longitude
+  data:
+    nla: -10.25  # Northernmost latitude
+    sla: -56.25  # Southernmost latitude
+    wlo: -78.75  # Westernmost longitude
+    elo: -35.75  # Easternmost longitude
+  plot:
+    nla: -10  # Northernmost latitude
+    sla: -60  # Southernmost latitude
+    wlo: -78  # Westernmost longitude
+    elo: -34.1  # Easternmost longitude
 
 folders:
   observed_data: ./input/predictands/

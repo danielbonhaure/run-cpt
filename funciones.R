@@ -4,6 +4,28 @@
 ################################################################################
 ## Funciones generales ##################
 
+# Función para contar la cantidad de filas con coordenadas. Las coordenadas
+# pueden repetirse si el archivo contiene información para muchos años, por
+# lo tanto, se considera en el conteo solo el primer grupo de coordenadas.
+# ver: https://stackoverflow.com/a/35761217
+# ver: https://stringr.tidyverse.org/articles/regular-expressions.html
+count_coord_rows_in_cpt_file = function(filepath) {
+  con = file(filepath, "r")
+  n_coord_rows = 0
+  while ( TRUE ) {
+    line = readLines(con, n = 1)
+    if ( length(line) == 0 ) {
+      break
+    } else if ( stringr::str_detect(line, '^-?\\d+\\.\\d+\\s') ) {
+      n_coord_rows = n_coord_rows + 1
+    } else if (n_coord_rows > 0) {
+      break
+    }
+  }
+  close(con)
+  return (n_coord_rows)
+}
+
 # Función para calcular la cantidad de dias en un mes
 n_days_in_month <- function(year, month) {
   f <- as.Date(glue::glue('{year}-{month}-01'))
@@ -341,8 +363,8 @@ generar_graficos_discretos <- function() {
   
   # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
-    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
-    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+    left = config$spatial_domain$plot$wlo, bottom = config$spatial_domain$plot$sla,
+    right = config$spatial_domain$plot$elo, top = config$spatial_domain$plot$nla)
     
   ##############################################################################
   ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
@@ -691,8 +713,8 @@ generar_graficos_continuos <- function() {
   
   # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
-    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
-    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+    left = config$spatial_domain$plot$wlo, bottom = config$spatial_domain$plot$sla,
+    right = config$spatial_domain$plot$elo, top = config$spatial_domain$plot$nla)
   
   ##############################################################################
   ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
@@ -991,8 +1013,8 @@ generar_graficos_prob_sep_discretos_op_1 <- function() {
   
   # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
-    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
-    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+    left = config$spatial_domain$plot$wlo, bottom = config$spatial_domain$plot$sla,
+    right = config$spatial_domain$plot$elo, top = config$spatial_domain$plot$nla)
   
   ##############################################################################
   ## GRAFICOS CON GGPLOT GGPLOT ####
@@ -1296,8 +1318,8 @@ generar_graficos_prob_sep_discretos_op_2 <- function() {
   
   # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
-    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
-    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+    left = config$spatial_domain$plot$wlo, bottom = config$spatial_domain$plot$sla,
+    right = config$spatial_domain$plot$elo, top = config$spatial_domain$plot$nla)
   
   ##############################################################################
   ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####

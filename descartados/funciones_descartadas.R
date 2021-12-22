@@ -9,8 +9,8 @@ generar_graficos_prob_sep_continuos_op_1 <- function() {
   
   # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
-    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
-    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+    left = config$spatial_domain$plot$wlo, bottom = config$spatial_domain$plot$sla,
+    right = config$spatial_domain$plot$elo, top = config$spatial_domain$plot$nla)
   
   ##############################################################################
   ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
@@ -303,8 +303,8 @@ generar_graficos_prob_sep_continuos_op_2 <- function() {
   
   # Definir bounding box de los gráficos (tanto para leaflet como para ggplot2)
   bbox <- list(
-    left = config$spatial_domain$wlo, bottom = config$spatial_domain$sla,
-    right = config$spatial_domain$elo, top = config$spatial_domain$nla)
+    left = config$spatial_domain$plot$wlo, bottom = config$spatial_domain$plot$sla,
+    right = config$spatial_domain$plot$elo, top = config$spatial_domain$plot$nla)
   
   ##############################################################################
   ## GRAFICOS CON LEAFLET (https://rstudio.github.io/leaflet/raster.html) ####
