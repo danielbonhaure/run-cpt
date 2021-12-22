@@ -18,8 +18,8 @@ ConsumirServicioJSON <- function(url, usuario, clave) {
 
 
 base.url        <- '192.168.100.100:8080'
-usuario.default <- '***REMOVED***' 
-clave.default   <- '***REMOVED***'
+usuario.default <- '********' 
+clave.default   <- '********'
 
 datos_estaciones <- ConsumirServicioJSON(url = paste0(base.url, "/estaciones"),
                                          usuario = usuario.default, clave = clave.default) 

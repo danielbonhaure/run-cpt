@@ -21,8 +21,8 @@ def consumir_servicio_JSON(url, usuario, clave):
 
 
 base_url = 'http://192.168.100.224:8080'
-usuario_default = '***REMOVED***'
-clave_default = '***REMOVED***'
+usuario_default = '********'
+clave_default = '********'
 
 
 estaciones = consumir_servicio_JSON(url=base_url + "/estaciones",
