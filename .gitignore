@@ -7,5 +7,5 @@ plots_*/
 .RData
 .Rhistory
 *.rds
-PyCPT.Rproj
+*.Rproj
 credentials.yaml
