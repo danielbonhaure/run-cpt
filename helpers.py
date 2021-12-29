@@ -222,6 +222,14 @@ class MonthsProcessor:
         last_month = last_month if last_month >= first_month else 12 + last_month
         return last_month - first_month
 
+    @classmethod
+    def year_change_detected(cls, months):
+        if isinstance(months, list) and len(months) > 1:
+            for i in range(len(months) - 1):
+                if months[i + 1] - months[i] < 0:
+                    return True
+        return False
+
 
 class YearsProcessor:
 

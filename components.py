@@ -1036,11 +1036,38 @@ class PredictandFile:
         # Filter by month/s
         months = [*crange(trgt_season.first_trgt_month_int, trgt_season.last_trgt_month_int + 1, 12)]
         df = df.loc[:, :, months, :]
+        # Agregar marca para agrupar, si se usa solo el año los trimetres que
+        # cambien de año (ej: 12,1,2) van a ser agrupados de manera errónea
+        # (ej: 12-2021, 1-2021, 2-2021 en lugar de 12-2021, 1-2022, 2-2022).
+        # Como ID de cada grupo se usa el año del primero de los meses de la
+        # lista de meses a agrupar (ej: para el trimestre 10,11,1 el año
+        # utilizado com ID es el asociado al mes 10, que además es el menor
+        # de los años cubiertos por el trimestre). Entonces, si se detecta
+        # un cambio año, todos los meses entre 1 (enero) y 12 (diciembre)
+        # menos la cantidad de meses a grupar, es decir, 12 - length(months)),
+        # deben usar como ID el año del registro menos 1 (porque están en el
+        # segundo de los dos años cubiertos por los meses a agrupar). Ej: si
+        # la cantidad de meses a agrupar es 3, el primero de los grupos de 3
+        # meses, con cambio de año, es 11,12,1; por o tanto, todos los meses
+        # entre 1 (enero) y 10 (octubre) llevan como ID el primero de los 2
+        # años cubiertos por el listado de meses a agrupar, es decir, el año
+        # indicado en el registro (fila) menos 1.
+        df['group_id'] = df.index.get_level_values('year')
+        if MonthsProcessor.year_change_detected(months):
+            df_months = df.index.get_level_values('month')
+            months_in_prev_year = (df_months >= 1) & (df_months <= (12 - len(months) + 1))
+            df.loc[months_in_prev_year, 'group_id'] = df.loc[months_in_prev_year, 'group_id'] - 1
+        # Group data
         if self.predictand == 't2m':
             # Group data and get mean
-            df = df.groupby(['latitude', 'longitude', 'year']).mean().round(1)
+            df = df.groupby(['latitude', 'longitude', 'group_id']).mean().round(1)
+            # Rename index columns (group_id to year)
+            df.index.names = ['latitude', 'longitude', 'year']
         if self.predictand == 'prcp':
-            df = df.groupby(['latitude', 'longitude', 'year']).sum(min_count=1).round(1)
+            # Group data and get sum
+            df = df.groupby(['latitude', 'longitude', 'group_id']).sum(min_count=1).round(1)
+            # Rename index columns (group_id to year)
+            df.index.names = ['latitude', 'longitude', 'year']
             # Si un punto (lon, lat) tiene poquísima lluvia, como por ejemplo en el desierto de Atacama, entonces
             # CPT falla en la predicción, para evitar esto, se agregan lluvias falsas de 0.1 mm a algunos de los
             # elementos de la serie de lluvias (los valores por año son acumulados de 1 o 3 meses)
