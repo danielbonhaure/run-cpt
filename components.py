@@ -703,7 +703,7 @@ class ChirpsFile:
                     FilesProcessor.download_file_from_url(year_chirps_url, year_chirps_file_world, min_valid_size)
                 except HTTPError as e:
                     if e.code == 404 and year == date.today().year and date.today().month <= 6:
-                        pass
+                        continue
                     else:
                         os.remove(year_chirps_file_world) if os.path.exists(year_chirps_file_world) else None
                         raise
