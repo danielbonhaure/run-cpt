@@ -416,7 +416,7 @@ class CrcSasAPI:
 class FilesProcessor:
 
     @classmethod
-    def download_file_from_url(cls, download_url: str, file_path: str, min_valid_size: int):
+    def download_file_from_url(cls, download_url: str, file_path: str, min_valid_size: int, report_404: bool = True):
         #
         download_url = urllib.parse.quote(download_url, safe=':/')
         # Create progress bar to track download
@@ -424,8 +424,9 @@ class FilesProcessor:
         # Download file
         try:
             f, h = urllib.request.urlretrieve(download_url, file_path, pb)
-        except HTTPError:
-            print(f'URL: {download_url}')
+        except HTTPError as e:
+            if e.code == 404 and report_404:
+                print(f'Not Found URL: {download_url}')
             raise
         # Check file size
         assert os.stat(file_path).st_size != 0
