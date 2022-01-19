@@ -853,6 +853,15 @@ for (fp in config$files) {
     
     if (data_source == 'crcsas' || config$smoothing_by_interpolating) {
       
+      # OBS: 
+      # 1. La interpolacion se hace para completar puntos diferentes a los de
+      # las estaciones del CRC-SAS contempladas!
+      # 2. Luego de tranformar los puntos originales a raster, interpolalos
+      # y volver a obtener trasnformar el raster a puntos, se obtienen los 
+      # mismos puntos (no pude identificar cómo se crea el raster a partir 
+      # del punto original, es decir si se lo usa como centro, extremo 
+      # izquierdo superior, etc.)
+      
       resolucao <- 0.5
       x.range <- as.numeric(c(interp_spatial_domain$wlo, interp_spatial_domain$elo))  # min/max longitude of the interpolation area
       y.range <- as.numeric(c(interp_spatial_domain$sla, interp_spatial_domain$nla))
@@ -875,21 +884,11 @@ for (fp in config$files) {
       idw.msk <- raster::mask(idw.crp, crcsas_sp)
       raster::crs(idw.msk) <- "EPSG:4326"
       #
-      idw.pr.menor.media.msk <- idw.msk
       idw.pr.menor.media.dfr <- idw.msk %>% 
         raster::rasterToPoints() %>% 
         raster::as.data.frame()
-      idw.pr.menor.media.sf <- idw.pr.menor.media.dfr %>% 
-        sf::st_as_sf(coords = c("x", "y")) %>%
-        sf::st_set_crs(sf::st_crs(4326))
-      
-      # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
-      # plot(
-      #   sf::st_geometry(idw.pr.menor.media.sf),
-      #   col = "red", cex = .7)
-      # plot(
-      #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.menor.media)), 
-      #   col = "blue", cex = .5, add = T)
+      # 
+      rm(datos.sp, idw, idw.output, idw.r, idw.crp, idw.msk); invisible(gc())
       
       # Interpolar pr.media
       datos.sp <- datos %>% 
@@ -905,21 +904,11 @@ for (fp in config$files) {
       idw.msk <- raster::mask(idw.crp, crcsas_sp)
       raster::crs(idw.msk) <- "EPSG:4326"
       #
-      idw.pr.media.msk <- idw.msk
       idw.pr.media.dfr <- idw.msk %>%
         raster::rasterToPoints() %>%
         raster::as.data.frame()
-      idw.pr.media.sf <- idw.pr.media.dfr %>%
-        sf::st_as_sf(coords = c("x", "y")) %>%
-        sf::st_set_crs(sf::st_crs(4326))
-      
-      # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
-      # plot(
-      #   sf::st_geometry(idw.pr.media.sf),
-      #   col = "red", cex = .7)
-      # plot(
-      #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.media)), 
-      #   col = "blue", cex = .5, add = T)
+      # 
+      rm(datos.sp, idw, idw.output, idw.r, idw.crp, idw.msk); invisible(gc())
       
       # Interpolar pr.menor.media
       datos.sp <- datos %>% 
@@ -935,30 +924,24 @@ for (fp in config$files) {
       idw.msk <- raster::mask(idw.crp, crcsas_sp)
       raster::crs(idw.msk) <- "EPSG:4326"
       #
-      idw.pr.mayor.media.msk <- idw.msk
       idw.pr.mayor.media.dfr <- idw.msk %>% 
         raster::rasterToPoints() %>% 
         raster::as.data.frame()
-      idw.pr.mayor.media.sf <- idw.pr.mayor.media.dfr %>% 
-        sf::st_as_sf(coords = c("x", "y")) %>%
-        sf::st_set_crs(sf::st_crs(4326))
+      # 
+      rm(datos.sp, idw, idw.output, idw.r, idw.crp, idw.msk); invisible(gc())
       
       # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
+      #
+      # idw.pr.menor.media.sf <- idw.pr.menor.media.dfr %>% 
+      #   sf::st_as_sf(coords = c("x", "y")) %>%
+      #   sf::st_set_crs(sf::st_crs(4326))
+      #
       # plot(
-      #   sf::st_geometry(idw.pr.mayor.media.sf),
+      #   sf::st_geometry(idw.pr.menor.media.sf),
       #   col = "red", cex = .7)
       # plot(
-      #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.mayor.media)), 
+      #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.menor.media)), 
       #   col = "blue", cex = .5, add = T)
-      
-      # CONCLUSIÓN: 
-      # 1. La interpolacion se hace para completar puntos diferentes a los de
-      # las estaciones del CRC-SAS contempladas!
-      # 2. Luego de tranformar los puntos originales a raster, interpolalos
-      # y volver a obtener trasnformar el raster a puntos, se obtienen los 
-      # mismos puntos (no pude identificar cómo se crea el raster a partir 
-      # del punto original, es decir si se lo usa como centro, extremo 
-      # izquierdo superior, etc.)
     
     } else {
       
@@ -972,13 +955,11 @@ for (fp in config$files) {
       idw.msk <- raster::mask(idw.crp, crcsas_sp)
       raster::crs(idw.msk) <- "EPSG:4326"
       #
-      idw.pr.menor.media.msk <- idw.msk
       idw.pr.menor.media.dfr <- idw.msk %>% 
         raster::rasterToPoints() %>% 
         raster::as.data.frame()
-      idw.pr.menor.media.sf <- idw.pr.menor.media.dfr %>% 
-        sf::st_as_sf(coords = c("x", "y")) %>%
-        sf::st_set_crs(sf::st_crs(4326))
+      # 
+      rm(idw.output, idw.r, idw.crp, idw.msk); invisible(gc())
       
       # Interpolar pr.media
       idw.output <- datos %>% 
@@ -990,13 +971,11 @@ for (fp in config$files) {
       idw.msk <- raster::mask(idw.crp, crcsas_sp)
       raster::crs(idw.msk) <- "EPSG:4326"
       #
-      idw.pr.media.msk <- idw.msk
       idw.pr.media.dfr <- idw.msk %>%
         raster::rasterToPoints() %>%
         raster::as.data.frame()
-      idw.pr.media.sf <- idw.pr.media.dfr %>%
-        sf::st_as_sf(coords = c("x", "y")) %>%
-        sf::st_set_crs(sf::st_crs(4326))
+      # 
+      rm(idw.output, idw.r, idw.crp, idw.msk); invisible(gc())
       
       # Interpolar pr.menor.media
       idw.output <- datos %>% 
@@ -1008,26 +987,50 @@ for (fp in config$files) {
       idw.msk <- raster::mask(idw.crp, crcsas_sp)
       raster::crs(idw.msk) <- "EPSG:4326"
       #
-      idw.pr.mayor.media.msk <- idw.msk
       idw.pr.mayor.media.dfr <- idw.msk %>% 
         raster::rasterToPoints() %>% 
         raster::as.data.frame()
-      idw.pr.mayor.media.sf <- idw.pr.mayor.media.dfr %>% 
-        sf::st_as_sf(coords = c("x", "y")) %>%
-        sf::st_set_crs(sf::st_crs(4326))
+      # 
+      rm(idw.output, idw.r, idw.crp, idw.msk); invisible(gc())
+      
+      # COMPARACIÓN VISUAL DE PUNTOS A INTERPOLAR Y PUNTOS GENERADOS POR CPT
+      #
+      # idw.pr.menor.media.sf <- idw.pr.menor.media.dfr %>% 
+      #   sf::st_as_sf(coords = c("x", "y")) %>%
+      #   sf::st_set_crs(sf::st_crs(4326))
+      #
+      # plot(
+      #   sf::st_geometry(idw.pr.menor.media.sf),
+      #   col = "red", cex = .7)
+      # plot(
+      #   sf::st_geometry(datos.sf %>% dplyr::select(lon, lat, var = pr.menor.media)), 
+      #   col = "blue", cex = .5, add = T)
       
     }
     
-    idw.pr.dfr <- idw.pr.menor.media.dfr %>% 
+    # Se agregan las 3 probabilidades interpoladas por separado, a un único df
+    idw.pr.dfr <- idw.pr.menor.media.dfr %>%
       dplyr::rename(pr.menor.media = var) %>%
-      dplyr::left_join(idw.pr.media.dfr, 
-                       by = c("x", "y")) %>% 
+      dplyr::left_join(idw.pr.media.dfr,
+                       by = c("x", "y")) %>%
       dplyr::rename(pr.media = var) %>%
-      dplyr::left_join(idw.pr.mayor.media.dfr, 
+      dplyr::left_join(idw.pr.mayor.media.dfr,
                        by = c("x", "y")) %>%
       dplyr::rename(pr.mayor.media = var) %>%
       dplyr::mutate(pr.sum = pr.menor.media + pr.media + pr.mayor.media) %>%
-      dplyr::rename(lon = x, lat = y) %>%
+      dplyr::rename(lon = x, lat = y)
+    # Se borran los objetos que ya no se va a usar
+    rm(idw.pr.menor.media.dfr, idw.pr.media.dfr, idw.pr.mayor.media.dfr)
+    invisible(gc())
+    # Para estar seguros que las probabilidades interpoladas suman 1
+    # se recalcula la pr.media como 1 - pr.menor.media - pr.mayor.media
+    # PERO, solo cuando los datos hayan sido interpolados
+    if (data_source == 'crcsas' || config$smoothing_by_interpolating)
+      idw.pr.dfr <- idw.pr.dfr %>%
+        dplyr::mutate(pr.media = 1 - pr.menor.media - pr.mayor.media) %>%
+        dplyr::mutate(pr.sum = pr.menor.media + pr.media + pr.mayor.media)
+    # Se agregan otras columnas que van a ser necesarias más adelante
+    idw.pr.dfr <- idw.pr.dfr %>%
       dplyr::rowwise() %>%
       dplyr::mutate(pr.max.col = dplyr::case_when(
         pr.menor.media > pr.media && pr.menor.media > pr.mayor.media ~ "pr.menor.media",
