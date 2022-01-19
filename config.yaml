@@ -64,13 +64,13 @@ models:
 #    predictands:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]
-#  nasa:
-#    predictors:
-#      variables: [ 'precip' ]
-#      data_sources: [ 'noaa' ]
-#    predictands:
-#      variables: [ 'prcp' ]
-#      data_sources: [ 'chirps' ]
+  nasa:
+    predictors:
+      variables: [ 'precip' ]
+      data_sources: [ 'noaa' ]
+    predictands:
+      variables: [ 'prcp' ]
+      data_sources: [ 'chirps' ]
 #  gfdl:
 #    predictors:
 #      variables: [ 'precip', 'tmp2m' ]

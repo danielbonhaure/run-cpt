@@ -647,8 +647,12 @@ for (fp in config$files) {
   # ---------------------------------------------------------------------------#
   # ---- PASO 4.10 GENERAR GRÁFICOS/MAPAS ----
   #
+  print(glue::glue("Years to be processed: {unique(data$year)}"))
   
   for (data_year in unique(data$year)) {
+    cat("\n\n")
+    print(glue::glue("Processing year: {data_year}"))
+    cat("\n")
     
     # Se determina el año correspondiente al mes de inicio,
     # si el mes de inicio es posterior al primer mes de 

@@ -19,15 +19,23 @@ folders:
   images: ./input/raw_data/images/
 
 files:
- - { file: "ecmwf_precip-prcp_chirps_Decic_1_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_chirps_Decic_2_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_chirps_Decic_3_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_precip-prcp_chirps_Decic_1-3_1992-2021_2022-2022_1.txt", type: "seasonal", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_era5-land_Decic_1_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_era5-land_Decic_2_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_era5-land_Decic_3_1992-2021_2022_1.txt", type: "monthly", swap_years: false }
- - { file: "ecmwf_tmp2m-t2m_era5-land_Decic_1-3_1992-2021_2022-2022_1.txt", type: "seasonal", swap_years: false }
- - { file: "nmme_precip-prcp_chirps_Decic_1_1992-2021_2022_1.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_chirps_Decic_2_1992-2021_2022_1.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_chirps_Decic_3_1992-2021_2022_1.txt", type: "monthly", swap_years: true }
- - { file: "nmme_precip-prcp_chirps_Decic_1-3_1992-2021_2022-2022_1.txt", type: "seasonal", swap_years: true }
+ - { file: "ecmwf_precip-prcp_chirps_Janic_2_1991-2020_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_chirps_Janic_3_1991-2020_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_chirps_Janic_4_1991-2020_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_precip-prcp_chirps_Janic_2-4_1991-2020_2022-2022_1.txt", type: "seasonal", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_era5-land_Janic_2_1991-2020_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_era5-land_Janic_3_1991-2020_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_era5-land_Janic_4_1991-2020_2022_1.txt", type: "monthly", swap_years: false }
+ - { file: "ecmwf_tmp2m-t2m_era5-land_Janic_2-4_1991-2020_2022-2022_1.txt", type: "seasonal", swap_years: false }
+ - { file: "nmme_precip-prcp_chirps_Janic_2_1991-2020_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_chirps_Janic_3_1991-2020_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_chirps_Janic_4_1991-2020_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_precip-prcp_chirps_Janic_2-4_1991-2020_2022-2022_1.txt", type: "seasonal", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_era5-land_Janic_2_1991-2020_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_era5-land_Janic_3_1991-2020_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_era5-land_Janic_4_1991-2020_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nmme_tmp2m-t2m_era5-land_Janic_2-4_1991-2020_2022-2022_1.txt", type: "seasonal", swap_years: true }
+ - { file: "nasa_precip-prcp_chirps_Janic_2_1991-2020_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nasa_precip-prcp_chirps_Janic_3_1991-2020_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nasa_precip-prcp_chirps_Janic_4_1991-2020_2022_1.txt", type: "monthly", swap_years: true }
+ - { file: "nasa_precip-prcp_chirps_Janic_2-4_1991-2020_2022-2022_1.txt", type: "seasonal", swap_years: true }
