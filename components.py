@@ -1170,18 +1170,19 @@ class OutputFile:
     trng_period: InitVar[TrainingPeriod] = None
     predictor_data: InitVar[PredictorXVariables] = None
     predictand_data: InitVar[PredictandYVariables] = None
+    swap_years: InitVar[bool] = None
 
     @property
     def abs_path(self):
         return os.path.join(self.folder, self.name) if self.name else ""
 
-    def __post_init__(self, model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data):
+    def __post_init__(self, model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data, swap_years):
         # Define file name
         self.name = self.__define_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data)
         # Define folder
         self.folder = self.config_file.get('folders').get('output')
         # Report output file to plotting module
-        self.__add_filename_to_plot_yaml(trgt_season, predictor_data)
+        self.__add_filename_to_plot_yaml(trgt_season, predictor_data, swap_years)
 
     @staticmethod
     def __define_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data) -> str:
@@ -1191,7 +1192,6 @@ class OutputFile:
                f"{predictand_data.data_source}_{fcst_data.monf}ic_{months_indexes}_" \
                f"{trng_period.tini}-{trng_period.tend}_{years_to_str}_{fcst_data.nfcsts}.txt"
 
-    def __add_filename_to_plot_yaml(self, trgt_season, predictor_data):
+    def __add_filename_to_plot_yaml(self, trgt_season, predictor_data, swap_years):
         with open(self.config_file.get('files').get('plot_yaml'), 'a') as fp_plot_yaml:
-            swap_years = "true" if predictor_data.data_source == 'noaa' else "false"
             fp_plot_yaml.write(f' - {{ file: "{self.name}", type: "{trgt_season.type}", swap_years: {swap_years} }}\n')

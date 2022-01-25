@@ -38,7 +38,12 @@ class ConfigCPT:
     # The output file can be inferred by others properties.
     output_file: OutputFile = None
 
+    # Indicates whether the years should be swapped when reading output file
+    swap_years: bool = None
+
     def __post_init__(self):
+        self.swap_years = True if self.predictor_data.data_source == 'noaa' else False
+
         if not self.predictor_data.file_obj:
             self.predictor_data.file_obj = PredictorFile(
                 predictor=self.predictor_data.predictor,
@@ -63,7 +68,8 @@ class ConfigCPT:
                 trgt_season=self.target_season,
                 trng_period=self.trng_period,
                 predictor_data=self.predictor_data,
-                predictand_data=self.predictand_data
+                predictand_data=self.predictand_data,
+                swap_years=self.swap_years
             )
 
     def create_params_file(self, params_file: str):
@@ -141,7 +147,10 @@ class ConfigCPT:
 
         # Number of forecasts
         f.write("9\n")
-        f.write(str(self.trng_period.ntrain + self.forecast_data.nfcsts)+'\n')
+        if self.swap_years:
+            f.write(str(self.trng_period.ntrain + self.forecast_data.nfcsts)+'\n')
+        else:
+            f.write(str(self.trng_period.ntrain + (self.forecast_data.fyr - self.trng_period.original_tend))+'\n')
 
         # Build model and save outputs
         if self.mos == 'CCA' or self.mos == 'PCR':  # Don't use CPT to compute probabilities if MOS='None'
