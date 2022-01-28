@@ -202,11 +202,15 @@ class MonthsProcessor:
     @classmethod
     def gen_trgts_data(cls, month: int):
         month_1, month_2, month_3 = cls.add_months(month, 1), cls.add_months(month, 2), cls.add_months(month, 3)
+        month_4, month_5, month_6 = cls.add_months(month, 4), cls.add_months(month, 5), cls.add_months(month, 6)
         return [dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_1)),
                 dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_2)),
                 dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_3)),
                 dict(mons=cls.month_int_to_abbr(month),
-                     tgts=f'{cls.month_int_to_abbr(month_1)}-{cls.month_int_to_abbr(month_3)}')]
+                     tgts=f'{cls.month_int_to_abbr(month_1)}-{cls.month_int_to_abbr(month_3)}'),
+                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_4)),
+                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_5)),
+                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_6))]
 
     @classmethod
     def current_month_fcsts_data(cls):
