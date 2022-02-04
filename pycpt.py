@@ -10,7 +10,7 @@ import pathlib
 import signal
 
 from typing import List
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 
 
@@ -171,6 +171,10 @@ class ConfigCPT:
             # Save deterministic forecasts [mu for Gaussian fcst pdf]
             f.write("511\n")
             f.write(f"{self.output_file.abs_path}\n")
+            # Save probabilistic forecasts
+            f.write("501\n")
+            file, ext = os.path.splitext(self.output_file.abs_path)
+            f.write(f"{file}_prob{ext}\n")
 
         # Exit
         f.write("0\n")
@@ -341,13 +345,13 @@ class CPT:
             initial_year = self.config_file.get('initial_year', date.today().year)
             initial_month = self.config_file.get('initial_month', date.today().month)
             fd = MonthsProcessor.gen_fcsts_data(initial_year, initial_month)
-            forecasts = [ForecastData(**fd) for i in range(len(targets))]
+            forecasts = [ForecastData(**fd) for _ in range(len(targets))]
         elif [int, str, int] == [type(fcst_data.get(k)) for k in fcst_data.keys()] and \
                 not all([type(trgt_data.get(k)) == list for k in trgt_data.keys()]):
             forecasts = [ForecastData(**fcst_data)]
         elif [int, str, int] == [type(fcst_data.get(k)) for k in fcst_data.keys()] and \
                 all([type(trgt_data.get(k)) == list for k in trgt_data.keys()]):
-            forecasts = [ForecastData(**fcst_data) for i in range(len(targets))]
+            forecasts = [ForecastData(**fcst_data) for _ in range(len(targets))]
         elif all([type(fcst_data.get(k)) == list for k in fcst_data.keys()]):
             zipped_data = zip(fcst_data.get('fyr'), fcst_data.get('monf'), fcst_data.get('nfcsts'))
             forecasts = [ForecastData(fyr=y, monf=m, nfcsts=n) for y, m, n in zipped_data]
@@ -361,9 +365,11 @@ class CPT:
         for model in self.config_file.get('models').keys():
 
             all_predictors = self.config_file.get('models').get(model).get('predictors').get('variables')
-            all_predictors_data_sources = self.config_file.get('models').get(model).get('predictors').get('data_sources')
+            all_predictors_data_sources = (self.config_file.get('models').get(model)
+                                           .get('predictors').get('data_sources'))
             all_predictands = self.config_file.get('models').get(model).get('predictands').get('variables')
-            all_predictands_data_sources = self.config_file.get('models').get(model).get('predictands').get('data_sources')
+            all_predictands_data_sources = (self.config_file.get('models').get(model)
+                                            .get('predictands').get('data_sources'))
 
             for predictor, predictor_data_source, predictand, predictand_data_source \
                     in zip(all_predictors, all_predictors_data_sources, all_predictands, all_predictands_data_sources):
@@ -392,8 +398,10 @@ class CPT:
 
                     # Define training period
                     a_trng_period = TrainingPeriod(
-                        tini=self.config_file.get('training_period', {}).get('fyr', TrainingPeriod.tini),
-                        tend=self.config_file.get('training_period', {}).get('lyr', TrainingPeriod.tend),
+                        tini=(self.config_file.get('models').get(model)
+                              .get('training_period', {}).get('fyr', TrainingPeriod.tini)),
+                        tend=(self.config_file.get('models')
+                              .get(model).get('training_period', {}).get('lyr', TrainingPeriod.tend)),
                         trgt_season=a_trgt_season
                     )
 

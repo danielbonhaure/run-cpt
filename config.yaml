@@ -15,10 +15,6 @@ update:
   crc_sas_grid:
     points_in_land: False
 
-training_period:
-  fyr: 1991
-  lyr: 2020
-
 # Must be commented to run the current month
 #target_season:
 #  mons: ['Jun']  # ['Jan', 'Aug']  # Start month
@@ -33,8 +29,8 @@ training_period:
 # When this information is provided, the target season and forecast
 # are created using this month and year instead of the current month
 # Comment the following two lines to run the current month
-# initial_month: 10
-# initial_year: 2021
+# initial_month: 1
+# initial_year: 2022
 
 # OBS:
 # Predictors can have two more attributes (fcst_name and hcst_name)
@@ -44,6 +40,9 @@ training_period:
 # Valid predictands data sources are: "chirps", "er5-land" and "crcsas"
 models:
   ecmwf:
+    training_period:
+      fyr: 1981
+      lyr: 2010
     predictors:
       variables: [ 'precip', 'tmp2m' ]
       data_sources: [ 'iridl', 'iridl' ]
@@ -51,6 +50,9 @@ models:
       variables: [ 'prcp', 't2m' ]
       data_sources: [ 'chirps', 'era5-land' ]
   nmme:
+    training_period:
+      fyr: 1991
+      lyr: 2020
     predictors:
       variables: [ 'precip', 'tmp2m' ]
       data_sources: [ 'noaa', 'noaa' ]
@@ -58,6 +60,9 @@ models:
       variables: [ 'prcp', 't2m' ]
       data_sources: [ 'chirps', 'era5-land' ]
 #  ncar_ccsm4:
+#    training_period:
+#      fyr: 1991
+#      lyr: 2020
 #    predictors:
 #      variables: [ 'precip', 'tmp2m' ]
 #      data_sources: [ 'noaa', 'noaa' ]
@@ -65,6 +70,9 @@ models:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]
   nasa:
+    training_period:
+      fyr: 1991
+      lyr: 2020
     predictors:
       variables: [ 'precip' ]
       data_sources: [ 'noaa' ]
@@ -72,6 +80,9 @@ models:
       variables: [ 'prcp' ]
       data_sources: [ 'chirps' ]
 #  gfdl:
+#    training_period:
+#      fyr: 1991
+#      lyr: 2020
 #    predictors:
 #      variables: [ 'precip', 'tmp2m' ]
 #      data_sources: [ 'noaa', 'noaa' ]
@@ -79,6 +90,9 @@ models:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]
 #  cmc2:
+#    training_period:
+#      fyr: 1991
+#      lyr: 2020
 #    predictors:
 #      variables: [ 'precip', 'tmp2m' ]
 #      data_sources: [ 'noaa', 'noaa' ]
@@ -86,6 +100,9 @@ models:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]
 #  cmc1:
+#    training_period:
+#      fyr: 1991
+#      lyr: 2020
 #    predictors:
 #      variables: [ 'precip', 'tmp2m' ]
 #      data_sources: [ 'noaa', 'noaa' ]
@@ -93,6 +110,9 @@ models:
 #      variables: [ 'prcp', 't2m' ]
 #      data_sources: [ 'chirps', 'era5-land' ]
 #  cfsv2:
+#    training_period:
+#      fyr: 1991
+#      lyr: 2020
 #    predictors:
 #      variables: [ 'precip', 'tmp2m' ]
 #      data_sources: [ 'noaa', 'noaa' ]
