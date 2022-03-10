@@ -294,7 +294,7 @@ WORKDIR /opt/pyCPT
 # Copy app code
 COPY . .
 
-# Create input and output folder (these folders are too big so they must be used them as volumes)
+# Create input and output folders (these folders are too big so they must be used them as volumes)
 RUN mkdir -p /opt/pyCPT/input
 RUN mkdir -p /opt/pyCPT/output
 RUN mkdir -p /opt/pyCPT/plots
@@ -336,10 +336,10 @@ RUN adduser $CPT_USER sudo
 # Setup CPT
 RUN echo "export CPT_BIN_DIR=/opt/CPT/bin" >> /home/$CPT_USER/.bashrc
 RUN echo "export PATH=/opt/CPT/bin:$PATH" >> /home/$CPT_USER/.bashrc
-RUN chown -R $USER_UID:$USER_UID /opt/CPT
+RUN chown -R $USER_UID:$USER_GID /opt/CPT
 
 # Setup pyCPT
-RUN chown -R $USER_UID:$USER_UID /opt/pyCPT
+RUN chown -R $USER_UID:$USER_GID /opt/pyCPT
 
 # Setup cron for run once a month
 RUN (echo "0 0 15 * * /usr/local/bin/python /opt/pyCPT/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $CPT_USER -
