@@ -797,6 +797,7 @@ class UpdateControl:
         self._config_file: str = 'config.yaml'
         self._updated_files: set = set()
         self._update_config: dict = dict()
+        self._descriptor_files: set = set()
         self.__load_global_update_config()
 
     def __load_global_update_config(self):
@@ -824,8 +825,14 @@ class UpdateControl:
     def report_updated_file(self, file_abs_path: str):
         self._updated_files.add(file_abs_path)
 
+    def report_descriptor_file(self, file_abs_path: str):
+        self._descriptor_files.add(file_abs_path)
+
     def file_already_updated(self, file_abs_path: str) -> bool:
         return file_abs_path in self._updated_files
+
+    def descriptor_file_must_be_created(self, file_abs_path: str) -> bool:
+        return file_abs_path not in self._descriptor_files
 
 
 def plt_predictors_and_predictands_domains(use_topo: bool = True):

@@ -1167,6 +1167,7 @@ class OutputFile:
 
     # Upload cpt config file (It's a singleton!!)
     config_file: ConfigFile = field(init=False, default=ConfigFile.Instance())
+    update_ctrl: UpdateControl = field(init=False, default=UpdateControl.Instance())
 
     model: InitVar[str] = None
     fcst_data: InitVar[ForecastData] = None
@@ -1186,7 +1187,9 @@ class OutputFile:
         # Define folder
         self.folder = self.config_file.get('folders').get('output')
         # Report output file to plotting module
-        self.__add_filename_to_plot_yaml(trgt_season, predictor_data, swap_years)
+        self.__add_filename_to_plot_yaml(trgt_season, swap_years)
+        # Report output file
+        self.__add_file_to_descriptor_file(trng_period, fcst_data, swap_years)
 
     @staticmethod
     def __define_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data) -> str:
@@ -1196,6 +1199,41 @@ class OutputFile:
                f"{predictand_data.data_source}_{fcst_data.monf}ic_{months_indexes}_" \
                f"{trng_period.tini}-{trng_period.tend}_{years_to_str}_{fcst_data.nfcsts}.txt"
 
-    def __add_filename_to_plot_yaml(self, trgt_season, predictor_data, swap_years):
+    def __add_file_to_descriptor_file(self, trng_period, fcst_data, swap_years):
+        det_output_file = os.path.basename(self.abs_path)
+        base_file, output_ext = os.path.splitext(det_output_file)
+        prob_output_file = f"{base_file}_prob{output_ext}"
+
+        output_folder = self.config_file.get("folders").get("output")
+        descriptor_file = f'{os.path.join(output_folder, base_file)}.yaml'
+
+        if self.update_ctrl.descriptor_file_must_be_created(descriptor_file):
+            with open(descriptor_file, 'w') as fp_desc_file:
+                fp_desc_file.write(f'\n')
+                fp_desc_file.write(f'files:\n')
+            self.update_ctrl.report_descriptor_file(descriptor_file)
+
+        for f_type, f_name in zip(["cpt_det_output", "cpt_prob_output"], [det_output_file, prob_output_file]):
+            for is_hcst, is_fcst in zip([True, False], [False, True]):
+                with open(descriptor_file, 'a') as fp_desc_file:
+                    fp_desc_file.write(f'  - {{ \n')
+                    fp_desc_file.write(f'    type: "{f_type}", \n')
+                    fp_desc_file.write(f'    path: ".", \n')
+                    fp_desc_file.write(f'    name: "{f_name}", \n')
+                    if swap_years:
+                        fp_desc_file.write(f'    swap_years: {{ \n')
+                        fp_desc_file.write(f'      last_hindcast_year: {trng_period.tend}, \n')
+                        fp_desc_file.write(f'      first_forecast_year: {fcst_data.fyr}, \n')
+                        fp_desc_file.write(f'    }}, \n')
+                    fp_desc_file.write(f'    filter_years: {{ \n')
+                    fp_desc_file.write(f'      min_year: {trng_period.tini if is_hcst else fcst_data.fyr}, \n')
+                    fp_desc_file.write(f'      max_year: {trng_period.tend if is_hcst else fcst_data.fyr}, \n')
+                    fp_desc_file.write(f'    }}, \n')
+                    fp_desc_file.write(f'    output_file: {{ \n')
+                    fp_desc_file.write(f'      name: "{base_file}_{"hindcast" if is_hcst else "forecast"}.nc", \n')
+                    fp_desc_file.write(f'    }}, \n')
+                    fp_desc_file.write(f'  }} \n')
+
+    def __add_filename_to_plot_yaml(self, trgt_season, swap_years):
         with open(self.config_file.get('files').get('plot_yaml'), 'a') as fp_plot_yaml:
             fp_plot_yaml.write(f' - {{ file: "{self.name}", type: "{trgt_season.type}", swap_years: {swap_years} }}\n')
