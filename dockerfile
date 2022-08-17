@@ -14,6 +14,7 @@ ARG CPT_VERSION="15.7.11"
 
 # Install OS packages
 RUN apt-get -y -qq update && \
+    apt-get -y -qq upgrade && \
     apt-get -y -qq --no-install-recommends install \
         build-essential \
         # GCC5.x
@@ -135,6 +136,7 @@ ENV PYTHONUNBUFFERED 1
 
 # install OS packages
 RUN apt-get -y -qq update && \
+    apt-get -y -qq upgrade && \
     apt-get -y -qq --no-install-recommends install \
         build-essential \
         # to install cartopy
@@ -149,9 +151,6 @@ WORKDIR /usr/src/app
 # upgrade pip and install dependencies
 COPY requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --upgrade pip && \
-    # in order to install cartopy, see: https://github.com/SciTools/cartopy/issues/1552
-    python3 -m pip install numpy && \
-    # finally, install python dependencies
     python3 -m pip wheel --no-cache-dir --no-deps \
     --wheel-dir /usr/src/app/wheels -r /tmp/requirements.txt
 
@@ -169,6 +168,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # install OS packages
 RUN apt-get -y -qq update && \
+    apt-get -y -qq upgrade && \
     apt-get -y -qq --no-install-recommends install \
         build-essential \
         # install R
@@ -186,34 +186,34 @@ RUN apt-get -y -qq update && \
     rm -rf /var/lib/apt/lists/*
 
 # install R packages
-RUN R -e "options(warn=2); install.packages('sp', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('ncdf4', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('raster', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('dplyr', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('tibble', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('sf', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('stringr', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('tidyr', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('purrr', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('yaml', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('glue', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('lubridate', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('gstat', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('rasterVis', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('htmltools', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('leaflet', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('plainview', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('leafem', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('ggplot2', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('rnaturalearth', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('RColorBrewer', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('httr', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('jsonlite', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('lattice', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('leaflet.extras2', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('RCurl', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('rnaturalearthdata', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
-RUN R -e "options(warn=2); install.packages('ggiraph', repos='https://cran.r-project.org/', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('sp', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('ncdf4', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('raster', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('dplyr', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('tibble', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('sf', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('stringr', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('tidyr', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('purrr', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('yaml', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('glue', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('lubridate', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('gstat', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('rasterVis', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('htmltools', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('leaflet', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('plainview', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('leafem', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('ggplot2', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('rnaturalearth', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('RColorBrewer', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('httr', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('jsonlite', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('lattice', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('leaflet.extras2', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('RCurl', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('rnaturalearthdata', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('ggiraph', verbose=T, quiet=T, keep_outputs='/tmp/')"
 
 
 
@@ -231,7 +231,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG CPT_VERSION="15.7.11"
 
 # Install OS packages
-RUN apt-get -y -qq update &&\
+RUN apt-get -y -qq update && \
+    apt-get -y -qq upgrade && \
     apt-get -y -qq --no-install-recommends install \
         # install R
         r-base \
