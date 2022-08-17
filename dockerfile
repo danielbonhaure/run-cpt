@@ -214,6 +214,7 @@ RUN R -e "options(warn=2); install.packages('leaflet.extras2', verbose=T, quiet=
 RUN R -e "options(warn=2); install.packages('RCurl', verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('rnaturalearthdata', verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('ggiraph', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('rgdal', verbose=T, quiet=T, keep_outputs='/tmp/')"
 
 
 
@@ -360,6 +361,7 @@ WORKDIR /home/$CPT_USER
 USER $CPT_USER
 
 # CONSTRUIR CONTENEDOR
+# export DOCKER_BUILDKIT=1
 # docker build -f dockerfile \
 #        --build-arg ROOT_PWD=cpt \
 #        --build-arg USER_PWD=cpt \

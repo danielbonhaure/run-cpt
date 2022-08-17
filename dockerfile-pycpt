@@ -322,6 +322,7 @@ WORKDIR /home/$NON_ROOT_USR
 USER $NON_ROOT_USR
 
 # CONSTRUIR CONTENEDOR
+# export DOCKER_BUILDKIT=1
 # docker build -f dockerfile-pycpt \
 #        --build-arg ROOT_PWD=nonroot \
 #        --build-arg NON_ROOT_PWD=nonroot \

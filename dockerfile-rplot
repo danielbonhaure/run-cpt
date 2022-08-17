@@ -55,6 +55,7 @@ RUN R -e "options(warn=2); install.packages('leaflet.extras2', verbose=T, quiet=
 RUN R -e "options(warn=2); install.packages('RCurl', verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('rnaturalearthdata', verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('ggiraph', verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('rgdal', verbose=T, quiet=T, keep_outputs='/tmp/')"
 
 
 
@@ -180,6 +181,7 @@ WORKDIR /home/$NON_ROOT_USR
 USER $NON_ROOT_USR
 
 # CONSTRUIR CONTENEDOR
+# export DOCKER_BUILDKIT=1
 # docker build -f dockerfile-rplot \
 #        --build-arg ROOT_PWD=nonroot \
 #        --build-arg NON_ROOT_PWD=nonroot \
