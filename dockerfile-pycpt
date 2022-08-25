@@ -323,12 +323,12 @@ USER $NON_ROOT_USR
 
 # CONSTRUIR CONTENEDOR
 # export DOCKER_BUILDKIT=1
-# docker build -f dockerfile-pycpt \
+# docker build --file dockerfile-pycpt \
 #        --build-arg ROOT_PWD=nonroot \
 #        --build-arg NON_ROOT_PWD=nonroot \
 #        --build-arg NON_ROOT_UID=$(stat -c "%u" .) \
 #        --build-arg NON_ROOT_GID=$(stat -c "%g" .) \
-#        -t pycpt .
+#        --tag pycpt .
 
 # CORRER OPERACIONALMENTE CON CRON
 # docker run --name pycpt --rm \

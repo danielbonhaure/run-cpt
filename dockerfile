@@ -362,12 +362,12 @@ USER $CPT_USER
 
 # CONSTRUIR CONTENEDOR
 # export DOCKER_BUILDKIT=1
-# docker build -f dockerfile \
+# docker build --file dockerfile \
 #        --build-arg ROOT_PWD=cpt \
 #        --build-arg USER_PWD=cpt \
 #        --build-arg USER_UID=$(stat -c "%u" .) \
 #        --build-arg USER_GID=$(stat -c "%g" .) \
-#        -t pycpt .
+#        --tag pycpt .
 
 # CORRER OPERACIONALMENTE CON CRON
 # docker run --name pycpt --rm \

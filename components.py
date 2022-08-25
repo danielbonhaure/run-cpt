@@ -1200,9 +1200,8 @@ class OutputFile:
                f"{trng_period.tini}-{trng_period.tend}_{years_to_str}_{fcst_data.nfcsts}.txt"
 
     def __add_file_to_descriptor_file(self, trng_period, fcst_data, swap_years):
-        det_output_file = os.path.basename(self.abs_path)
-        base_file, output_ext = os.path.splitext(det_output_file)
-        prob_output_file = f"{base_file}_prob{output_ext}"
+        base_file, file_extension = os.path.splitext(os.path.basename(self.abs_path))
+        det_base_file, prob_base_file = f"{base_file}", f"{base_file}_prob"
 
         output_folder = self.config_file.get("folders").get("output")
         descriptor_file = f'{os.path.join(output_folder, base_file)}.yaml'
@@ -1213,13 +1212,13 @@ class OutputFile:
                 fp_desc_file.write(f'files:\n')
             self.update_ctrl.report_descriptor_file(descriptor_file)
 
-        for f_type, f_name in zip(["cpt_det_output", "cpt_prob_output"], [det_output_file, prob_output_file]):
+        for f_type, f_base_name in zip(["cpt_det_output", "cpt_prob_output"], [det_base_file, prob_base_file]):
             for is_hcst, is_fcst in zip([True, False], [False, True]):
                 with open(descriptor_file, 'a') as fp_desc_file:
                     fp_desc_file.write(f'  - {{ \n')
                     fp_desc_file.write(f'    type: "{f_type}", \n')
                     fp_desc_file.write(f'    path: ".", \n')
-                    fp_desc_file.write(f'    name: "{f_name}", \n')
+                    fp_desc_file.write(f'    name: "{f_base_name}{file_extension}", \n')
                     if swap_years:
                         fp_desc_file.write(f'    swap_years: {{ \n')
                         fp_desc_file.write(f'      last_hindcast_year: {trng_period.tend}, \n')
@@ -1230,7 +1229,7 @@ class OutputFile:
                     fp_desc_file.write(f'      max_year: {trng_period.tend if is_hcst else fcst_data.fyr}, \n')
                     fp_desc_file.write(f'    }}, \n')
                     fp_desc_file.write(f'    output_file: {{ \n')
-                    fp_desc_file.write(f'      name: "{base_file}_{"hindcast" if is_hcst else "forecast"}.nc", \n')
+                    fp_desc_file.write(f'      name: "{f_base_name}_{"hindcast" if is_hcst else "forecast"}.nc", \n')
                     fp_desc_file.write(f'    }}, \n')
                     fp_desc_file.write(f'  }} \n')
 
