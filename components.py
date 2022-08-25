@@ -587,6 +587,11 @@ class PredictorFile:
 
     predictor_file: Union[NoaaPredictorFile, IriDLPredictorFile] = field(init=False)
 
+    # Upload cpt config file (It's a singleton!!)
+    config_file: ConfigFile = field(init=False, default=ConfigFile.Instance())
+    # Define update control (It's a singleton!!)
+    update_ctrl: UpdateControl = field(init=False, default=UpdateControl.Instance())
+
     model: InitVar[str] = None
     fcst_data: InitVar[ForecastData] = None
     trgt_season: InitVar[TargetSeason] = None
@@ -599,8 +604,37 @@ class PredictorFile:
     def __post_init__(self, model, fcst_data, trgt_season, trng_period):
         if self.data_source == 'noaa':
             self.predictor_file = NoaaPredictorFile(self.predictor, model, fcst_data, trgt_season, trng_period)
+            self.__add_file_to_descriptor_file(trng_period, fcst_data, True)
         elif self.data_source == 'iridl':
             self.predictor_file = IriDLPredictorFile(self.predictor, model, fcst_data, trgt_season, trng_period)
+            self.__add_file_to_descriptor_file(trng_period, fcst_data, False)
+
+    def __add_file_to_descriptor_file(self, trng_period, fcst_data, swap_years):
+        base_file, file_extension = os.path.splitext(os.path.basename(self.abs_path))
+
+        output_folder = self.config_file.get("folders").get("predictors")
+        descriptor_file = f'{os.path.join(output_folder, base_file)}.yaml'
+
+        if self.update_ctrl.descriptor_file_must_be_created(descriptor_file):
+            with open(descriptor_file, 'w') as fp_desc_file:
+                fp_desc_file.write(f'\n')
+                fp_desc_file.write(f'files:\n')
+            self.update_ctrl.report_descriptor_file(descriptor_file)
+
+        with open(descriptor_file, 'a') as fp_desc_file:
+            fp_desc_file.write(f'  - {{ \n')
+            fp_desc_file.write(f'    type: "cpt_predictor", \n')
+            fp_desc_file.write(f'    path: ".", \n')
+            fp_desc_file.write(f'    name: "{base_file}{file_extension}", \n')
+            if swap_years:
+                fp_desc_file.write(f'    swap_years: {{ \n')
+                fp_desc_file.write(f'      last_hindcast_year: {trng_period.tend}, \n')
+                fp_desc_file.write(f'      first_forecast_year: {fcst_data.fyr}, \n')
+                fp_desc_file.write(f'    }}, \n')
+            fp_desc_file.write(f'    output_file: {{ \n')
+            fp_desc_file.write(f'      name: "{base_file}.nc", \n')
+            fp_desc_file.write(f'    }}, \n')
+            fp_desc_file.write(f'  }} \n')
 
 
 @dataclass
@@ -976,6 +1010,8 @@ class PredictandFile:
         self.__download_raw_file()
         # Create predictand file (extracting data from raw file)
         self.__create_predictand_file(trgt_season, trng_period, fcst_data)
+        # Report output file
+        self.__add_file_to_descriptor_file()
 
     def __define_predictand_filename(self, trgt_season, trng_period, fcst_data) -> str:
         months_indexes = MonthsProcessor.month_abbr_to_month_num_as_str(trgt_season.tgts)
@@ -1112,6 +1148,28 @@ class PredictandFile:
         # close progress bar
         pb.close()
 
+    def __add_file_to_descriptor_file(self):
+        base_file, file_extension = os.path.splitext(os.path.basename(self.abs_path))
+
+        output_folder = self.config_file.get("folders").get("predictands")
+        descriptor_file = f'{os.path.join(output_folder, base_file)}.yaml'
+
+        if self.update_ctrl.descriptor_file_must_be_created(descriptor_file):
+            with open(descriptor_file, 'w') as fp_desc_file:
+                fp_desc_file.write(f'\n')
+                fp_desc_file.write(f'files:\n')
+            self.update_ctrl.report_descriptor_file(descriptor_file)
+
+        with open(descriptor_file, 'a') as fp_desc_file:
+            fp_desc_file.write(f'  - {{ \n')
+            fp_desc_file.write(f'    type: "cpt_predictor", \n')
+            fp_desc_file.write(f'    path: ".", \n')
+            fp_desc_file.write(f'    name: "{base_file}{file_extension}", \n')
+            fp_desc_file.write(f'    output_file: {{ \n')
+            fp_desc_file.write(f'      name: "{base_file}.nc", \n')
+            fp_desc_file.write(f'    }}, \n')
+            fp_desc_file.write(f'  }} \n')
+
 
 @dataclass
 class PredictorXVariables:
@@ -1167,6 +1225,7 @@ class OutputFile:
 
     # Upload cpt config file (It's a singleton!!)
     config_file: ConfigFile = field(init=False, default=ConfigFile.Instance())
+    # Define update control (It's a singleton!!)
     update_ctrl: UpdateControl = field(init=False, default=UpdateControl.Instance())
 
     model: InitVar[str] = None

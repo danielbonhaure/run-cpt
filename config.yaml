@@ -2,11 +2,11 @@
 run_cpt: True
 
 update:
-  predictors:
+  predictors:  # son los datos sin calibrar
     raw_data: False
     locally_created_seasonal_files: False
     cpt_input_data: False
-  predictands:
+  predictands:  # son los datos observados
     raw_data: True
     only_last_year_chirps_daily_raw_data: True
     cutted_chirps_data: False
