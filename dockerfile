@@ -344,8 +344,8 @@ RUN chown -R $USER_UID:$USER_GID /opt/CPT
 RUN chown -R $USER_UID:$USER_GID /opt/pyCPT
 
 # Setup cron for run once a month
-RUN (echo "0 0 15 * * /usr/local/bin/python /opt/pyCPT/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $CPT_USER -
-RUN (crontab -u $CPT_USER -l; echo "0 0 16 * * /usr/bin/Rscript /opt/pyCPT/plot.R >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $CPT_USER -
+RUN (echo "0 0 16 * * /usr/local/bin/python /opt/pyCPT/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $CPT_USER -
+RUN (crontab -u $CPT_USER -l; echo "0 0 17 * * /usr/bin/Rscript /opt/pyCPT/plot.R >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $CPT_USER -
 
 # Add Tini (https://github.com/krallin/tini#using-tini)
 ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
@@ -370,11 +370,10 @@ USER $CPT_USER
 #        --tag pycpt .
 
 # CORRER OPERACIONALMENTE CON CRON
-# docker run --name pycpt --rm \
+# docker run --name pycpt \
 #        --volume $(pwd)/input:/opt/pyCPT/input \
 #        --volume $(pwd)/output:/opt/pyCPT/output \
 #        --volume $(pwd)/plots:/opt/pyCPT/plots \
-#        --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
 #        --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \
 #        --detach pycpt:latest
 
