@@ -1162,7 +1162,7 @@ class PredictandFile:
 
         with open(descriptor_file, 'a') as fp_desc_file:
             fp_desc_file.write(f'  - {{ \n')
-            fp_desc_file.write(f'    type: "cpt_predictor", \n')
+            fp_desc_file.write(f'    type: "cpt_predictand", \n')
             fp_desc_file.write(f'    path: ".", \n')
             fp_desc_file.write(f'    name: "{base_file}{file_extension}", \n')
             fp_desc_file.write(f'    output_file: {{ \n')
