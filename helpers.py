@@ -425,13 +425,20 @@ class FilesProcessor:
         download_url = urllib.parse.quote(download_url, safe=':/')
         # Create progress bar to track download
         pb = DownloadProgressBar(os.path.basename(file_path))
+        # Add headers to request
+        opener = urllib.request.build_opener()
+        opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+        urllib.request.install_opener(opener)
         # Download file
         try:
             f, h = urllib.request.urlretrieve(download_url, file_path, pb)
+            sleep(1)  # Se espera 1 seg para evitar bloqueos por parte del servidor de descarga
         except HTTPError as e:
             if e.code == 404 and report_404:
                 print(f'Not Found URL: {download_url}')
             raise
+        except Exception:
+            print(f'Error downloading: {download_url}')
         # Check file size
         assert os.stat(file_path).st_size != 0
         assert os.stat(file_path).st_size >= min_valid_size
