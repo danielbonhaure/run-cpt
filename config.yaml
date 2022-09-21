@@ -4,7 +4,7 @@ run_cpt: True
 update:
   predictors:  # son los datos sin calibrar
     raw_data: False
-    locally_created_seasonal_files: False
+    locally_created_seasonal_files: False  # crea archivos trimestrales cuando no pueden ser descargados
     cpt_input_data: False
   predictands:  # son los datos observados
     raw_data: True
