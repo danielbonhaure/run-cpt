@@ -482,7 +482,7 @@ class NoaaPredictorFile:
                                 start_year = trng_period.original_tend + years_to_add
 
                                 # Set correct start date
-                                line = re.sub(rf"(cpt:S=){fcst_year}(-\d{{2}}-\d{{2}})",
+                                line = re.sub(rf"(cpt:S=){fcst_year}(-\d{{2}}-\d{{2}}\D)",
                                               rf"\g<1>{start_year}\g<2>", line)
 
                                 # Set year correction
@@ -491,12 +491,12 @@ class NoaaPredictorFile:
 
                                 # Set correct target date
                                 if trgt_season.type == 'seasonal':
-                                    line = re.sub(rf"(cpt:T=){fcst_year + yc_1}(-\d{{2}}/\d{{2}})",
+                                    line = re.sub(rf"(cpt:T=){fcst_year + yc_1}(-\d{{2}}/\d{{2}}\D)",
                                                   rf"\g<1>{start_year + yc_1}\g<2>", line)
-                                    line = re.sub(rf"(cpt:T=){fcst_year + yc_1}(-\d{{2}}/){fcst_year + yc_2}(-\d{{2}})",
+                                    line = re.sub(rf"(cpt:T=){fcst_year + yc_1}(-\d{{2}}/){fcst_year + yc_2}(-\d{{2}}\D)",
                                                   rf"\g<1>{start_year + yc_1}\g<2>{start_year + yc_2}\g<3>", line)
                                 else:
-                                    line = re.sub(rf"(cpt:T=){fcst_year + yc_1}(-\d{{2}})",
+                                    line = re.sub(rf"(cpt:T=){fcst_year + yc_1}(-\d{{2}}\D)",
                                                   rf"\g<1>{start_year + yc_1}\g<2>", line)
 
                             fp_comb.write(line)
