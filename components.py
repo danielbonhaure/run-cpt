@@ -606,12 +606,12 @@ class PredictorFile:
     def __post_init__(self, model, fcst_data, trgt_season, trng_period):
         if self.data_source == 'noaa':
             self.predictor_file = NoaaPredictorFile(self.predictor, model, fcst_data, trgt_season, trng_period)
-            self.__add_file_to_descriptor_file(trng_period, fcst_data, True)
+            self.__add_file_to_descriptor_file(trng_period, fcst_data, trgt_season, True)
         elif self.data_source == 'iridl':
             self.predictor_file = IriDLPredictorFile(self.predictor, model, fcst_data, trgt_season, trng_period)
-            self.__add_file_to_descriptor_file(trng_period, fcst_data, False)
+            self.__add_file_to_descriptor_file(trng_period, fcst_data, trgt_season, False)
 
-    def __add_file_to_descriptor_file(self, trng_period, fcst_data, swap_years):
+    def __add_file_to_descriptor_file(self, trng_period, fcst_data, trgt_season, swap_years):
         base_file, file_extension = os.path.splitext(os.path.basename(self.abs_path))
 
         output_folder = self.config_file.get("folders").get("predictors")
@@ -623,6 +623,15 @@ class PredictorFile:
                 fp_desc_file.write(f'files:\n')
             self.update_ctrl.report_descriptor_file(descriptor_file)
 
+        # determinar si los meses objetivo están en años diferentes (ej: 11,12,1; 12,1,2)
+        trgt_months = [*crange(trgt_season.first_trgt_month_int, trgt_season.last_trgt_month_int + 1, 12)]
+        two_years_months = MonthsProcessor.year_change_detected(trgt_months)
+
+        # determinar años a ser utilizados para procesar los archivos, esto es necesario porque estos años
+        # no coinciden con los años utilizados para definir el nombre de los archivos.
+        last_hcst_year = trng_period.tend - 1 if two_years_months else trng_period.tend
+        first_fcst_year = fcst_data.fyr
+
         with open(descriptor_file, 'a') as fp_desc_file:
             fp_desc_file.write(f'  - {{ \n')
             fp_desc_file.write(f'    type: "cpt_predictor", \n')
@@ -630,8 +639,8 @@ class PredictorFile:
             fp_desc_file.write(f'    name: "{base_file}{file_extension}", \n')
             if swap_years:
                 fp_desc_file.write(f'    swap_years: {{ \n')
-                fp_desc_file.write(f'      last_hindcast_year: {trng_period.tend}, \n')
-                fp_desc_file.write(f'      first_forecast_year: {fcst_data.fyr}, \n')
+                fp_desc_file.write(f'      last_hindcast_year: {last_hcst_year}, \n')
+                fp_desc_file.write(f'      first_forecast_year: {first_fcst_year}, \n')
                 fp_desc_file.write(f'    }}, \n')
             fp_desc_file.write(f'    output_file: {{ \n')
             fp_desc_file.write(f'      name: "{base_file}.nc", \n')
@@ -1250,7 +1259,7 @@ class OutputFile:
         # Report output file to plotting module
         self.__add_filename_to_plot_yaml(trgt_season, swap_years)
         # Report output file
-        self.__add_file_to_descriptor_file(trng_period, fcst_data, swap_years)
+        self.__add_file_to_descriptor_file(trng_period, fcst_data, trgt_season, swap_years)
 
     @staticmethod
     def __define_filename(model, fcst_data, trgt_season, trng_period, predictor_data, predictand_data) -> str:
@@ -1260,7 +1269,7 @@ class OutputFile:
                f"{predictand_data.data_source}_{fcst_data.monf}ic_{months_indexes}_" \
                f"{trng_period.tini}-{trng_period.tend}_{years_to_str}_{fcst_data.nfcsts}.txt"
 
-    def __add_file_to_descriptor_file(self, trng_period, fcst_data, swap_years):
+    def __add_file_to_descriptor_file(self, trng_period, fcst_data, trgt_season, swap_years):
         base_file, file_extension = os.path.splitext(os.path.basename(self.abs_path))
         det_base_file, prob_base_file = f"{base_file}", f"{base_file}_prob"
 
@@ -1273,6 +1282,18 @@ class OutputFile:
                 fp_desc_file.write(f'files:\n')
             self.update_ctrl.report_descriptor_file(descriptor_file)
 
+        # determinar si los meses objetivo están en años diferentes (ej: 11,12,1; 12,1,2)
+        trgt_months = [*crange(trgt_season.first_trgt_month_int, trgt_season.last_trgt_month_int + 1, 12)]
+        two_years_months = MonthsProcessor.year_change_detected(trgt_months)
+
+        # determinar años a ser utilizados para procesar los archivos, esto es necesario porque estos años
+        # no coinciden con los años utilizados para definir el nombre de los archivos.
+        first_hcst_year = trng_period.tini
+        last_hcst_year = trng_period.tend - 1 if two_years_months else trng_period.tend
+        first_fcst_year = fcst_data.fyr
+        last_fcst_year = first_fcst_year - 1 + fcst_data.nfcsts
+
+        # guardar info en el archivo yaml
         for f_type, f_base_name in zip(["cpt_det_output", "cpt_prob_output"], [det_base_file, prob_base_file]):
             for is_hcst, is_fcst in zip([True, False], [False, True]):
                 with open(descriptor_file, 'a') as fp_desc_file:
@@ -1282,12 +1303,12 @@ class OutputFile:
                     fp_desc_file.write(f'    name: "{f_base_name}{file_extension}", \n')
                     if swap_years:
                         fp_desc_file.write(f'    swap_years: {{ \n')
-                        fp_desc_file.write(f'      last_hindcast_year: {trng_period.tend}, \n')
-                        fp_desc_file.write(f'      first_forecast_year: {fcst_data.fyr}, \n')
+                        fp_desc_file.write(f'      last_hindcast_year: {last_hcst_year}, \n')
+                        fp_desc_file.write(f'      first_forecast_year: {first_fcst_year}, \n')
                         fp_desc_file.write(f'    }}, \n')
                     fp_desc_file.write(f'    filter_years: {{ \n')
-                    fp_desc_file.write(f'      min_year: {trng_period.tini if is_hcst else fcst_data.fyr}, \n')
-                    fp_desc_file.write(f'      max_year: {trng_period.tend if is_hcst else fcst_data.fyr}, \n')
+                    fp_desc_file.write(f'      min_year: {first_hcst_year if is_hcst else first_fcst_year}, \n')
+                    fp_desc_file.write(f'      max_year: {last_hcst_year if is_hcst else last_fcst_year}, \n')
                     fp_desc_file.write(f'    }}, \n')
                     fp_desc_file.write(f'    output_file: {{ \n')
                     fp_desc_file.write(f'      name: "{f_base_name}_{"hindcast" if is_hcst else "forecast"}.nc", \n')
