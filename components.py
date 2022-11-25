@@ -569,6 +569,7 @@ class IriDLPredictorFile:
         return url
 
     def __download_file(self):
+        # print(f"{self.url} --> {self.abs_path}")
         if os.path.exists(self.abs_path) and \
                 not self.update_ctrl.must_be_updated('predictors', 'cpt_input_data', self.abs_path):
             return
