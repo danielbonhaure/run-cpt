@@ -631,7 +631,7 @@ class PredictorFile:
         # determinar años a ser utilizados para procesar los archivos, esto es necesario porque estos años
         # no coinciden con los años utilizados para definir el nombre de los archivos.
         last_hcst_year = trng_period.tend - 1 if two_years_months else trng_period.tend
-        first_fcst_year = fcst_data.fyr
+        first_fcst_year = fcst_data.fyr + 1 if trgt_season.first_trgt_month_in_next_year else fcst_data.fyr
 
         with open(descriptor_file, 'a') as fp_desc_file:
             fp_desc_file.write(f'  - {{ \n')
@@ -1291,7 +1291,7 @@ class OutputFile:
         # no coinciden con los años utilizados para definir el nombre de los archivos.
         first_hcst_year = trng_period.tini
         last_hcst_year = trng_period.tend - 1 if two_years_months else trng_period.tend
-        first_fcst_year = fcst_data.fyr
+        first_fcst_year = fcst_data.fyr + 1 if trgt_season.first_trgt_month_in_next_year else fcst_data.fyr
         last_fcst_year = first_fcst_year - 1 + fcst_data.nfcsts
 
         # guardar info en el archivo yaml
