@@ -437,8 +437,9 @@ class FilesProcessor:
             if e.code == 404 and report_404:
                 print(f'Not Found URL: {download_url}')
             raise
-        except Exception:
-            print(f'Error downloading: {download_url}')
+        except Exception as e:
+            print(f'Error downloading: {download_url} \n{e}')
+            raise
         # Check file size
         assert os.stat(file_path).st_size != 0
         assert os.stat(file_path).st_size >= min_valid_size
