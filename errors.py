@@ -1,9 +1,13 @@
 
 class Error(Exception):
     """Base class for exceptions in this module."""
-    pass
 
 
 class ConfigError(Error):
-    """Raised when the a configuration value is wrong"""
+    """Raised when a configuration value is wrong"""
+    pass
+
+
+class CPTRuntimeError(Error):
+    """Raised when CPT throws errors at runtime"""
     pass

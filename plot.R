@@ -45,7 +45,19 @@ for (pack in list.of.packages) {
   }
 }
 
-rm(pack, list.of.packages); gc()
+# vi. Definir nombre del archivo en el cual se guardará el PID del script.
+# Además, obtener el PID asignado por el SO al script actual.
+pid.file <- "/tmp/plotR.pid"
+pid      <- Sys.getpid()
+
+# vii. Crear archivo con el PID del Script. Este archivo se borra en la
+# última línea del script, por lo tanto, solo se borrar si no hubo errores
+# en tiempo de ejecución. El objetivo de crear este archivo es permitir que
+# se pueda verificar la salud del contenedor verificando la existencia de
+# este archivo en momentos específicos.
+writeLines(text = as.character(pid), con = pid.file)
+
+rm(pack, list.of.packages, pid); gc()
 # ------------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------#
@@ -1096,4 +1108,9 @@ for (fp in config$files) {
   # ----------------------------------------------------------------------------
 
 }
+# ------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------#
+# ---- PASO 5. Borrar archivo con PID del Script (si no hubo errores) ----
+file.remove(pid.file)  # En caso de errores, la ejecución no llega a este punto!
 # ------------------------------------------------------------------------------

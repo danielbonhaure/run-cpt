@@ -255,7 +255,7 @@ RUN apt-get -y -qq update && \
         # install Tini (https://github.com/krallin/tini#using-tini)
         tini \
         # to see process with pid 1
-        htop \
+        htop procps \
         # to run sudo
         sudo \
         # to allow edit files
@@ -303,6 +303,20 @@ COPY . .
 RUN mkdir -p /opt/pyCPT/input
 RUN mkdir -p /opt/pyCPT/output
 RUN mkdir -p /opt/pyCPT/plots
+
+# Create script to check container health
+RUN printf "#!/bin/bash\n\
+if [ \$(ls /tmp/pycpt.pid 2>/dev/null | wc -l) != 0 ] && \n\
+   [ \$(ps -ef | grep main.py | wc -l) == 0 ] || \n\
+   [ \$(ls /tmp/plotR.pid 2>/dev/null | wc -l) != 0 ] && \n\
+   [ \$(ps -ef | grep plot.R | wc -l) == 0 ] \n\
+then \n\
+  exit 1 \n\
+else \n\
+  exit 0 \n\
+fi \n\
+\n" > /check-healthy.sh
+RUN chmod a+x /check-healthy.sh
 
 
 
@@ -356,6 +370,9 @@ ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
 # Run your program under Tini (https://github.com/krallin/tini#using-tini)
 CMD ["cron", "-f"]
 # or docker run your-image /your/program ...
+
+# Verificar si hubo alguna falla en la ejecución del replicador
+HEALTHCHECK --interval=3s --timeout=3s --retries=3 CMD bash /check-healthy.sh
 
 # Access user directory
 WORKDIR /home/$CPT_USER

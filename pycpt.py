@@ -299,8 +299,8 @@ class CPT:
         # Report progress
         self.progress_bar.report_advance(advance_to_be_reported)
 
-    def __create_targets_and_run_cpt_for_them(self):
-        """Create targets an run CPT for each of them"""
+    def __create_targets_and_run_cpt_for_them(self, initial_year: int, initial_month: int):
+        """Create targets and run CPT for each of them"""
 
         # Compute marginal progress bar advance (to reporte aditional advances)
         marginal_advance = ConfigProcessor.count_iterations(self.config_file.get('models')) * 10 / 100
@@ -325,7 +325,7 @@ class CPT:
         # Set targets seasons
         targets: List[TargetSeason]
         if not trgt_data:
-            initial_month = self.config_file.get('initial_month', date.today().month)
+            initial_month = self.config_file.get('initial_month', initial_month)
             tds = MonthsProcessor.gen_trgts_data(initial_month)
             targets = [TargetSeason(**td) for td in tds]
         elif [str, str] == [type(trgt_data.get(k)) for k in trgt_data.keys()]:
@@ -342,8 +342,8 @@ class CPT:
         # Set forecasts data
         forecasts: List[ForecastData]
         if not fcst_data:
-            initial_year = self.config_file.get('initial_year', date.today().year)
-            initial_month = self.config_file.get('initial_month', date.today().month)
+            initial_year = self.config_file.get('initial_year', initial_year)
+            initial_month = self.config_file.get('initial_month', initial_month)
             fd = MonthsProcessor.gen_fcsts_data(initial_year, initial_month)
             forecasts = [ForecastData(**fd) for _ in range(len(targets))]
         elif [int, str, int] == [type(fcst_data.get(k)) for k in fcst_data.keys()] and \
@@ -432,14 +432,14 @@ class CPT:
         # Report progress
         self.progress_bar.report_advance(marginal_advance/5)
 
-    def run(self) -> None:
+    def run(self, initial_year: int = date.today().year, initial_month: int = date.today().month) -> None:
         """Run CPT"""
 
         # Open/start progress bar
         self.progress_bar.open()
 
         # Run CPT
-        self.__create_targets_and_run_cpt_for_them()
+        self.__create_targets_and_run_cpt_for_them(initial_year, initial_month)
 
         # Close progress bar
         self.progress_bar.close()
