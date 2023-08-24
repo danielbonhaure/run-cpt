@@ -18,6 +18,7 @@ import matplotlib.ticker as ticker
 import cdsapi
 import requests
 import requests.auth
+import ssl
 
 from cartopy import feature
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
@@ -425,9 +426,14 @@ class FilesProcessor:
         download_url = urllib.parse.quote(download_url, safe=':/')
         # Create progress bar to track download
         pb = DownloadProgressBar(os.path.basename(file_path))
-        # Add headers to request
-        opener = urllib.request.build_opener()
-        opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+        # Define https handler, to avoid handshake failure
+        context = ssl.create_default_context()
+        context.set_ciphers('DEFAULT')
+        https_handler = urllib.request.HTTPSHandler(context=context)
+        # Create urllib.request opener
+        opener = urllib.request.build_opener(https_handler)
+        opener.addheaders = [('User-agent', 'Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11')]
+        # Install urllib.request opener
         urllib.request.install_opener(opener)
         # Download file
         try:
