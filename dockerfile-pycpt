@@ -54,10 +54,8 @@ FROM debian:bullseye-slim AS cpt_builder
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Load CPT version
+# Renew CPT ARGs
 ARG CPT_VERSION
-
-# Load CPT HOME
 ARG CPT_HOME
 
 # Install OS packages
@@ -169,7 +167,7 @@ RUN echo "export PATH=$CPT_HOME/$CPT_VERSION/bin:$PATH" >> /root/.bashrc
 
 
 ######################################
-## Stage 2: Install python packages ##
+## Stage 2: Install Python packages ##
 ######################################
 
 # Create image
@@ -238,23 +236,21 @@ RUN R -e "options(warn=2); install.packages('tibble', repos=${CRAN_MIRROR}, verb
 
 
 
-#################################
-## Stage 4: Create PyCPT image ##
-#################################
+#########################################
+## Stage 4: Copy installation folders  ##
+#########################################
 
 # Create PyCPT image
-FROM python:${PYTHON_VERSION}-slim-bullseye AS pycpt-builder
+FROM python:${PYTHON_VERSION}-slim-bullseye AS cpt-py-r_final
 
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Load CPT version
+# Renew CPT ARGs
 ARG CPT_VERSION
-
-# Load CPT HOME
 ARG CPT_HOME
 
-# Load PyCPT HOME
+# Renew PyCPT_HOME
 ARG PyCPT_HOME
 
 # Install OS packages
@@ -301,6 +297,21 @@ ENV R_LIBS="/usr/lib/R/library"
 ENV R_LIBS_USER="/usr/local/lib/R/site-library"
 ENV R_LIBS_SITE="/usr/local/lib/R/site-library"
 
+
+
+#################################
+## Stage 5: Create PyCPT image ##
+#################################
+
+# Create PyCPT image
+FROM cpt-py-r_final AS pycpt_builder
+
+# Set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Renew PyCPT_HOME
+ARG PyCPT_HOME
+
 # Create work directory
 RUN mkdir -p $PyCPT_HOME
 
@@ -315,11 +326,11 @@ RUN mkdir -p $PyCPT_HOME/output
 
 
 ###########################################
-## Stage 5: Install management packages  ##
+## Stage 6: Install management packages  ##
 ###########################################
 
 # Create image
-FROM pycpt-builder AS pytcpt-mgmt
+FROM pycpt_builder AS pytcpt_mgmt
 
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -347,19 +358,19 @@ ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
 
 
 ######################################
-## Stage 6: Setup PyCPT core image  ##
+## Stage 7: Setup PyCPT core image  ##
 ######################################
 
 # Create image
-FROM pytcpt-mgmt AS pycpt-core
+FROM pytcpt_mgmt AS pycpt-core
 
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Load PyCPT HOME
+# Renew PyCPT_HOME
 ARG PyCPT_HOME
 
-# Load CRON ARGs
+# Renew CRON ARGs
 ARG CRON_TIME_STR
 
 # Set environment variables
@@ -409,16 +420,16 @@ HEALTHCHECK --interval=3s --timeout=3s --retries=3 CMD bash /check-healthy.sh
 
 
 ###################################
-## Stage 7: Create non-root user ##
+## Stage 8: Create non-root user ##
 ###################################
 
 # Create image
-FROM pycpt-core AS pycpt-nonroot-builder
+FROM pycpt-core AS pycpt_nonroot_builder
 
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Load global USER args
+# Renew USER ARGs
 ARG USR_NAME
 ARG USER_UID
 ARG GRP_NAME
@@ -453,8 +464,8 @@ RUN echo "$USR_NAME:$USER_PWD" | chpasswd
 
 # Add non-root user to sudoers and to adm group
 # The adm group was added to allow non-root user to see logs
-RUN adduser $USR_NAME sudo && \
-    adduser $USR_NAME adm
+RUN usermod -aG sudo $USR_NAME && \
+    usermod -aG adm $USR_NAME
 
 # To allow sudo without password
 # RUN echo "$USR_NAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$USR_NAME && \
@@ -463,11 +474,11 @@ RUN adduser $USR_NAME sudo && \
 
 
 ############################################
-## Stage 8.1: Install Pycharm (for debug) ##
+## Stage 9.1: Install Pycharm (for debug) ##
 ############################################
 
 # Create image
-FROM pycpt-nonroot-builder AS pycpt-pycharm
+FROM pycpt_nonroot_builder AS pycpt-pycharm
 
 # Become root
 USER root
@@ -475,10 +486,10 @@ USER root
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Load PyCPT HOME
+# Renew PyCPT_HOME
 ARG PyCPT_HOME
 
-# Load global USER args
+# Renew USER ARGs
 ARG USR_NAME
 ARG GRP_NAME
 
@@ -525,7 +536,7 @@ RUN mkdir -p /usr/local/lib/python${PYTHON_VERSION}/dist-packages \
     && ln -s /usr/local/lib/python${PYTHON_VERSION}/site-packages/* \
              /usr/local/lib/python${PYTHON_VERSION}/dist-packages/
 
-# Change to idic user
+# Change to non-root user
 USER $USR_NAME
 
 # Set work directory
@@ -562,22 +573,22 @@ CMD ["sh", "/opt/pycharm/bin/pycharm.sh", "-Dide.browser.jcef.enabled=false"]
 
 
 ##############################################
-## Stage 8.2: Setup and run final APP image ##
+## Stage 9.2: Setup and run final APP image ##
 ##############################################
 
 # Create image
-FROM pycpt-nonroot-builder AS pycpt-nonroot
+FROM pycpt_nonroot_builder AS pycpt-nonroot
 
 # Become root
 USER root
 
-# Load CPT HOME
+# Renew CPT_HOME
 ARG CPT_HOME
 
-# Load PyCPT HOME
+# Renew PyCPT_HOME
 ARG PyCPT_HOME
 
-# Load global USER args
+# Renew USER ARGs
 ARG USR_NAME
 ARG USER_UID
 ARG USER_GID
@@ -585,6 +596,9 @@ ARG USER_GID
 # Change files owner
 RUN chown -R $USER_UID:$USER_GID $CPT_HOME
 RUN chown -R $USER_UID:$USER_GID $PyCPT_HOME
+
+# Setup cron to allow it run as a non root user
+RUN chmod u+s $(which cron)
 
 # Setup cron
 RUN (cat $PyCPT_HOME/crontab.txt) | crontab -u $USR_NAME -
@@ -612,7 +626,7 @@ USER $USR_NAME
 # CONSTRUIR IMAGEN (CORE)
 # docker build --force-rm \
 #   --target pycpt-core \
-#   --tag ghcr.io/danielbonhaure/run-cpt:core-v1.0 \
+#   --tag ghcr.io/danielbonhaure/run-cpt:pycpt-core-v1.0 \
 #   --build-arg CRON_TIME_STR="0 0 16 * *" \
 #   --file dockerfile-pycpt .
 
@@ -621,8 +635,8 @@ USER $USR_NAME
 
 # CONSTRUIR IMAGEN (NON-ROOT)
 # docker build --force-rm \
-#   --target pycpt-nonroot:latest \
-#   --tag pycpt-nonroot \
+#   --target pycpt-nonroot \
+#   --tag pycpt-nonroot:latest \
 #   --build-arg USER_UID=$(stat -c "%u" .) \
 #   --build-arg USER_GID=$(stat -c "%g" .) \
 #   --build-arg CRON_TIME_STR="0 0 16 * *" \

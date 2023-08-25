@@ -98,18 +98,15 @@ RUN R -e "options(warn=2); install.packages('rgdal', verbose=T, repos=${CRAN_MIR
 
 
 
-#################################
-## Stage 2: Create rPLOT image ##
-#################################
+##########################################
+## Stage 2: Copy R installation folders ##
+##########################################
 
 # Create rPLOT image
-FROM rocker/r-ver:${R_VERSION} AS rplot-builder
+FROM rocker/r-ver:${R_VERSION} AS r_final
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
-
-# Set rPLOT HOME
-ARG rPLOT_HOME
 
 # Install OS packages
 RUN apt-get -y -qq update && \
@@ -140,6 +137,21 @@ ENV R_LIBS="/usr/local/lib/R/library"
 ENV R_LIBS_USER="/usr/local/lib/R/site-library"
 ENV R_LIBS_SITE="/usr/local/lib/R/site-library"
 
+
+
+#################################
+## Stage 3: Create rPLOT image ##
+#################################
+
+# Create EREG image
+FROM r_final AS rplot_builder
+
+# set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Set rPLOT HOME
+ARG rPLOT_HOME
+
 # Create work directory
 RUN mkdir -p ${rPLOT_HOME}
 
@@ -155,11 +167,11 @@ RUN mkdir -p ${rPLOT_HOME}/plots
 
 
 ###########################################
-## Stage 3: Install management packages  ##
+## Stage 4: Install management packages  ##
 ###########################################
 
 # Create image
-FROM rplot-builder AS rplot-mgmt
+FROM rplot_builder AS rplot_mgmt
 
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -187,19 +199,19 @@ ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
 
 
 ######################################
-## Stage 4: Setup rPLOT core image  ##
+## Stage 5: Setup rPLOT core image  ##
 ######################################
 
 # Create image
-FROM rplot-mgmt AS rplot-core
+FROM rplot_mgmt AS rplot-core
 
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Set rPLOT HOME
+# Renew rPLOT_HOME
 ARG rPLOT_HOME
 
-# Load CRON ARGs
+# Renew CRON ARGs
 ARG CRON_TIME_STR
 
 # Set environment variables
@@ -249,16 +261,16 @@ HEALTHCHECK --interval=3s --timeout=3s --retries=3 CMD bash /check-healthy.sh
 
 
 ###################################
-## Stage 5: Create non-root user ##
+## Stage 6: Create non-root user ##
 ###################################
 
 # Create image
-FROM rplot-core AS rplot-nonroot-builder
+FROM rplot-core AS rplot_nonroot_builder
 
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Load global USER args
+# Renew USER ARGs
 ARG USR_NAME
 ARG USER_UID
 ARG GRP_NAME
@@ -293,8 +305,8 @@ RUN echo "$USR_NAME:$USER_PWD" | chpasswd
 
 # Add non-root user to sudoers and to adm group
 # The adm group was added to allow non-root user to see logs
-RUN adduser $USR_NAME sudo && \
-    adduser $USR_NAME adm
+RUN usermod -aG sudo $USR_NAME && \
+    usermod -aG adm $USR_NAME
 
 # To allow sudo without password
 # RUN echo "$USR_NAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$USR_NAME && \
@@ -303,7 +315,7 @@ RUN adduser $USR_NAME sudo && \
 
 
 ############################################
-## Stage 6.1: Install Pycharm (for debug) ##
+## Stage 7.1: Install Pycharm (for debug) ##
 ############################################
 
 # Create image
@@ -367,25 +379,28 @@ ENV R_LIBS_SITE="/usr/local/lib/R/site-library"
 
 
 ##############################################
-## Stage 6.2: Setup and run final APP image ##
+## Stage 7.2: Setup and run final APP image ##
 ##############################################
 
 # Create image
-FROM rplot-nonroot-builder AS rplot-nonroot
+FROM rplot_nonroot_builder AS rplot-nonroot
 
 # Become root
 USER root
 
-# Load rPLOT HOME
+# Renew rPLOT_HOME
 ARG rPLOT_HOME
 
-# Load global USER args
+# Renew USER ARGs
 ARG USR_NAME
 ARG USER_UID
 ARG USER_GID
 
 # Change files owner
 RUN chown -R $USER_UID:$USER_GID $rPLOT_HOME
+
+# Setup cron to allow it run as a non root user
+RUN chmod u+s $(which cron)
 
 # Setup cron
 RUN (cat $rPLOT_HOME/crontab.txt) | crontab -u $USR_NAME -
