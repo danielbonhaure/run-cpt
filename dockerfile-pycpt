@@ -1,16 +1,64 @@
 
-#################
-## Compile CPT ##
-#################
+##################################################################
+##                           README                             ##
+##################################################################
+## Este Dockerfile permite crear un contendor con todos los pa- ##
+## quetes y todas las configuraciones necesarias para calibrar  ##
+## pronósticos utilizando CPT desde python (PyCPT).             ##
+##################################################################
+
+
+
+##########################
+## Set GLOBAL arguments ##
+##########################
+
+# Set CPT version
+ARG CPT_VERSION="15.7.11"
+
+# Set CPT HOME
+ARG CPT_HOME=/opt/CPT
+
+# Set python version
+ARG PYTHON_VERSION="3.10"
+
+# Set PyCPT HOME
+ARG PyCPT_HOME=/opt/pyCPT
+
+# Set user name and id
+ARG USR_NAME="nonroot"
+ARG USER_UID="1000"
+
+# Set group name and id
+ARG GRP_NAME="nonroot"
+ARG USER_GID="1000"
+
+# Set users passwords
+ARG ROOT_PWD="root"
+ARG USER_PWD=$USR_NAME
+
+# Set Pycharm version
+ARG PYCHARM_VERSION="2023.1"
+
+# Set global CRON args
+ARG CRON_TIME_STR="0 0 16 * *"
+
+
+##########################
+## Stage 1: Compile CPT ##
+##########################
 
 # Create image
 FROM debian:bullseye-slim AS cpt_builder
 
-# set environment variables
+# Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Define CPT version to be used (https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact)
-ARG CPT_VERSION="15.7.11"
+# Load CPT version
+ARG CPT_VERSION
+
+# Load CPT HOME
+ARG CPT_HOME
 
 # Install OS packages
 RUN apt-get -y -qq update && \
@@ -28,7 +76,7 @@ RUN apt-get -y -qq update && \
     rm -rf /var/lib/apt/lists/*
 
 # Create CPT directory
-RUN mkdir /opt/CPT
+RUN mkdir $CPT_HOME
 
 # Download CPT
 # version 15.6.3
@@ -62,79 +110,79 @@ RUN tar -xzf /tmp/CPT.16.5.8.tar.gz -C /tmp
 RUN tar -xzf /tmp/CPT.17.3.1.tar.gz -C /tmp
 
 # Mover código versión 15.6.3 a src
-RUN mkdir /opt/CPT/15.6.3
-RUN mkdir /opt/CPT/15.6.3/src
-RUN mv /tmp/CPT/15.6.3/* /opt/CPT/15.6.3/src/
+RUN mkdir $CPT_HOME/15.6.3
+RUN mkdir $CPT_HOME/15.6.3/src
+RUN mv /tmp/CPT/15.6.3/* $CPT_HOME/15.6.3/src/
 # Mover código versión 15.7.11 a src
-RUN mkdir /opt/CPT/15.7.11
-RUN mkdir /opt/CPT/15.7.11/src
-RUN mv /tmp/CPT/15.7.11/* /opt/CPT/15.7.11/src/
+RUN mkdir $CPT_HOME/15.7.11
+RUN mkdir $CPT_HOME/15.7.11/src
+RUN mv /tmp/CPT/15.7.11/* $CPT_HOME/15.7.11/src/
 # Mover código versión 16.5.8 a src
-RUN mkdir /opt/CPT/16.5.8
-RUN mkdir /opt/CPT/16.5.8/src
-RUN mv /tmp/CPT/16.5.8/* /opt/CPT/16.5.8/src/
+RUN mkdir $CPT_HOME/16.5.8
+RUN mkdir $CPT_HOME/16.5.8/src
+RUN mv /tmp/CPT/16.5.8/* $CPT_HOME/16.5.8/src/
 # Mover código versión 17.3.1 a src
-RUN mkdir /opt/CPT/17.3.1
-RUN mkdir /opt/CPT/17.3.1/src
-RUN mv /tmp/CPT/17.3.1/* /opt/CPT/17.3.1/src/
+RUN mkdir $CPT_HOME/17.3.1
+RUN mkdir $CPT_HOME/17.3.1/src
+RUN mv /tmp/CPT/17.3.1/* $CPT_HOME/17.3.1/src/
 
 # Instalar versión 15.6.3
 # Acceder al código fuente
-WORKDIR /opt/CPT/15.6.3/src
+WORKDIR $CPT_HOME/15.6.3/src
 # Para poder usar gfortran 10
 RUN sed -i "s/-frecursive/-frecursive -fallow-argument-mismatch/g" ./lapack/lapack/make.inc
 # Compilar e instalar CPT
 RUN make distclean
 RUN make
-RUN make INSTALL_DIR=/opt/CPT/15.6.3/ install
+RUN make INSTALL_DIR=$CPT_HOME/15.6.3/ install
 
 # Instalar versión 15.7.11
 # Acceder al código fuente
-WORKDIR /opt/CPT/15.7.11/src
+WORKDIR $CPT_HOME/15.7.11/src
 # Para poder usar gfortran 10
 RUN sed -i "s/-frecursive/-frecursive -fallow-argument-mismatch/g" ./lapack/lapack/make.inc
 # Compilar e instalar CPT
 RUN make distclean
 RUN make
-RUN make INSTALL_DIR=/opt/CPT/15.7.11/ install
+RUN make INSTALL_DIR=$CPT_HOME/15.7.11/ install
 
 # Instalar versión 16.5.8
 # Acceder al código fuente
-WORKDIR /opt/CPT/16.5.8/src
+WORKDIR $CPT_HOME/16.5.8/src
 # Compilar es instalar CPT
 RUN make distclean
 RUN make
-RUN make INSTALL_DIR=/opt/CPT/16.5.8/ install
+RUN make INSTALL_DIR=$CPT_HOME/16.5.8/ install
 
 # Instalar versión 17.3.1
 # Acceder al código fuente
-WORKDIR /opt/CPT/17.3.1/src
+WORKDIR $CPT_HOME/17.3.1/src
 # Compilar es instalar CPT
 RUN make distclean
 RUN make
-RUN make INSTALL_DIR=/opt/CPT/17.3.1/ install
+RUN make INSTALL_DIR=$CPT_HOME/17.3.1/ install
 
 # Configurar version por defecto para CPT
-RUN echo "export CPT_BIN_DIR=/opt/CPT/$CPT_VERSION/bin" >> /root/.bashrc
-RUN echo "export PATH=/opt/CPT/$CPT_VERSION/bin:$PATH" >> /root/.bashrc
+RUN echo "export CPT_BIN_DIR=$CPT_HOME/$CPT_VERSION/bin" >> /root/.bashrc
+RUN echo "export PATH=$CPT_HOME/$CPT_VERSION/bin:$PATH" >> /root/.bashrc
 
 
 
-#############################
-## Install python packages ##
-#############################
+######################################
+## Stage 2: Install python packages ##
+######################################
 
 # Create image
-FROM python:slim-bullseye AS py_builder
+FROM python:${PYTHON_VERSION}-slim-bullseye AS py_builder
 
-# set environment variables
+# Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# set python environment variables
+# Set python environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# install OS packages
+# Install OS packages
 RUN apt-get -y -qq update && \
     apt-get -y -qq upgrade && \
     apt-get -y -qq --no-install-recommends install \
@@ -145,10 +193,10 @@ RUN apt-get -y -qq update && \
         r-base && \
     rm -rf /var/lib/apt/lists/*
 
-# set work directory
+# Set work directory
 WORKDIR /usr/src/app
 
-# upgrade pip and install dependencies
+# Upgrade pip and install dependencies
 COPY requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip wheel --no-cache-dir --no-deps \
@@ -156,12 +204,12 @@ RUN python3 -m pip install --upgrade pip && \
 
 
 
-########################
-## Install R packages ##
-########################
+#################################
+## Stage 3: Install R packages ##
+#################################
 
 # Create image
-FROM python:slim-bullseye AS r_builder
+FROM python:${PYTHON_VERSION}-slim-bullseye AS r_builder
 
 # set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -190,18 +238,24 @@ RUN R -e "options(warn=2); install.packages('tibble', repos=${CRAN_MIRROR}, verb
 
 
 
-########################
-## CREATE FINAL IMAGE ##
-########################
+#################################
+## Stage 4: Create PyCPT image ##
+#################################
 
-# Create final image
-FROM python:slim-bullseye AS pycpt
+# Create PyCPT image
+FROM python:${PYTHON_VERSION}-slim-bullseye AS pycpt-builder
 
-# set environment variables
+# Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Define CPT version to be used (https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact)
-ARG CPT_VERSION="15.7.11"
+# Load CPT version
+ARG CPT_VERSION
+
+# Load CPT HOME
+ARG CPT_HOME
+
+# Load PyCPT HOME
+ARG PyCPT_HOME
 
 # Install OS packages
 RUN apt-get -y -qq update && \
@@ -216,28 +270,15 @@ RUN apt-get -y -qq update && \
         # to be able to use ncdf4 (R)
         libnetcdf-dev \
         # to install terra, a dependency of raster (R)
-        libgdal-dev \
-        # install Tini (https://github.com/krallin/tini#using-tini)
-        tini \
-        # to see process with pid 1
-        htop procps \
-        # to run sudo
-        sudo \
-        # to allow edit files
-        vim \
-        # to run process with cron
-        cron && \
+        libgdal-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Setup cron to allow it run as a non root user
-RUN sudo chmod u+s $(which cron)
-
 # Copy CPT executable from cpt_builder
-COPY --from=cpt_builder /opt/CPT/$CPT_VERSION /opt/CPT
+COPY --from=cpt_builder $CPT_HOME/$CPT_VERSION $CPT_HOME
 
 # Setup CPT for root
-RUN echo "export CPT_BIN_DIR=/opt/CPT/bin" >> /root/.bashrc
-RUN echo "export PATH=/opt/CPT/bin:$PATH" >> /root/.bashrc
+RUN echo "export CPT_BIN_DIR=$CPT_HOME/bin" >> /root/.bashrc
+RUN echo "export PATH=$CPT_HOME/bin:$PATH" >> /root/.bashrc
 
 # Install python dependencies from py_builder
 COPY --from=py_builder /usr/src/app/wheels /wheels
@@ -255,16 +296,96 @@ COPY --from=r_builder /usr/lib/R /usr/lib/R
 COPY --from=r_builder /usr/local/lib/R/site-library /usr/local/lib/R/site-library
 COPY --from=r_builder /tmp /tmp
 
+# Set R libs paths (see: https://stat.ethz.ch/R-manual/R-devel/library/base/html/libPaths.html)
+ENV R_LIBS="/usr/lib/R/library"
+ENV R_LIBS_USER="/usr/local/lib/R/site-library"
+ENV R_LIBS_SITE="/usr/local/lib/R/site-library"
+
 # Create work directory
-RUN mkdir -p /opt/pyCPT
+RUN mkdir -p $PyCPT_HOME
 
 # Copy app code
-COPY *.py /opt/pyCPT/
-COPY *.yaml /opt/pyCPT/
+COPY *.py $PyCPT_HOME/
+COPY *.yaml $PyCPT_HOME/
 
 # Create input and output folders (these folders are too big so they must be used them as volumes)
-RUN mkdir -p /opt/pyCPT/input
-RUN mkdir -p /opt/pyCPT/output
+RUN mkdir -p $PyCPT_HOME/input
+RUN mkdir -p $PyCPT_HOME/output
+
+
+
+###########################################
+## Stage 5: Install management packages  ##
+###########################################
+
+# Create image
+FROM pycpt-builder AS pytcpt-mgmt
+
+# Set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Install OS packages
+RUN apt-get -y -qq update && \
+    apt-get -y -qq upgrade && \
+    apt-get -y -qq --no-install-recommends install \
+        # install Tini (https://github.com/krallin/tini#using-tini)
+        tini \
+        # to see process with pid 1
+        htop procps \
+        # to allow edit files
+        vim \
+        # to run process with cron
+        cron && \
+    rm -rf /var/lib/apt/lists/*
+
+# Setup cron to allow it run as a non root user
+RUN chmod u+s $(which cron)
+
+# Add Tini (https://github.com/krallin/tini#using-tini)
+ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
+
+
+
+######################################
+## Stage 6: Setup PyCPT core image  ##
+######################################
+
+# Create image
+FROM pytcpt-mgmt AS pycpt-core
+
+# Set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Load PyCPT HOME
+ARG PyCPT_HOME
+
+# Load CRON ARGs
+ARG CRON_TIME_STR
+
+# Set environment variables
+ENV CRON_TIME_STR=${CRON_TIME_STR}
+
+# Crear archivo de configuración de CRON
+RUN printf "\n\
+# Setup cron to run files processor \n\
+${CRON_TIME_STR} /usr/local/bin/python ${PyCPT_HOME}/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1\n\
+\n" > ${PyCPT_HOME}/crontab.txt
+RUN chmod a+rw ${PyCPT_HOME}/crontab.txt
+
+# Setup CRON for root user
+RUN (cat ${PyCPT_HOME}/crontab.txt) | crontab -
+
+# Crear script de inicio.
+RUN printf "#!/bin/bash \n\
+set -e \n\
+\n\
+# Reemplazar tiempo ejecución automática del procesador de archivos \n\
+crontab -l | sed \"/main.py/ s|^\S* \S* \S* \S* \S*|\$CRON_TIME_STR|g\" | crontab - \n\
+\n\
+# Ejecutar cron \n\
+cron -fL 15 \n\
+\n" > /startup.sh
+RUN chmod a+x /startup.sh
 
 # Create script to check container health
 RUN printf "#!/bin/bash\n\
@@ -278,21 +399,40 @@ fi \n\
 \n" > /check-healthy.sh
 RUN chmod a+x /check-healthy.sh
 
+# Run your program under Tini (https://github.com/krallin/tini#using-tini)
+CMD [ "bash", "-c", "/startup.sh" ]
+# or docker run your-image /your/program ...
+
+# Verificar si hubo alguna falla en la ejecución del replicador
+HEALTHCHECK --interval=3s --timeout=3s --retries=3 CMD bash /check-healthy.sh
 
 
-#######################
-## SETUP FINAL IMAGE ##
-#######################
 
-# Import final image
-FROM pycpt
+###################################
+## Stage 7: Create non-root user ##
+###################################
 
-# Set passwords
-ARG ROOT_PWD="nonroot"
-ARG NON_ROOT_PWD="nonroot"
+# Create image
+FROM pycpt-core AS pycpt-nonroot-builder
 
-# Pasar a root
-USER root
+# Set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Load global USER args
+ARG USR_NAME
+ARG USER_UID
+ARG GRP_NAME
+ARG USER_GID
+ARG ROOT_PWD
+ARG USER_PWD
+
+# Install OS packages
+RUN apt-get -y -qq update && \
+    apt-get -y -qq upgrade && \
+    apt-get -y -qq --no-install-recommends install \
+        # to run sudo
+        sudo && \
+    rm -rf /var/lib/apt/lists/*
 
 # Modify root password
 RUN echo "root:$ROOT_PWD" | chpasswd
@@ -300,67 +440,205 @@ RUN echo "root:$ROOT_PWD" | chpasswd
 # Create a non-root user, so the container can run as non-root
 # OBS: the UID and GID must be the same as the user that own the
 # input and the output volumes, so there isn't perms problems!!
-ARG NON_ROOT_USR="nonroot"
-ARG NON_ROOT_UID="1000"
-ARG NON_ROOT_GID="1000"
-RUN groupadd --gid $NON_ROOT_GID $NON_ROOT_USR
-RUN useradd --uid $NON_ROOT_UID --gid $NON_ROOT_GID --comment "Non-root User Account" --create-home $NON_ROOT_USR
+# Se recomienda crear usuarios en el contendor de esta manera,
+# ver: https://nickjanetakis.com/blog/running-docker-containers-as-a-non-root-user-with-a-custom-uid-and-gid
+# Se agregar --no-log-init para prevenir un problema de seguridad,
+# ver: https://jtreminio.com/blog/running-docker-containers-as-current-host-user/
+RUN groupadd --gid $USER_GID $GRP_NAME
+RUN useradd --no-log-init --uid $USER_UID --gid $USER_GID --shell /bin/bash \
+    --comment "Non-root User Account" --create-home $USR_NAME
 
-# Modify the password of the non-root user
-RUN echo "$NON_ROOT_USR:$NON_ROOT_PWD" | chpasswd
+# Modify the password of non-root user
+RUN echo "$USR_NAME:$USER_PWD" | chpasswd
 
-# Add non-root user to sudoers
-RUN adduser $NON_ROOT_USR sudo
+# Add non-root user to sudoers and to adm group
+# The adm group was added to allow non-root user to see logs
+RUN adduser $USR_NAME sudo && \
+    adduser $USR_NAME adm
 
-# Setup CPT
-RUN echo "export CPT_BIN_DIR=/opt/CPT/bin" >> /home/$NON_ROOT_USR/.bashrc
-RUN echo "export PATH=/opt/CPT/bin:$PATH" >> /home/$NON_ROOT_USR/.bashrc
-RUN chown -R $NON_ROOT_UID:$NON_ROOT_GID /opt/CPT
+# To allow sudo without password
+# RUN echo "$USR_NAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$USR_NAME && \
+#     chmod 0440 /etc/sudoers.d/$USR_NAME
 
-# Setup pyCPT
-RUN chown -R $NON_ROOT_UID:$NON_ROOT_GID /opt/pyCPT
 
-# Setup cron for run once a month
-ARG CRON_TIME_STR="0 0 16 * *"
-RUN (echo "${CRON_TIME_STR} /usr/local/bin/python /opt/pyCPT/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1") | crontab -u $NON_ROOT_USR -
+
+############################################
+## Stage 8.1: Install Pycharm (for debug) ##
+############################################
+
+# Create image
+FROM pycpt-nonroot-builder AS pycpt-pycharm
+
+# Become root
+USER root
+
+# Set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Load PyCPT HOME
+ARG PyCPT_HOME
+
+# Load global USER args
+ARG USR_NAME
+ARG GRP_NAME
+
+# Updata apt cache and install wget
+RUN apt-get -y -qq update && \
+    apt-get -y -qq upgrade && \
+    apt-get -y -qq --no-install-recommends install \
+        curl wget git
+
+# Renew ARGs
+ARG PYCHARM_VERSION
+
+# Download Pycharm IDE
+RUN wget https://download.jetbrains.com/python/pycharm-community-${PYCHARM_VERSION}.tar.gz -P /tmp/
+
+# Install packages required to run PyCharm IDE
+RUN count=$(ls /tmp/pycharm-*.tar.gz | wc -l) && [ $count = 1 ] \
+    && apt-get -y -qq --no-install-recommends install \
+        # Without this packages, PyCharm don't start
+        libxrender1 libxtst6 libxi6 libfreetype6 fontconfig \
+        # Without this packages, PyCharm start, but reports that they are missing
+        libatk1.0-0 libatk-bridge2.0-0 libdrm-dev libxkbcommon-dev libdbus-1-3 \
+        libxcomposite1 libxdamage1 libxfixes3 libxrandr-dev libgbm1 libasound2 \
+        libcups2 libatspi2.0-0 libxshmfence1 \
+        # Without this packages, PyCharm start, but shows errors when running
+        procps libsecret-1-0 gnome-keyring libxss1 libxext6 firefox-esr \
+        #libnss3 libxext-dev libnspr4 \
+    || :  # para entender porque :, ver https://stackoverflow.com/a/49348392/5076110
+
+# Install PyCharm IDE
+RUN count=$(ls /tmp/pycharm-*.tar.gz | wc -l) && [ $count = 1 ] \
+    && mkdir /opt/pycharm \
+    && tar xzf /tmp/pycharm-*.tar.gz -C /opt/pycharm --strip-components 1 \
+    && chown -R $USR_NAME:$GRP_NAME /opt/pycharm \
+    || :  # para entender porque :, ver https://stackoverflow.com/a/49348392/5076110
+
+# Renew ARGs
+ARG PYTHON_VERSION
+
+# Pycharm espera que los paquetes python estén en dist-packages, pero están en site-packages.
+# Esto es así porque python no se instaló usando apt o apt-get, y cuando esto ocurre, la carpeta
+# en la que se instalan los paquetes es site-packages y no dist-packages.
+RUN mkdir -p /usr/local/lib/python${PYTHON_VERSION}/dist-packages \
+    && ln -s /usr/local/lib/python${PYTHON_VERSION}/site-packages/* \
+             /usr/local/lib/python${PYTHON_VERSION}/dist-packages/
+
+# Change to idic user
+USER $USR_NAME
+
+# Set work directory
+WORKDIR $PyCPT_HOME
+
+# Run pycharm under Tini (https://github.com/krallin/tini#using-tini)
+CMD ["sh", "/opt/pycharm/bin/pycharm.sh", "-Dide.browser.jcef.enabled=false"]
+# or docker run your-image /your/program ...
+
+
+#
+# Ejecución de pycharm:
+#
+# 1- docker volume create pycpt-home
+#
+# 2- export DOCKER_BUILDKIT=1
+#
+# 3- docker build --force-rm \
+#      --target pycpt-pycharm \
+#      --tag pycpt-pycharm:latest \
+#      --build-arg USER_UID=$(stat -c "%u" .) \
+#      --build-arg USER_GID=$(stat -c "%g" .) \
+#      --file dockerfile-pycpt .
+#
+# 4- docker run -ti --rm \
+#      --name pycpt-pycharm \
+#      --env DISPLAY=$DISPLAY \
+#      --volume /tmp/.X11-unix:/tmp/.X11-unix \
+#      --volume pycpt-home:/home/nonroot \
+#      --volume $(pwd):/opt/pyCPT \
+#      --detach pycpt-pycharm:latest
+#
+
+
+
+##############################################
+## Stage 8.2: Setup and run final APP image ##
+##############################################
+
+# Create image
+FROM pycpt-nonroot-builder AS pycpt-nonroot
+
+# Become root
+USER root
+
+# Load CPT HOME
+ARG CPT_HOME
+
+# Load PyCPT HOME
+ARG PyCPT_HOME
+
+# Load global USER args
+ARG USR_NAME
+ARG USER_UID
+ARG USER_GID
+
+# Change files owner
+RUN chown -R $USER_UID:$USER_GID $CPT_HOME
+RUN chown -R $USER_UID:$USER_GID $PyCPT_HOME
+
+# Setup cron
+RUN (cat $PyCPT_HOME/crontab.txt) | crontab -u $USR_NAME -
 
 # Add Tini (https://github.com/krallin/tini#using-tini)
 ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
 
 # Run your program under Tini (https://github.com/krallin/tini#using-tini)
-CMD ["cron", "-f"]
+CMD [ "bash", "-c", "/startup.sh" ]
 # or docker run your-image /your/program ...
 
 # Verificar si hubo alguna falla en la ejecución del replicador
 HEALTHCHECK --interval=3s --timeout=3s --retries=3 CMD bash /check-healthy.sh
 
 # Access non-root user directory
-WORKDIR /home/$NON_ROOT_USR
+WORKDIR /home/$USR_NAME
 
 # Switch back to non-root user to avoid accidental container runs as root
-USER $NON_ROOT_USR
+USER $USR_NAME
 
-# CONSTRUIR CONTENEDOR
+
+# Activar docker build kit
 # export DOCKER_BUILDKIT=1
-# docker build --file dockerfile-pycpt \
-#        --build-arg ROOT_PWD=nonroot \
-#        --build-arg NON_ROOT_PWD=nonroot \
-#        --build-arg NON_ROOT_UID=$(stat -c "%u" .) \
-#        --build-arg NON_ROOT_GID=$(stat -c "%g" .) \
-#        --build-arg CRON_TIME_STR="0 0 16 * *" \
-#        --tag pycpt:latest .
+
+# CONSTRUIR IMAGEN (CORE)
+# docker build --force-rm \
+#   --target pycpt-core \
+#   --tag ghcr.io/danielbonhaure/run-cpt:core-v1.0 \
+#   --build-arg CRON_TIME_STR="0 0 16 * *" \
+#   --file dockerfile-pycpt .
+
+# LEVANTAR IMAGEN A GHCR
+# docker push ghcr.io/danielbonhaure/run-cpt:pycpt-core-v1.0
+
+# CONSTRUIR IMAGEN (NON-ROOT)
+# docker build --force-rm \
+#   --target pycpt-nonroot:latest \
+#   --tag pycpt-nonroot \
+#   --build-arg USER_UID=$(stat -c "%u" .) \
+#   --build-arg USER_GID=$(stat -c "%g" .) \
+#   --build-arg CRON_TIME_STR="0 0 16 * *" \
+#   --file dockerfile-pycpt .
 
 # CORRER OPERACIONALMENTE CON CRON
 # docker run --name pycpt \
-#        --volume $(pwd)/input:/opt/pyCPT/input \
-#        --volume $(pwd)/output:/opt/pyCPT/output \
-#        --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \  # no es necesario si se usa el nuevo graficador
-#        --detach pycpt:latest
+#   --volume $(pwd)/input:/opt/pyCPT/input \
+#   --volume $(pwd)/output:/opt/pyCPT/output \
+#   --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \  # no es necesario si se usa el nuevo graficador
+#   --detach pycpt-nonroot:latest
 
 # CORRER MANUALMENTE
-# docker run --name pycpt --rm \
-#        --volume $(pwd)/input:/opt/pyCPT/input \
-#        --volume $(pwd)/output:/opt/pyCPT/output \
-#        --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
-#        --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \  # no es necesario si se usa el nuevo graficador
-#        pycpt:latest /usr/local/bin/python /opt/pyCPT/main.py
+# docker run --name pycpt \
+#   --volume $(pwd)/input:/opt/pyCPT/input \
+#   --volume $(pwd)/output:/opt/pyCPT/output \
+#   --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
+#   --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \  # no es necesario si se usa el nuevo graficador
+#   --rm pycpt-nonroot:latest python /opt/pyCPT/main.py --year 2023 --month 6
