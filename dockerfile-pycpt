@@ -17,13 +17,13 @@
 ARG CPT_VERSION="15.7.11"
 
 # Set CPT HOME
-ARG CPT_HOME=/opt/CPT
+ARG CPT_HOME="/opt/CPT"
 
 # Set python version
 ARG PYTHON_VERSION="3.10"
 
 # Set PyCPT HOME
-ARG PyCPT_HOME=/opt/pyCPT
+ARG PyCPT_HOME="/opt/pyCPT"
 
 # Set user name and id
 ARG USR_NAME="nonroot"

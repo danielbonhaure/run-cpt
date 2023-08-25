@@ -17,7 +17,7 @@
 ARG R_VERSION="4.1.2"
 
 # Set rPLOT HOME
-ARG rPLOT_HOME=/opt/rPLOT
+ARG rPLOT_HOME="/opt/rPLOT"
 
 # Set user name and id
 ARG USR_NAME="nonroot"
