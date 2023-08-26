@@ -152,10 +152,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Set rPLOT HOME
 ARG rPLOT_HOME
 
-# Create work directory
+# Create rPLOT_HOME folder
 RUN mkdir -p ${rPLOT_HOME}
 
-# Copy app code
+# Copy rPLOT code
 COPY *.R ${rPLOT_HOME}/
 COPY plot.yaml ${rPLOT_HOME}/plot.yaml
 
@@ -367,10 +367,13 @@ ENV R_LIBS_SITE="/usr/local/lib/R/site-library"
 #      --tag rplot-rstudio:latest \
 #      --file dockerfile-rplot.
 #
-# 3- docker run --name rplot-rstudio \
-#      --volume $(pwd):/opt/rPLOT \
-#      --publish 8787:8787 \
-#      --user 0:1000 \
+# 3- docker run --rm \
+#      --name rplot-rstudio \
+#      --env DISABLE_AUTH=true \
+#      --volume $(pwd):/home/rstudio/rPLOT \
+#      --workdir /home/rstudio/rPLOT \
+#      --publish 127.0.0.1:8787:8787 \
+#      --user root:$(stat -c "%g" .) \
 #      --detach rplot-rstudio:latest
 #
 # 4- Abrir localhost:8787 en un navegador web!

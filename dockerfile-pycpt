@@ -312,10 +312,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Renew PyCPT_HOME
 ARG PyCPT_HOME
 
-# Create work directory
+# Create PyCPT_HOME folder
 RUN mkdir -p $PyCPT_HOME
 
-# Copy app code
+# Copy PyCPT code
 COPY *.py $PyCPT_HOME/
 COPY *.yaml $PyCPT_HOME/
 
