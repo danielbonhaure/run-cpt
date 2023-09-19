@@ -188,7 +188,7 @@ RUN apt-get -y -qq update && \
         # to install cartopy
         proj-bin libproj-dev libgeos-dev \
         # to install rpy2
-        r-base && \
+        r-base r-base-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Set work directory
@@ -228,6 +228,12 @@ RUN apt-get -y -qq update && \
 # set CRAN mirror
 ARG CRAN_MIRROR="getOption('repos')"
 
+# Install R package terra from a different cran mirror. Raster package requires terra and installs it in the background,
+# but the installation of terra fails when it is installed from a repository other than https://rspatial.r-universe.dev.
+# Rcpp is a dependency of terra package, but it is not installed automatically in the background when terra is installed.
+RUN R -e "options(warn=2); install.packages('Rcpp', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')" \
+ && R -e "options(warn=2); install.packages('terra', repos='https://rspatial.r-universe.dev', verbose=T, quiet=T, keep_outputs='/tmp/')"
+
 # install R packages
 RUN R -e "options(warn=2); install.packages('ncdf4', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('raster', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')"
@@ -265,7 +271,7 @@ RUN apt-get -y -qq update && \
         libblas-dev \
         # to be able to use ncdf4 (R)
         libnetcdf-dev \
-        # to install terra, a dependency of raster (R)
+        # to be able to use terra, a dependency of raster (R)
         libgdal-dev && \
     rm -rf /var/lib/apt/lists/*
 
