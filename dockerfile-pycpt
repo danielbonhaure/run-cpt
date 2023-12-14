@@ -373,11 +373,18 @@ FROM pytcpt_mgmt AS pycpt-core
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Renew CPT_HOME
+ARG CPT_HOME
+
 # Renew PyCPT_HOME
 ARG PyCPT_HOME
 
 # Renew CRON ARGs
 ARG CRON_TIME_STR
+
+# Set read-only environment variables
+ENV CPT_HOME=${CPT_HOME}
+ENV PyCPT_HOME=${PyCPT_HOME}
 
 # Set environment variables
 ENV CRON_TIME_STR=${CRON_TIME_STR}
