@@ -421,31 +421,39 @@ class CrcSasAPI:
 class FilesProcessor:
 
     @classmethod
-    def download_file_from_url(cls, download_url: str, file_path: str, min_valid_size: int, report_404: bool = True):
-        #
+    def download_file_from_url(cls, download_url: str, file_path: str, min_valid_size: int):
+
+        # Quote download URL
         download_url = urllib.parse.quote(download_url, safe=':/')
+
         # Create progress bar to track download
         pb = DownloadProgressBar(os.path.basename(file_path))
+
         # Define https handler, to avoid handshake failure
         context = ssl.create_default_context()
         context.set_ciphers('DEFAULT')
         https_handler = urllib.request.HTTPSHandler(context=context)
         # Create urllib.request opener
         opener = urllib.request.build_opener(https_handler)
-        opener.addheaders = [('User-agent', 'Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11')]
+        opener.addheaders = [('User-agent', 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64)')]
         # Install urllib.request opener
         urllib.request.install_opener(opener)
+
         # Download file
         try:
-            f, h = urllib.request.urlretrieve(download_url, file_path, pb)
+            tmp_file, h = urllib.request.urlretrieve(url=download_url, reporthook=pb)
             sleep(1)  # Se espera 1 seg para evitar bloqueos por parte del servidor de descarga
         except HTTPError as e:
-            if e.code == 404 and report_404:
-                print(f'Not Found URL: {download_url}')
+            print(f'HTTPError {e.code} "{e.reason}" downloading: {download_url}')
             raise
         except Exception as e:
-            print(f'Error downloading: {download_url} \n{e}')
+            print(f'Error {type(e).__name__} downloading: {download_url}')
             raise
+        else:
+            shutil.move(tmp_file, file_path)
+        finally:
+            urllib.request.urlcleanup()  # Clean up temporary files
+
         # Check file size
         assert os.stat(file_path).st_size != 0
         assert os.stat(file_path).st_size >= min_valid_size
