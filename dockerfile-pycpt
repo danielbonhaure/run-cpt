@@ -222,20 +222,15 @@ RUN apt-get -y -qq update && \
         # to install ncdf4
         libnetcdf-dev \
         # to install terra, a dependency of raster
-        libgdal-dev && \
+        libgdal-dev libgeos-dev libproj-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # set CRAN mirror
 ARG CRAN_MIRROR="getOption('repos')"
 
-# Install R package terra from a different cran mirror. Raster package requires terra and installs it in the background,
-# but the installation of terra fails when it is installed from a repository other than https://rspatial.r-universe.dev.
-# Rcpp is a dependency of terra package, but it is not installed automatically in the background when terra is installed.
-RUN R -e "options(warn=2); install.packages('Rcpp', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')" \
- && R -e "options(warn=2); install.packages('terra', repos='https://rspatial.r-universe.dev', verbose=T, quiet=T, keep_outputs='/tmp/')"
-
 # install R packages
 RUN R -e "options(warn=2); install.packages('ncdf4', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')"
+RUN R -e "options(warn=2); install.packages('terra', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('raster', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('dplyr', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('tibble', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')"
