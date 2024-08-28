@@ -318,7 +318,8 @@ RUN mkdir -p $PyCPT_HOME
 
 # Copy PyCPT code
 COPY *.py $PyCPT_HOME/
-COPY *.yaml $PyCPT_HOME/
+COPY config.yaml $PyCPT_HOME/
+COPY credentials.yaml.tmpl $PyCPT_HOME/
 
 # Create input and output folders (these folders are too big so they must be used them as volumes)
 RUN mkdir -p $PyCPT_HOME/input
@@ -334,7 +335,8 @@ RUN export head=$(cat /tmp/git/HEAD | cut -d' ' -f2) && \
     echo "${hash}" > ${PyCPT_HOME}/repo_version && rm -rf /tmp/git
 
 # Set permissions of app files
-RUN chmod -R ug+rw,o+r $PyCPT_HOME
+RUN chmod -R ug+rw,o+r,o-w $PyCPT_HOME && \
+    chmod -R o+w $PyCPT_HOME/input $PyCPT_HOME/output
 
 
 
@@ -389,34 +391,88 @@ ARG PyCPT_HOME
 # Renew CRON ARGs
 ARG CRON_TIME_STR
 
+# Install OS packages
+RUN apt-get -y -qq update && \
+    apt-get -y -qq upgrade && \
+    apt-get -y -qq --no-install-recommends install \
+        # to use envsubst
+        gettext-base && \
+    rm -rf /var/lib/apt/lists/*
+
 # Set read-only environment variables
 ENV CPT_HOME=${CPT_HOME}
 ENV PyCPT_HOME=${PyCPT_HOME}
 
 # Set environment variables
 ENV CRON_TIME_STR=${CRON_TIME_STR}
+ENV CRCSAS_API_USR=
+ENV CRCSAS_API_PWD=
+ENV CopernicusCDS_API_URL="https://cds-beta.climate.copernicus.eu/api"
+ENV CopernicusCDS_API_KEY=
 
 # Crear archivo de configuración de CRON
 RUN printf "\n\
-# Setup cron to run files processor \n\
+\043 Setup cron to run files processor \n\
 ${CRON_TIME_STR} /usr/local/bin/python ${PyCPT_HOME}/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1\n\
 \n" > ${PyCPT_HOME}/crontab.txt
-RUN chmod a+rw ${PyCPT_HOME}/crontab.txt
+RUN chmod ug+rw,o+r,o-w ${PyCPT_HOME}/crontab.txt
+
+# Crear archivo con variables de entorno
+RUN touch ${PyCPT_HOME}/crontab-envvars.txt \
+ && chmod ug+rw,o+r,o-w ${PyCPT_HOME}/crontab-envvars.txt
+
+# CRON toma variables de entorno desde /etc/environment,
+# para más info ver: https://askubuntu.com/a/700126
+RUN mv /etc/environment /etc/environment-old \
+ && ln -s ${PyCPT_HOME}/crontab-envvars.txt /etc/environment
 
 # Setup CRON for root user
 RUN (cat ${PyCPT_HOME}/crontab.txt) | crontab -
 
-# Crear script de inicio.
+# Crear script de inicio/entrada. Este script debe reemplazar
+# las variables de entorno definidas antes.
 RUN printf "#!/bin/bash \n\
 set -e \n\
 \n\
-# Reemplazar tiempo ejecución automática del procesador de archivos \n\
+\043 Verificar que se hayan definido las credenciales necesarias \n\
+if [ \${CRCSAS_API_USR:-'unset'} == 'unset' ]; then \n\
+  echo 'Es obligatorio definir la variable de entorno CRCSAS_API_USR!' \n\
+fi \n\
+if [ \${CRCSAS_API_PWD:-'unset'} == 'unset' ]; then \n\
+  echo 'Es obligatorio definir la variable de entorno CRCSAS_API_PWD!' \n\
+fi \n\
+if [ \${CopernicusCDS_API_KEY:-'unset'} == 'unset' ]; then \n\
+  echo 'Es obligatorio definir la variable de entorno CopernicusCDS_API_KEY!' \n\
+fi \n\
+if [ \${CRCSAS_API_USR:-'unset'} == 'unset' ] || \
+   [ \${CRCSAS_API_PWD:-'unset'} == 'unset' ] || \
+   [ \${CopernicusCDS_API_KEY:-'unset'} == 'unset' ]; then \n\
+  exit 1 \n\
+fi \n\
+\n\
+\043 Copiar variables de entorno del contenedor a /etc/environment \n\
+xargs --null --max-args=1 --arg-file=/proc/1/environ > ${PyCPT_HOME}/crontab-envvars.txt \n\
+\n\
+\043 Crear archivo ${PyCPT_HOME}/credentials.yaml \n\
+cat ${PyCPT_HOME}/credentials.yaml.tmpl | envsubst > ${PyCPT_HOME}/credentials.yaml \n\
+chmod ug+rw,o+r,o-w ${PyCPT_HOME}/credentials.yaml \n\
+\n\
+\043 Borrar variables de entorno con credenciales \n\
+unset CRCSAS_API_USR \n\
+unset CRCSAS_API_PWD \n\
+unset CopernicusCDS_API_URL \n\
+unset CopernicusCDS_API_KEY \n\
+\n\
+\043 Reemplazar tiempo ejecución automática del procesador de archivos \n\
 crontab -l | sed \"/main.py/ s|^\S* \S* \S* \S* \S*|\$CRON_TIME_STR|g\" | crontab - \n\
 \n\
-# Ejecutar cron \n\
-cron -fL 15 \n\
-\n" > /startup.sh
-RUN chmod a+x /startup.sh
+\043 Para correr CMD despues del entrypoint \n\
+# Ver: https://stackoverflow.com/q/39082768 \n\
+# Ver: https://stackoverflow.com/a/5163260 \n\
+\043 OBS: exec $@ falla con comillas dobles \n\
+exec \$@ \n\
+\n" > /entrypoint.sh
+RUN chmod a+x /entrypoint.sh
 
 # Create script to check container health
 RUN printf "#!/bin/bash\n\
@@ -430,8 +486,11 @@ fi \n\
 \n" > /check-healthy.sh
 RUN chmod a+x /check-healthy.sh
 
+# Add Tini (https://github.com/krallin/tini#using-tini)
+ENTRYPOINT [ "/usr/bin/tini", "-g", "--", "/entrypoint.sh" ]
+
 # Run your program under Tini (https://github.com/krallin/tini#using-tini)
-CMD [ "bash", "-c", "/startup.sh" ]
+CMD [ "cron", "-fL", "15" ]
 # or docker run your-image /your/program ...
 
 # Verificar si hubo alguna falla en la ejecución del replicador
@@ -624,10 +683,10 @@ RUN chmod u+s $(which cron)
 RUN (cat $PyCPT_HOME/crontab.txt) | crontab -u $USR_NAME -
 
 # Add Tini (https://github.com/krallin/tini#using-tini)
-ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
+ENTRYPOINT [ "/usr/bin/tini", "-g", "--", "/entrypoint.sh" ]
 
 # Run your program under Tini (https://github.com/krallin/tini#using-tini)
-CMD [ "bash", "-c", "/startup.sh" ]
+CMD [ "cron", "-fL", "15" ]
 # or docker run your-image /your/program ...
 
 # Verificar si hubo alguna falla en la ejecución del replicador
