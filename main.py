@@ -1,19 +1,33 @@
 #!/usr/bin/env python
 
 import os
+
+if os.path.dirname(__file__):
+    os.chdir(os.path.dirname(__file__))  # Change current directory
+
 import argparse
+import logging
+import time
 
 from datetime import datetime
 
-# Change current directory
-if os.path.dirname(__file__):
-    os.chdir(os.path.dirname(__file__))
-
 from pycpt import CPT
 from errors import CPTRuntimeError
+from script import ScriptControl
 
 
-def main(args: argparse.Namespace):
+def parse_args() -> argparse.Namespace:
+
+    parser = argparse.ArgumentParser(description='Run PyCPT')
+    parser.add_argument('--year', type=int, default=datetime.now().year,
+        help='Indicates the year that should be considered in the forecast calibration process.')
+    parser.add_argument('--month', type=int, default=datetime.now().month,
+        help='Indicates the month that should be considered in the forecast calibration process.')
+
+    return parser.parse_args()
+
+
+def run_pycpt(args: argparse.Namespace):
 
     # Create CPT object
     cpt = CPT(cpt_bin_dir='/opt/CPT/bin')
@@ -32,38 +46,31 @@ def main(args: argparse.Namespace):
 
 if __name__ == '__main__':
 
-    # Set pid file
-    pid_file = '/tmp/pycpt.pid'
+    # Catch and parse command-line arguments
+    parsed_args: argparse.Namespace = parse_args()
 
-    # Get PID and save it to a file
-    with open(pid_file, 'w') as f:
-        f.write(f'{os.getpid()}')
-
-    # Defines parser data
-    parser = argparse.ArgumentParser(description='Run PyCPT')
-    parser.add_argument('--year', type=int, default=datetime.now().year,
-        help='Indicates the year that should be considered in the forecast calibration process.')
-    parser.add_argument('--month', type=int, default=datetime.now().month,
-        help='Indicates the month that should be considered in the forecast calibration process.')
-
-    # Extract data from args
-    parsed_args = parser.parse_args()
-
-    # Set error as not detected
-    error_detected = False
-
-    # Run operational forecast
     try:
-        print(f'Starting pyCPT at {datetime.now().strftime("%Y/%m/%d %H:%M:%S")}!')
-        main(parsed_args)
+        # Get current time
+        start = time.time()
+        # Create script control
+        script = ScriptControl('pycpt')
+        # Start script execution
+        script.start_script()
+        # Execute PyCPT
+        run_pycpt(parsed_args)
+
     except CPTRuntimeError:
         error_detected = True
+
     except Exception:
         error_detected = True
         raise  # see: http://www.markbetz.net/2014/04/30/re-raising-exceptions-in-python/
+
     else:
         error_detected = False
-        os.remove(pid_file)  # Remove pid file only if there were no errors
+        script.end_script_execution()
+
     finally:
+        end = time.time()
         err_pfx = "with" if error_detected else "without"
-        print(f'PyCPT finished {err_pfx} errors at {datetime.now().strftime("%Y/%m/%d %H:%M:%S")}!')
+        logging.info(f"Total time to run PyCPT ({err_pfx} errors): {end - start}")

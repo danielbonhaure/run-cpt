@@ -396,7 +396,9 @@ RUN apt-get -y -qq update && \
     apt-get -y -qq upgrade && \
     apt-get -y -qq --no-install-recommends install \
         # to use envsubst
-        gettext-base && \
+        gettext-base \
+        # to check container health
+        redis-tools && \
     rm -rf /var/lib/apt/lists/*
 
 # Set read-only environment variables
@@ -476,8 +478,9 @@ RUN chmod a+x /entrypoint.sh
 
 # Create script to check container health
 RUN printf "#!/bin/bash\n\
-if [ \$(ls /tmp/pycpt.pid 2>/dev/null | wc -l) != 0 ] && \n\
-   [ \$(ps -ef | grep 'main.py' | grep -v 'grep' | wc -l) == 0 ] \n\
+if [ \$(find ${PyCPT_HOME} -type f -name '*.pid' 2>/dev/null | wc -l) != 0 ] || \n\
+   [ \$(echo 'KEYS *' | redis-cli -h \${REDIS_HOST} 2>/dev/null | grep -c pycpt) != 0 ] && \n\
+   [ \$(ps -ef | grep -v 'grep' | grep -c 'python' | wc -l) == 0 ] \n\
 then \n\
   exit 1 \n\
 else \n\

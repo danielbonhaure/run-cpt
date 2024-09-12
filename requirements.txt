@@ -12,3 +12,4 @@ rpy2
 netCDF4
 dask[complete]
 Cartopy
+redis[hiredis]
