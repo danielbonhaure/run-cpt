@@ -3,17 +3,17 @@ run_cpt: True
 
 update:
   predictors:  # son los datos sin calibrar
-    raw_data: False
-    locally_created_seasonal_files: False  # crea archivos trimestrales cuando no pueden ser descargados
-    cpt_input_data: False
+    raw_data: !!bool False
+    locally_created_seasonal_files: !!bool False  # crea archivos trimestrales cuando no pueden ser descargados
+    cpt_input_data: !!bool False
   predictands:  # son los datos observados
-    raw_data: True
-    only_last_year_chirps_daily_raw_data: True
-    cutted_chirps_data: False
-    interpolated_data: False
-    cpt_input_data: False
+    raw_data: !!bool True
+    only_last_year_chirps_daily_raw_data: !!bool True
+    cutted_chirps_data: !!bool False
+    interpolated_data: !!bool False
+    cpt_input_data: !!bool False
   crc_sas_grid:
-    points_in_land: False
+    points_in_land: !!bool False
 
 # Must be commented to run the current month
 #target_season:
@@ -34,10 +34,10 @@ update:
 
 # OBS:
 # Predictors can have two more attributes (fcst_name and hcst_name)
-# Valid predictors variables are: "precip" and "tmp2m"
-# Valid predictors data sources are: "iridl" for ecmwf models and "noaa" for cpc/noaa models
-# Valid predictands variables are: "prcp" and "t2m"
-# Valid predictands data sources are: "chirps", "er5-land" and "crcsas"
+# Valid predictors variables are: 'precip' and 'tmp2m'
+# Valid predictors data sources are: 'iridl' for ecmwf models and 'noaa' for cpc/noaa models
+# Valid predictands variables are: 'prcp' and 't2m'
+# Valid predictands data sources are: 'chirps', 'er5-land' and 'crcsas'
 models:
   ecmwf:
     training_period:
@@ -145,9 +145,9 @@ spatial_domain:
 url:
   predictor:
     nmme:
-      # trgt_type: "monthly" or "seasonal", file_type: "hindcast" or "forecast"
+      # trgt_type: 'monthly' or 'seasonal', file_type: 'hindcast' or 'forecast'
       # OBS: NO ESTAN EN FORMATO CPT, DEBEN RE-FORMATEARSE ANTES DE SER UTILIZADOS!!!
-      template: "https://ftp.cpc.ncep.noaa.gov/International/nmme/${trgt_type}_nmme_${file_type}_in_cpt_format/${file_name}"
+      template: 'https://ftp.cpc.ncep.noaa.gov/International/nmme/${trgt_type}_nmme_${file_type}_in_cpt_format/${file_name}'
     ecmwf:
       template:
         # variable: variable to be downloaded (t2m or prcp)
@@ -155,35 +155,35 @@ url:
         # init_month_str: initialization month, last_year: last year with data Ej: 2021, 2022,
         # first_trgt_month: first target month, last_trgt_month: last target month, nla-sla-wlo-elo: predictor spatial domain
         # OBS: NO REQUIEREN MODIFICACIÓN, SE DESCARGAN Y SE USAN!!!
-        monthly: "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51/.hindcast/.${variable}/S/(0000 1 ${init_month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51/.forecast/.${variable}/S/(0000 1 ${init_month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/(${months_after_init_month_t1}.5)VALUES/Y/(${nla})(${sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(${unit})/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv"
-        seasonal: "https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51/.hindcast/.${variable}/S/(0000 1 ${init_month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51/.forecast/.${variable}/S/(0000 1 ${init_month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/${months_after_init_month_t1}.5/${months_after_init_month_t2}.5/RANGE[L]//keepgrids/average/Y/(${nla})(${sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(${unit})/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv"
+        monthly: 'https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51/.hindcast/.${variable}/S/(0000 1 ${init_month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51/.forecast/.${variable}/S/(0000 1 ${init_month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/(${months_after_init_month_t1}.5)VALUES/Y/(${nla})(${sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(${unit})/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv'
+        seasonal: 'https://iridl.ldeo.columbia.edu/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51/.hindcast/.${variable}/S/(0000 1 ${init_month_str} 1981-2016)VALUES/M/1/25/RANGE[M]average/SOURCES/.EU/.Copernicus/.CDS/.C3S/.ECMWF/.SEAS51/.forecast/.${variable}/S/(0000 1 ${init_month_str} 2017-${last_year})VALUES/M/1/51/RANGE[M]average/appendstream/L/${months_after_init_month_t1}.5/${months_after_init_month_t2}.5/RANGE[L]//keepgrids/average/Y/(${nla})(${sla})RANGEEDGES/X/(${wlo})(${elo})RANGEEDGES/(${unit})/unitconvert/-999/setmissing_value/[X/Y][S/L/add]cptv10.tsv'
   predictand:
     chirps:
-      type: "daily"
-      monthly: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_monthly/netcdf/chirps-v2.0.monthly.nc"
-      daily: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/netcdf/p25/chirps-v2.0.${year}.days_p25.nc"
+      type: 'daily'
+      monthly: 'https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_monthly/netcdf/chirps-v2.0.monthly.nc'
+      daily: 'https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/netcdf/p25/chirps-v2.0.${year}.days_p25.nc'
     crcsas:
-      api: "https://api.crc-sas.org/ws-api"
+      api: 'https://api.crc-sas.org/ws-api'
 
 folders:
   raw_data:
-    hindcasts: "./input/raw_data/hindcasts/"
-    forecasts: "./input/raw_data/forecasts/"
-    chirps: "./input/raw_data/chirps/"
-    era5_land: "./input/raw_data/era5_land/"
-    crcsas: "./input/raw_data/crcsas/"
-    shapefiles: "./input/raw_data/shapefiles/"
-    images: "./input/raw_data/images/"
-  predictors: "./input/predictors/"
-  predictands: "./input/predictands/"
-  crc_sas_grid: "./input/crc_sas_grid/"
-  output: "./output/"
-  plots: "./plots/"
+    hindcasts: './input/raw_data/hindcasts/'
+    forecasts: './input/raw_data/forecasts/'
+    chirps: './input/raw_data/chirps/'
+    era5_land: './input/raw_data/era5_land/'
+    crcsas: './input/raw_data/crcsas/'
+    shapefiles: './input/raw_data/shapefiles/'
+    images: './input/raw_data/images/'
+  predictors: './input/predictors/'
+  predictands: './input/predictands/'
+  crc_sas_grid: './input/crc_sas_grid/'
+  output: './output/'
+  plots: './plots/'
 
 files:
   crc_sas_grid: 'points_in_land.shp'  # This file is created automatically, so, this is just the filename for it!!
   land_bound_shp: 'CRC_SAS.shp'  # It must be in folder.raw_data.shapefiles. It's used to identify points in land bound!
 
 original_plots:
-  create_file: !!bool FALSE
+  create_file: !!bool False
   plot_yaml_file: 'plot.yaml'  # This file is used to report the output files to the script that make plots!
