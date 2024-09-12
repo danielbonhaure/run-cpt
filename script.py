@@ -30,7 +30,7 @@ class PidDB(ABC):
 
 
 class FileDB(PidDB):
-    folder: Path = Path(os.getenv('APP_HOME', '/tmp'))
+    folder: Path = Path(os.getenv('PyCPT_HOME', '/tmp'))
 
     @classmethod
     def available(cls) -> bool:
