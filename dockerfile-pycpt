@@ -480,7 +480,7 @@ RUN chmod a+x /entrypoint.sh
 RUN printf "#!/bin/bash\n\
 if [ \$(find ${PyCPT_HOME} -type f -name '*.pid' 2>/dev/null | wc -l) != 0 ] || \n\
    [ \$(echo 'KEYS *' | redis-cli -h \${REDIS_HOST} 2>/dev/null | grep -c pycpt) != 0 ] && \n\
-   [ \$(ps -ef | grep -v 'grep' | grep -c 'python' | wc -l) == 0 ] \n\
+   [ \$(ps -ef | grep -v 'grep' | grep -c 'python') == 0 ] \n\
 then \n\
   exit 1 \n\
 else \n\
