@@ -725,7 +725,6 @@ USER $USR_NAME
 # docker run --name pycpt \
 #   --volume $(pwd)/input:/opt/pyCPT/input \
 #   --volume $(pwd)/output:/opt/pyCPT/output \
-#   --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \  # no es necesario si se usa el nuevo graficador
 #   --detach pycpt-nonroot:latest
 
 # CORRER MANUALMENTE
@@ -733,5 +732,4 @@ USER $USR_NAME
 #   --volume $(pwd)/input:/opt/pyCPT/input \
 #   --volume $(pwd)/output:/opt/pyCPT/output \
 #   --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
-#   --volume $(pwd)/plot.yaml:/opt/pyCPT/plot.yaml \  # no es necesario si se usa el nuevo graficador
 #   --rm pycpt-nonroot:latest python /opt/pyCPT/main.py --year 2023 --month 6

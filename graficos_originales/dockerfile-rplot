@@ -157,8 +157,8 @@ ARG rPLOT_HOME
 RUN mkdir -p ${rPLOT_HOME}
 
 # Copy rPLOT code
-COPY *.R ${rPLOT_HOME}/
-COPY plot.yaml ${rPLOT_HOME}/plot.yaml
+COPY graficos_originales/*.R ${rPLOT_HOME}
+COPY graficos_originales/plot.yaml ${rPLOT_HOME}/plot.yaml
 
 # Create input and output folders (these folders are too big so they must be used them as volumes)
 RUN mkdir -p ${rPLOT_HOME}/input
@@ -446,7 +446,7 @@ USER $USR_NAME
 #   --target rplot-core \
 #   --tag rplot-core:latest \
 #   --build-arg CRON_TIME_STR="0 0 17 * *" \
-#   --file dockerfile-rplot .
+#   --file dockerfile-rplot ..
 
 # CONSTRUIR CONTENEDOR (NON-ROOT)
 # docker build --force-rm \
@@ -455,7 +455,7 @@ USER $USR_NAME
 #   --build-arg USER_UID=$(stat -c "%u" .) \
 #   --build-arg USER_GID=$(stat -c "%g" .) \
 #   --build-arg CRON_TIME_STR="0 0 17 * *" \
-#   --file dockerfile-rplot .
+#   --file dockerfile-rplot ..
 
 # CORRER OPERACIONALMENTE CON CRON
 # docker run --name pycpt-plt \

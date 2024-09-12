@@ -181,6 +181,9 @@ folders:
   plots: "./plots/"
 
 files:
-  plot_yaml: 'plot.yaml'  # This file is used to report the output files to the script that make plots!
   crc_sas_grid: 'points_in_land.shp'  # This file is created automatically, so, this is just the filename for it!!
   land_bound_shp: 'CRC_SAS.shp'  # It must be in folder.raw_data.shapefiles. It's used to identify points in land bound!
+
+original_plots:
+  create_file: !!bool FALSE
+  plot_yaml_file: 'plot.yaml'  # This file is used to report the output files to the script that make plots!
