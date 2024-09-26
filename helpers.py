@@ -634,7 +634,7 @@ class CPTFileProcessor:
         df_info = list()
         with open(file_name) as fp:
             for cnt, line in enumerate(fp):
-                date_regex, nrow_regex = re.search('cpt:T=(\d+)-(\d+),', line), re.search('cpt:nrow=(\d+),', line)
+                date_regex, nrow_regex = re.search(r'cpt:T=(\d+)-(\d+),', line), re.search(r'cpt:nrow=(\d+),', line)
                 if date_regex and nrow_regex:
                     year, month = int(date_regex.group(1)), int(date_regex.group(2))
                     field_line, last_line = cnt + 1, int(nrow_regex.group(1))
