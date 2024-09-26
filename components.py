@@ -1317,5 +1317,6 @@ class OutputFile:
                     fp_desc_file.write(f'  }} \n')
 
     def __add_filename_to_plot_yaml(self, trgt_season, swap_years):
-        with open(self.config_file.get('files').get('plot_yaml'), 'a') as fp_plot_yaml:
-            fp_plot_yaml.write(f' - {{ file: "{self.name}", type: "{trgt_season.type}", swap_years: {swap_years} }}\n')
+        if self.config_file.get('original_plots').get('create_file'):
+            with open(self.config_file.get('files').get('plot_yaml'), 'a') as fp_plot_yaml:
+                fp_plot_yaml.write(f' - {{ file: "{self.name}", type: "{trgt_season.type}", swap_years: {swap_years} }}\n')
