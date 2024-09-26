@@ -13,3 +13,4 @@ netCDF4
 dask[complete]
 Cartopy
 redis[hiredis]
+setuptools  # para que funcione el paquete cdsapi
