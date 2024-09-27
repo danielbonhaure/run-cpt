@@ -877,7 +877,7 @@ class Era5LandFile:
             try:
                 # Download file from cdsapi
                 FilesProcessor.download_file_from_cdsapi(self.abs_path, self.__get_api_variable(),
-                                                         self.__get_api_area(), 100000000)
+                                                         self.__get_api_area(), 10000000)
             except (HTTPError, AssertionError):
                 os.remove(self.abs_path) if os.path.exists(self.abs_path) else None
                 raise
