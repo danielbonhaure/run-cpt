@@ -287,26 +287,6 @@ class CredentialFile:
         return self.credentials.get(key, default)
 
 
-class CdsApiClient(cdsapi.Client):
-
-    def __init__(self, *args, **kwargs):
-        # Access cdsapi credentials
-        self.credential = CredentialFile.Instance().get('cdsapi')
-
-        # Add credentials to kwargs
-        if 'url' not in kwargs.keys() and self.credential is not None:
-            kwargs.update(url=self.credential.get('url'))
-        if 'key' not in kwargs.keys() and self.credential is not None:
-            kwargs.update(key=self.credential.get('key'))
-
-        # Add verify to avoid InsecureRequestWarning
-        if 'verify' not in kwargs.keys():
-            kwargs.update(verify=True)
-
-        # Call cdsapi.Client __init__ method
-        super().__init__(*args, **kwargs)
-
-
 class CrcSasAPI:
 
     def __init__(self):
@@ -469,7 +449,9 @@ class FilesProcessor:
         pb.open()
 
         # Create cds api Client
-        c = CdsApiClient(quiet=False)
+        credential = CredentialFile.Instance().get('cdsapi')
+        cdsapi_url, cdsapi_key = credential.get('url'), credential.get('key')
+        c = cdsapi.Client(url=cdsapi_url, key=cdsapi_key, quiet=False)
 
         # Report status
         pb.update_count(1)
