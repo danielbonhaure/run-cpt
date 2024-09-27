@@ -443,5 +443,3 @@ class CPT:
 
         # Close progress bar
         self.progress_bar.close()
-
-        print('PROCESS COMPLETED')

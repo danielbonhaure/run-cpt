@@ -116,8 +116,9 @@ class ScriptControl(object):
 
     def setup_logger(self):
         log_level_int = logging.getLevelName(self.log_level)
-        logging.basicConfig(format='%(asctime)s -- %(levelname)4s -- %(message)s',
+        logging.basicConfig(format='%(asctime)s -- %(levelname)-.4s -- %(message)s -- LOGGER: %(name)s',
                             datefmt='%Y/%m/%d %I:%M:%S %p', level=log_level_int)
+        logging.getLogger('rpy2').setLevel(logging.ERROR)
 
     def start_script(self):
         # Abort if an instance is already running (when needed)

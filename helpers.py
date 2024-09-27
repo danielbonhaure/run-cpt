@@ -19,6 +19,7 @@ import cdsapi
 import requests
 import requests.auth
 import ssl
+import logging
 
 from cartopy import feature
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
@@ -95,10 +96,12 @@ class ProgressBar:
     @staticmethod
     def pin_up():
         sys.stdout.write('\n')
+        sys.stdout.flush()
 
     @staticmethod
     def close():
         sys.stdout.write('\n')
+        sys.stdout.flush()
 
 
 class DownloadProgressBar:
@@ -448,6 +451,11 @@ class FilesProcessor:
         # Open progress bar
         pb.open()
 
+        # Mejorar el loggeo de cdsapi (ojo: cdsapi solo se usa aquí)
+        logging.getLogger('cdsapi').setLevel(logging.ERROR)
+        logging.getLogger('cads_api_client.processing').addHandler(logging.NullHandler())
+        logging.getLogger('multiurl.base').addHandler(logging.NullHandler())
+
         # Create cds api Client
         credential = CredentialFile.Instance().get('cdsapi')
         cdsapi_url, cdsapi_key = credential.get('url'), credential.get('key')
@@ -477,6 +485,7 @@ class FilesProcessor:
                 'area': area,  # [nla, wlo, sla, elo]
             },
             file_path)
+        logging.info(' ### ')
 
         # report status
         pb.update_count(9)
