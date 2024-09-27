@@ -66,6 +66,9 @@ if __name__ == '__main__':
         error_detected = True
         raise  # see: http://www.markbetz.net/2014/04/30/re-raising-exceptions-in-python/
 
+    except SystemExit:
+        error_detected = False  # when script raise SystemExit
+
     else:
         error_detected = False
         script.end_script_execution()
