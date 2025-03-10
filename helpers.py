@@ -471,7 +471,8 @@ class FilesProcessor:
         c.retrieve(
             'reanalysis-era5-land-monthly-means',
             {
-                'format': 'netcdf',
+                'data_format': 'netcdf',
+                'download_format': 'unarchived',
                 'product_type': 'monthly_averaged_reanalysis',
                 'variable': variable,
                 'year': list(range(1981, date.today().year + 1)),
