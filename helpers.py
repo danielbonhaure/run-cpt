@@ -207,14 +207,25 @@ class MonthsProcessor:
     def gen_trgts_data(cls, month: int):
         month_1, month_2, month_3 = cls.add_months(month, 1), cls.add_months(month, 2), cls.add_months(month, 3)
         month_4, month_5, month_6 = cls.add_months(month, 4), cls.add_months(month, 5), cls.add_months(month, 6)
+        month_7, month_8, month_9 = cls.add_months(month, 7), cls.add_months(month, 8), cls.add_months(month, 9)
         return [dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_1)),
                 dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_2)),
                 dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_3)),
-                dict(mons=cls.month_int_to_abbr(month),
-                     tgts=f'{cls.month_int_to_abbr(month_1)}-{cls.month_int_to_abbr(month_3)}'),
                 dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_4)),
                 dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_5)),
-                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_6))]
+                dict(mons=cls.month_int_to_abbr(month), tgts=cls.month_int_to_abbr(month_6)),
+                dict(mons=cls.month_int_to_abbr(month),
+                     tgts=f'{cls.month_int_to_abbr(month_1)}-{cls.month_int_to_abbr(month_3)}'),
+                dict(mons=cls.month_int_to_abbr(month),
+                     tgts=f'{cls.month_int_to_abbr(month_2)}-{cls.month_int_to_abbr(month_4)}'),
+                dict(mons=cls.month_int_to_abbr(month),
+                     tgts=f'{cls.month_int_to_abbr(month_3)}-{cls.month_int_to_abbr(month_5)}'),
+                dict(mons=cls.month_int_to_abbr(month),
+                     tgts=f'{cls.month_int_to_abbr(month_4)}-{cls.month_int_to_abbr(month_6)}'),
+                dict(mons=cls.month_int_to_abbr(month),
+                     tgts=f'{cls.month_int_to_abbr(month_5)}-{cls.month_int_to_abbr(month_7)}'),
+                dict(mons=cls.month_int_to_abbr(month),
+                     tgts=f'{cls.month_int_to_abbr(month_6)}-{cls.month_int_to_abbr(month_8)}')]
 
     @classmethod
     def current_month_fcsts_data(cls):
