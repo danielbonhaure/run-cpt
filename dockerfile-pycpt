@@ -659,6 +659,7 @@ CMD ["sh", "/opt/pycharm/bin/pycharm.sh", "-Dide.browser.jcef.enabled=false"]
 #      --volume /tmp/.X11-unix:/tmp/.X11-unix \
 #      --volume pycpt-home:/home/nonroot \
 #      --volume $(pwd):/opt/pyCPT \
+#      --env-file .env \
 #      --detach pycpt-pycharm:latest
 #
 
@@ -738,6 +739,7 @@ USER $USR_NAME
 # docker run --name pycpt \
 #   --volume $(pwd)/input:/opt/pyCPT/input \
 #   --volume $(pwd)/output:/opt/pyCPT/output \
+#   --env-file .env \
 #   --detach pycpt-nonroot:latest
 
 # CORRER MANUALMENTE
@@ -745,4 +747,5 @@ USER $USR_NAME
 #   --volume $(pwd)/input:/opt/pyCPT/input \
 #   --volume $(pwd)/output:/opt/pyCPT/output \
 #   --volume $(pwd)/config.yaml:/opt/pyCPT/config.yaml \
+#   --env-file .env \
 #   --rm pycpt-nonroot:latest python /opt/pyCPT/main.py --year 2023 --month 6
