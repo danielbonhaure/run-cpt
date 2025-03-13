@@ -380,7 +380,7 @@ class CPT:
                     mf = MonthsProcessor.num_of_months_from_month_to_month
                     if predictor_data_source == 'iridl' and (
                             mf(a_fcst_data.init_month_int, a_trgt_season.first_trgt_month_int) > 5 or
-                            mf(a_fcst_data.init_month_int, a_trgt_season.last_trgt_month_int) > 5):
+                            mf(a_fcst_data.init_month_int, a_trgt_season.last_trgt_month_int) > 7):
                         # Report progress
                         self.progress_bar.report_advance(1/len(targets))
                         # Break current iteration and continue with next iteration
@@ -390,7 +390,7 @@ class CPT:
                     mf = MonthsProcessor.num_of_months_from_month_to_month
                     if predictor_data_source == 'noaa' and (
                             mf(a_fcst_data.init_month_int, a_trgt_season.first_trgt_month_int) > 6 or
-                            mf(a_fcst_data.init_month_int, a_trgt_season.last_trgt_month_int) > 6):
+                            mf(a_fcst_data.init_month_int, a_trgt_season.last_trgt_month_int) > 8):
                         # Report progress
                         self.progress_bar.report_advance(1/len(targets))
                         # Break current iteration and continue with next iteration
