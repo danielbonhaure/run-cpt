@@ -288,12 +288,44 @@ ENV R_LIBS_SITE="/usr/local/lib/R/site-library"
 
 
 
+###########################################
+## Stage 5: Install management packages  ##
+###########################################
+
+# Create image
+FROM cpt-py-r_final AS base_image
+
+# Set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Install OS packages
+RUN apt-get -y -qq update && \
+    apt-get -y -qq upgrade && \
+    apt-get -y -qq --no-install-recommends install \
+        # install Tini (https://github.com/krallin/tini#using-tini)
+        tini \
+        # to see process with pid 1
+        htop procps \
+        # to allow edit files
+        vim \
+        # to run process with cron
+        cron && \
+    rm -rf /var/lib/apt/lists/*
+
+# Setup cron to allow it run as a non root user
+RUN chmod u+s $(which cron)
+
+# Add Tini (https://github.com/krallin/tini#using-tini)
+ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
+
+
+
 #################################
-## Stage 5: Create PyCPT image ##
+## Stage 6: Create PyCPT image ##
 #################################
 
 # Create PyCPT image
-FROM cpt-py-r_final AS pycpt_builder
+FROM base_image AS pycpt_builder
 
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
@@ -328,44 +360,12 @@ RUN chmod -R ug+rw,o+r,o-w $PyCPT_HOME && \
 
 
 
-###########################################
-## Stage 6: Install management packages  ##
-###########################################
-
-# Create image
-FROM pycpt_builder AS pytcpt_mgmt
-
-# Set environment variables
-ARG DEBIAN_FRONTEND=noninteractive
-
-# Install OS packages
-RUN apt-get -y -qq update && \
-    apt-get -y -qq upgrade && \
-    apt-get -y -qq --no-install-recommends install \
-        # install Tini (https://github.com/krallin/tini#using-tini)
-        tini \
-        # to see process with pid 1
-        htop procps \
-        # to allow edit files
-        vim \
-        # to run process with cron
-        cron && \
-    rm -rf /var/lib/apt/lists/*
-
-# Setup cron to allow it run as a non root user
-RUN chmod u+s $(which cron)
-
-# Add Tini (https://github.com/krallin/tini#using-tini)
-ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
-
-
-
 ######################################
 ## Stage 7: Setup PyCPT core image  ##
 ######################################
 
 # Create image
-FROM pytcpt_mgmt AS pycpt-core
+FROM pycpt_builder AS pycpt-core
 
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
