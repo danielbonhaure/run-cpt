@@ -152,6 +152,7 @@ CMD ["pycharm", "--version"]
 #   --privileged \
 #   --mount type=bind,src=$(pwd)/input,dst=/opt/pyCPT/input \
 #   --mount type=bind,src=$(pwd)/output,dst=/opt/pyCPT/output \
+#   --env-file .env \
 #   --workdir /opt/pyCPT \
 #   --tty --interactive pycharm-pycpt:latest \
 # pycharm -Dide.browser.jcef.enabled=false -Dawt.toolkit.name=WLToolkit -Dide.browser.jcef.log.level=verbose
