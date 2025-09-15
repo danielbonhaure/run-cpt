@@ -197,10 +197,10 @@ RUN python3 -m pip install --upgrade pip && \
 # Create image
 FROM python:${PYTHON_VERSION}-slim-bullseye AS r_builder
 
-# set environment variables
+# Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# install OS packages
+# Install OS packages
 RUN apt-get -y -qq update && \
     apt-get -y -qq upgrade && \
     apt-get -y -qq --no-install-recommends install \
@@ -213,10 +213,10 @@ RUN apt-get -y -qq update && \
         libgdal-dev libgeos-dev libproj-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# set CRAN mirror
+# Set CRAN mirror
 ARG CRAN_MIRROR="getOption('repos')"
 
-# install R packages
+# Install R packages
 RUN R -e "options(warn=2); install.packages('ncdf4', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('terra', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')"
 RUN R -e "options(warn=2); install.packages('raster', repos=${CRAN_MIRROR}, verbose=T, quiet=T, keep_outputs='/tmp/')"
