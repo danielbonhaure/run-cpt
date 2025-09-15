@@ -234,11 +234,11 @@ ENV CRON_TIME_STR=${CRON_TIME_STR}
 RUN printf "\n\
 # Setup cron to run files processor \n\
 ${CRON_TIME_STR} /usr/bin/Rscript ${rPLOT_HOME}/plot.R >> /proc/1/fd/1 2>> /proc/1/fd/1\n\
-\n" > ${PyCPT_HOME}/crontab.txt
-RUN chmod a+rw ${PyCPT_HOME}/crontab.txt
+\n" > ${PyCPT_HOME}/crontab.conf
+RUN chmod a+rw ${PyCPT_HOME}/crontab.conf
 
 # Setup CRON for root user
-RUN (cat ${rPLOT_HOME}/crontab.txt) | crontab -
+RUN (cat ${rPLOT_HOME}/crontab.conf) | crontab -
 
 # Crear script de inicio.
 RUN printf "#!/bin/bash \n\

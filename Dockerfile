@@ -426,8 +426,8 @@ ENV CopernicusCDS_API_KEY=
 RUN printf "\n\
 \043 Setup cron to run files processor \n\
 ${CRON_TIME_STR} /usr/local/bin/python ${PyCPT_HOME}/main.py >> /proc/1/fd/1 2>> /proc/1/fd/1\n\
-\n" > ${PyCPT_HOME}/crontab.txt
-RUN chmod ug+rw,o+r,o-w ${PyCPT_HOME}/crontab.txt
+\n" > ${PyCPT_HOME}/crontab.conf
+RUN chmod ug+rw,o+r,o-w ${PyCPT_HOME}/crontab.conf
 
 # Crear archivo con variables de entorno
 RUN touch ${PyCPT_HOME}/crontab-envvars.txt \
@@ -439,7 +439,7 @@ RUN mv /etc/environment /etc/environment-old \
  && ln -s ${PyCPT_HOME}/crontab-envvars.txt /etc/environment
 
 # Setup CRON for root user
-RUN (cat ${PyCPT_HOME}/crontab.txt) | crontab -
+RUN (cat ${PyCPT_HOME}/crontab.conf) | crontab -
 
 # Crear script de inicio/entrada. Este script debe reemplazar
 # las variables de entorno definidas antes.
