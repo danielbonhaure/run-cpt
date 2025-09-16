@@ -325,7 +325,7 @@ WORKDIR ${rPLOT_HOME}
 #####################################################
 
 
-# CONSTRUIR CONTENEDOR (CORE)
+# CONSTRUIR IMAGEN (CORE)
 # docker build --force-rm \
 #   --target rplot-root \
 #   --tag rplot-core:latest \
