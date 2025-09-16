@@ -478,7 +478,7 @@ if [ \${CRCSAS_API_USR:-'unset'} == 'unset' ] || \
   exit 1 \n\
 fi \n\
 \n\
-\043 Crear archivo ${PyCPT_HOME}/credentials.yaml \n\
+\043 Crear archivo ${PyCPT_HOME}/credentials.yaml y sustituir variables de entorno \n\
 cat ${PyCPT_HOME}/credentials.yaml.tmpl | envsubst > ${PyCPT_HOME}/credentials.yaml \n\
 chmod u=rw,g=rw,o=r ${PyCPT_HOME}/credentials.yaml \n\
 \n\
