@@ -22,7 +22,7 @@ ARG CPT_IMG_VARIANT="bullseye-slim"
 # Set CPT HOME
 ARG CPT_HOME="/opt/CPT"
 
-# Set python version
+# Set Python version
 ARG PYTHON_VERSION="3.12"
 
 # Set Python image variant
