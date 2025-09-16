@@ -482,7 +482,7 @@ crontab -l | sed \"/main.py/ s|^\d\S+\s\S+\s\S+\s\S+\s\S+\s|\$CRON_TIME_STR|g\" 
 exec \"\$@\" \n\
 \n" > /opt/utils/entrypoint
 
-# Create script to check container health
+# Create script to check the container's health
 RUN printf "#!/bin/bash\n\
 if [ \$(find ${PyCPT_HOME} -type f -name '*.pid' 2>/dev/null | wc -l) != 0 ] || \n\
    [ \$(echo 'KEYS *' | redis-cli -h \${REDIS_HOST} 2>/dev/null | grep -c pycpt) != 0 ] && \n\
