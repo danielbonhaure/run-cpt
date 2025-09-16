@@ -449,7 +449,20 @@ ${CRON_TIME_STR} /usr/local/bin/python ${PyCPT_HOME}/main.py >> /proc/1/fd/1 2>>
 RUN printf "#!/bin/bash \n\
 set -e \n\
 \n\
+\043 Leer info en variables de entorno *_FILE (docker secrets) \n\
+\043 (https://docs.docker.com/compose/use-secrets/#advanced) \n\
+if [ \${CRCSAS_API_USR_FILE:-'unset'} != 'unset' ]; then \n\
+  export CRCSAS_API_USR=\$(cat \${CRCSAS_API_USR_FILE} | tr -d '[:space:]') \n\
+fi \n\
+if [ \${CRCSAS_API_PWD_FILE:-'unset'} != 'unset' ]; then \n\
+  export CRCSAS_API_PWD=\$(cat \${CRCSAS_API_PWD_FILE} | tr -d '[:space:]') \n\
+fi \n\
+if [ \${CopernicusCDS_API_KEY_FILE:-'unset'} != 'unset' ]; then \n\
+  export CopernicusCDS_API_KEY=\$(cat \${CopernicusCDS_API_KEY_FILE} | tr -d '[:space:]') \n\
+fi \n\
+\n\
 \043 Verificar que se hayan definido las credenciales necesarias \n\
+\043 OBS: Pudieron haberse definido en archivos *_FILE o como variables de entorno! \n\
 if [ \${CRCSAS_API_USR:-'unset'} == 'unset' ]; then \n\
   echo 'Es obligatorio definir la variable de entorno CRCSAS_API_USR!' \n\
 fi \n\
@@ -472,7 +485,6 @@ chmod u=rw,g=rw,o=r ${PyCPT_HOME}/credentials.yaml \n\
 \043 Borrar variables de entorno con credenciales \n\
 unset CRCSAS_API_USR \n\
 unset CRCSAS_API_PWD \n\
-unset CopernicusCDS_API_URL \n\
 unset CopernicusCDS_API_KEY \n\
 \n\
 \043 Reemplazar tiempo ejecución automática del procesador de archivos \n\
@@ -573,8 +585,9 @@ WORKDIR ${PyCPT_HOME}
 # CORRER OPERACIONALMENTE CON CRON
 # docker run --name pycpt \
 #   --mount type=bind,src=$(pwd)/input,dst=/opt/pyCPT/input \
-#   --volume $(pwd)/output,dst=/opt/pyCPT/output \
-#   --mount type=bind,src=.env \
+#   --mount type=bind,src=$(pwd)/output,dst=/opt/pyCPT/output \
+#   --mount type=bind,src=/tmp/secrets,dst=/opt/secrets,ro \
+#   --env-file .env \
 #   --detach ghcr.io/danielbonhaure/run-cpt:pycpt-core-v1.0
 
 # CORRER MANUALMENTE
@@ -582,6 +595,7 @@ WORKDIR ${PyCPT_HOME}
 #   --mount type=bind,src=$(pwd)/input,dst=/opt/pyCPT/input \
 #   --mount type=bind,src=$(pwd)/output,dst=/opt/pyCPT/output \
 #   --mount type=bind,src=$(pwd)/config.yaml,dst=/opt/pyCPT/config.yaml \
+#   --mount type=bind,src=/tmp/secrets,dst=/opt/secrets,ro \
 #   --env-file .env \
 #   --rm ghcr.io/danielbonhaure/run-cpt:pycpt-core-v1.0 \
 # python /opt/pyCPT/main.py --year 2023 --month 6
