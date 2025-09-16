@@ -34,9 +34,9 @@ FROM rocker/r-ver:${R_VERSION} AS r_builder
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Install OS packages
-RUN apt-get -y -qq update && \
-    apt-get -y -qq upgrade && \
-    apt-get -y -qq --no-install-recommends install \
+RUN apt-get --quiet --assume-yes update && \
+    apt-get --quiet --assume-yes upgrade && \
+    apt-get --quiet --assume-yes --no-install-recommends install \
         build-essential \
         # to install ncdf4
         libnetcdf-dev \
@@ -98,9 +98,9 @@ FROM rocker/r-ver:${R_VERSION} AS r_final
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Install OS packages
-RUN apt-get -y -qq update && \
-    apt-get -y -qq upgrade && \
-    apt-get -y -qq --no-install-recommends install \
+RUN apt-get --quiet --assume-yes update && \
+    apt-get --quiet --assume-yes upgrade && \
+    apt-get --quiet --assume-yes --no-install-recommends install \
         # to be able to use ncdf4 (R)
         libnetcdf-dev \
         # to install terra, a dependency of raster (R)
@@ -128,9 +128,9 @@ ENV R_LIBS_SITE="/usr/local/lib/R/site-library"
 
 
 
-###########################################
-## Stage 3: Install management packages  ##
-###########################################
+##########################################
+## Stage 3: Install management packages ##
+##########################################
 
 # Create image
 FROM r_final AS base_image
@@ -139,9 +139,8 @@ FROM r_final AS base_image
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Install OS packages
-RUN apt-get -y -qq update && \
-    apt-get -y -qq upgrade && \
-    apt-get -y -qq --no-install-recommends install \
+RUN apt-get --quiet --assume-yes update && \
+    apt-get --quiet --assume-yes --no-install-recommends install \
         # install Tini (https://github.com/krallin/tini#using-tini)
         tini \
         # to see process with pid 1
@@ -152,7 +151,33 @@ RUN apt-get -y -qq update && \
         cron && \
     rm -rf /var/lib/apt/lists/*
 
-# Setup cron to allow it run as a non root user
+# Create utils directory
+RUN mkdir -p /opt/utils
+
+# Create script to load environment variables
+RUN printf "#!/bin/bash \n\
+export \$(cat /proc/1/environ | tr '\0' '\n' | xargs -0 -I {} echo \"{}\") \n\
+\n" > /opt/utils/load-envvars
+
+# Create startup/entrypoint script
+RUN printf "#!/bin/bash \n\
+set -e \n\
+\043 https://docs.docker.com/reference/dockerfile/#entrypoint \n\
+exec \"\$@\" \n\
+\n" > /opt/utils/entrypoint
+
+# Create script to check the container's health
+RUN printf "#!/bin/bash \n\
+exit 0 \n\
+\n" > /opt/utils/check-healthy
+
+# Set minimal permissions to the utils scripts
+RUN chmod --recursive u=rx,g=rx,o=rx /opt/utils
+
+# Allows utils scripts to run as a non-root user
+RUN chmod u+s /opt/utils/load-envvars
+
+# Setup cron to allow it to run as a non-root user
 RUN chmod u+s $(which cron)
 
 # Add Tini (https://github.com/krallin/tini#using-tini)
@@ -195,50 +220,43 @@ RUN export head=$(cat /tmp/git/HEAD | cut -d' ' -f2) && \
     echo "${hash}" > ${rPLOT_HOME}/repo_version && rm -rf /tmp/git
 
 # Set permissions of app files
-RUN chmod -R ug+rw,o+r ${rPLOT_HOME}
+RUN chmod -R u=rw,g=rw,o=r ${rPLOT_HOME}
 
 
 
-######################################
-## Stage 5: Setup rPLOT core image  ##
-######################################
+#####################################
+## Stage 5: Setup rPLOT core image ##
+#####################################
 
 # Create image
-FROM rplot_builder AS rplot-core
+FROM rplot_builder AS rplot_core
 
 # Set environment variables
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Renew rPLOT_HOME
+# Renew ARGs
 ARG rPLOT_HOME
-
-# Renew CRON ARGs
 ARG CRON_TIME_STR
 
-# Set environment variables
-ENV CRON_TIME_STR=${CRON_TIME_STR}
-
-# Crear archivo de configuración de CRON
+# Create CRON configuration file
 RUN printf "\n\
-# Setup cron to run files processor \n\
+SHELL=/bin/bash \n\
+BASH_ENV=/opt/utils/load-envvars \n\
+\n\
+\043 Setup cron to run files processor \n\
 ${CRON_TIME_STR} /usr/bin/Rscript ${rPLOT_HOME}/plot.R >> /proc/1/fd/1 2>> /proc/1/fd/1\n\
 \n" > ${PyCPT_HOME}/crontab.conf
-RUN chmod a+rw ${PyCPT_HOME}/crontab.conf
 
-# Setup CRON for root user
-RUN (cat ${rPLOT_HOME}/crontab.conf) | crontab -
-
-# Crear script de inicio.
+# Create startup/entrypoint script
 RUN printf "#!/bin/bash \n\
 set -e \n\
 \n\
-# Reemplazar tiempo ejecución automática del procesador de archivos \n\
-crontab -l | sed \"/plot.R/ s|^\S* \S* \S* \S* \S*|\$CRON_TIME_STR|g\" | crontab - \n\
+\043 Reemplazar tiempo ejecución automática del procesador de archivos \n\
+sed -i \"s|^\d\S+\s\S+\s\S+\s\S+\s\S+\s|\$CRON_TIME_STR|g\" /opt/utils/crontab.conf \n\
+crontab -l | sed \"/plot.R/ s|^\d\S+\s\S+\s\S+\s\S+\s\S+\s|\$CRON_TIME_STR|g\" | crontab - \n\
 \n\
-# Ejecutar cron \n\
-cron -fL 15 \n\
-\n" > /startup.sh
-RUN chmod a+x /startup.sh
+exec \"\$@\" \n\
+\n" > /opt/utils/entrypoint
 
 # Create script to check container health
 RUN printf "#!/bin/bash\n\
@@ -249,15 +267,56 @@ then \n\
 else \n\
   exit 0 \n\
 fi \n\
-\n" > /check-healthy.sh
-RUN chmod a+x /check-healthy.sh
+\n" > /opt/utils/check-healthy
+
+# Set minimal permissions to the new scripts and files
+RUN chmod u=rw,g=r,o=r ${rPLOT_HOME}/crontab.conf
+
+# Set read-only environment variables
+ENV rPLOT_HOME=${rPLOT_HOME}
+
+# Set user-definable environment variables
+ENV CRON_TIME_STR=${CRON_TIME_STR}
+
+
+
+######################################
+## Stage 6: Setup rPLOT final image ##
+######################################
+
+# Create image
+FROM rplot_core AS rplot-root
+
+# Set environment variables
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Renew ARGs
+ARG rPLOT_HOME
+
+# Setup CRON for root user
+RUN (cat ${rPLOT_HOME}/crontab.conf) | crontab -
+
+# Create standard directories used for specific types of user-specific data, as defined 
+# by the XDG Base Directory Specification. For when "docker run --user uid:gid" is used.
+# OBS: don't forget to add --env HOME=/home when running the container.
+RUN mkdir -p /home/.local/share && \
+    mkdir -p /home/.cache && \
+    mkdir -p /home/.config
+# Set permissions, for when "docker run --user uid:gid" is used
+RUN chmod -R a+rwx /home/.local /home/.cache /home/.config
+
+# Add Tini (https://github.com/krallin/tini#using-tini)
+ENTRYPOINT [ "/usr/bin/tini", "-g", "--", "/opt/utils/entrypoint" ]
 
 # Run your program under Tini (https://github.com/krallin/tini#using-tini)
-CMD [ "bash", "-c", "/startup.sh" ]
+CMD [ "cron", "-fL", "15" ]
 # or docker run your-image /your/program ...
 
-# Verificar si hubo alguna falla en la ejecución del replicador
-HEALTHCHECK --interval=3s --timeout=3s --retries=3 CMD bash /check-healthy.sh
+# Configurar verificación de la salud del contenedor
+HEALTHCHECK --interval=3s --timeout=3s --retries=3 CMD bash /opt/utils/check-healthy
+
+# Set work directory
+WORKDIR ${rPLOT_HOME}
 
 
 
@@ -268,7 +327,7 @@ HEALTHCHECK --interval=3s --timeout=3s --retries=3 CMD bash /check-healthy.sh
 
 # CONSTRUIR CONTENEDOR (CORE)
 # docker build --force-rm \
-#   --target rplot-core \
+#   --target rplot-root \
 #   --tag rplot-core:latest \
 #   --build-arg CRON_TIME_STR="0 0 17 * *" \
 #   --file Dockerfile.rplot ..
