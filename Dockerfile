@@ -397,10 +397,9 @@ RUN export head=$(cat /tmp/git/HEAD | cut -d' ' -f2) && \
     export hash=$(cat /tmp/git/${head}); else export hash=${head}; fi && \
     echo "${hash}" > ${PyCPT_HOME}/repo_version && rm -rf /tmp/git
 
-# Set minimum required file permissions
-RUN chmod -R u=rw,g=rw,o=r ${PyCPT_HOME} && \
-    chmod -R u=rw,g=rw,o=rw ${PyCPT_HOME}/input && \
-    chmod -R u=rw,g=rw,o=rw ${PyCPT_HOME}/output
+# Set minimum required permissions for files and folders
+RUN find ${PyCPT_HOME} -type f -exec chmod -R u=rw,g=r,o=r -- {} + && \
+    find ${PyCPT_HOME} -type d -exec chmod -R u=rwx,g=rx,o=rx -- {} +
 
 
 
