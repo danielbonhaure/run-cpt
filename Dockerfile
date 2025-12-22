@@ -180,7 +180,7 @@ RUN apt-get --quiet --assume-yes update && \
         # to install cartopy
         proj-bin libproj-dev libgeos-dev \
         # to install rpy2
-        r-base r-base-dev && \
+        r-base r-base-dev gcc && \
     rm -rf /var/lib/apt/lists/*
 
 # Set work directory
