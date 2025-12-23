@@ -258,6 +258,8 @@ RUN apt-get --quiet --assume-yes update && \
     apt-get --quiet --assume-yes --no-install-recommends install \
         # install R
         r-base \
+        # to install rpy2 (R-Python)
+        r-base-dev \
         # to be able to use cartopy (Python)
         proj-bin libproj-dev libgeos-dev \
         # to be able to use rpy2 (R-Python)

@@ -8,7 +8,7 @@ cdsapi
 matplotlib
 scipy
 pykdtree
-rpy2
+rpy2[all]
 netCDF4
 dask[complete]
 Cartopy
