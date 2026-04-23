@@ -17,7 +17,7 @@
 ARG CPT_VERSION="15.7.11"
 
 # Set CPT image variant
-ARG CPT_IMG_VARIANT="bullseye-slim"
+ARG CPT_IMG_VARIANT="bookworm-slim"
 
 # Set CPT HOME
 ARG CPT_HOME="/opt/CPT"
@@ -26,7 +26,7 @@ ARG CPT_HOME="/opt/CPT"
 ARG PYTHON_VERSION="3.12"
 
 # Set Python image variant
-ARG IMG_VARIANT="-slim-bullseye"
+ARG IMG_VARIANT="-slim-bookworm"
 
 # Set PyCPT HOME
 ARG PyCPT_HOME="/opt/pyCPT"
