@@ -178,9 +178,13 @@ RUN apt-get --quiet --assume-yes update && \
     apt-get --quiet --assume-yes --no-install-recommends install \
         build-essential \
         # to install cartopy
-        proj-bin libproj-dev libgeos-dev \
-        # to install rpy2
-        r-base r-base-dev && \
+        proj-bin libproj-dev libgeos-dev
+# Install R (only versions 4.0 to 4.4), to install rpy2
+# See: https://rpy2.github.io/doc/v3.5.x/html/overview.html#requirements
+# See: https://rpy2.github.io/doc/v3.6.x/html/overview.html#requirements
+RUN apt-get --quiet --assume-yes --no-install-recommends satisfy \
+        "r-base (>= 4.0), r-base (<= 4.4)" \
+        "r-base-dev (>= 4.0), r-base-dev (<= 4.4)" && \
     rm -rf /var/lib/apt/lists/*
 
 # Set work directory
@@ -211,12 +215,16 @@ RUN apt-get --quiet --assume-yes update && \
     apt-get --quiet --assume-yes upgrade && \
     apt-get --quiet --assume-yes --no-install-recommends install \
         build-essential \
-        # install R
-        r-base r-base-dev \
         # to install ncdf4
         libnetcdf-dev \
         # to install terra, a dependency of raster
-        libgdal-dev libgeos-dev libproj-dev && \
+        libgdal-dev libgeos-dev libproj-dev
+# Install R (only versions 4.0 to 4.4), to install rpy2
+# See: https://rpy2.github.io/doc/v3.5.x/html/overview.html#requirements
+# See: https://rpy2.github.io/doc/v3.6.x/html/overview.html#requirements
+RUN apt-get --quiet --assume-yes --no-install-recommends satisfy \
+        "r-base (>= 4.0), r-base (<= 4.4)" \
+        "r-base-dev (>= 4.0), r-base-dev (<= 4.4)" && \
     rm -rf /var/lib/apt/lists/*
 
 # Set CRAN mirror
@@ -256,10 +264,6 @@ ARG PyCPT_HOME
 RUN apt-get --quiet --assume-yes update && \
     apt-get --quiet --assume-yes upgrade && \
     apt-get --quiet --assume-yes --no-install-recommends install \
-        # install R
-        r-base \
-        # to install rpy2 (R-Python)
-        r-base-dev \
         # to be able to use cartopy (Python)
         proj-bin libproj-dev libgeos-dev \
         # to be able to use rpy2 (R-Python)
@@ -267,7 +271,13 @@ RUN apt-get --quiet --assume-yes update && \
         # to be able to use ncdf4 (R)
         libnetcdf-dev \
         # to be able to use terra, a dependency of raster (R)
-        libgdal-dev libgeos-dev libproj-dev && \
+        libgdal-dev libgeos-dev libproj-dev
+# Install R (only versions 4.0 to 4.5), to install rpy2
+# See: https://rpy2.github.io/doc/v3.5.x/html/overview.html#requirements
+# See: https://rpy2.github.io/doc/v3.6.x/html/overview.html#requirements
+RUN apt-get --quiet --assume-yes --no-install-recommends satisfy \
+        "r-base (>= 4.0), r-base (<= 4.4)" \
+        "r-base-dev (>= 4.0), r-base-dev (<= 4.4)" && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy CPT executable from cpt_builder

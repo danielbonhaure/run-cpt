@@ -8,7 +8,7 @@ cdsapi
 matplotlib
 scipy
 pykdtree
-rpy2[all]==3.5.*
+rpy2[all]==3.5.*  # https://rpy2.github.io/doc/v3.5.x/html/overview.html#requirements
 netCDF4
 dask[complete]
 Cartopy
