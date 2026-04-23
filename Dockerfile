@@ -212,7 +212,7 @@ RUN apt-get --quiet --assume-yes update && \
     apt-get --quiet --assume-yes --no-install-recommends install \
         build-essential \
         # install R
-        r-base \
+        r-base r-base-dev \
         # to install ncdf4
         libnetcdf-dev \
         # to install terra, a dependency of raster
