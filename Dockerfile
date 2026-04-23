@@ -267,7 +267,7 @@ RUN apt-get --quiet --assume-yes update && \
         # to be able to use ncdf4 (R)
         libnetcdf-dev \
         # to be able to use terra, a dependency of raster (R)
-        libgdal-dev && \
+        libgdal-dev libgeos-dev libproj-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy CPT executable from cpt_builder
