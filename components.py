@@ -791,7 +791,7 @@ class ChirpsFile:
             pb.update_count(3)
 
             # Group data by month
-            ds = ds.resample(time='1M').sum()
+            ds = ds.resample(time='1ME').sum()
 
             # report status
             pb.update_count(6)
